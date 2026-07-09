@@ -6,6 +6,11 @@ if db_path.exists(): db_path.unlink()
 con = sqlite3.connect(db_path)
 con.executescript((d / "schema.sql").read_text())
 con.executescript((d / "seed.sql").read_text())
+migracoes = sorted((d / "migrations").glob("*.sql"))
+for m in migracoes:
+    con.executescript(m.read_text())
 con.commit()
 n = con.execute("SELECT COUNT(*) FROM vw_custo_composicao").fetchone()[0]
-print(f"lsf_base.db construído ✓  ({n} composições precificáveis na view)")
+e = con.execute("SELECT COUNT(*) FROM eap_item").fetchone()[0]
+print(f"lsf_base.db construído ✓  ({n} composições precificáveis na view, "
+      f"{len(migracoes)} migração(ões), {e} itens de EAP)")

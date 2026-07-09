@@ -1,0 +1,18 @@
+# ambiente
+.venv/
+__pycache__/
+*.pyc
+.cache/
+.local/
+.agents/
+.replit
+replit.nix
+
+# artefatos de build/teste (regenerados por db/build_db.py e pytest)
+db/lsf_base.db
+tests/lsf_base.db
+tests/teste.dxf
+autosinapi_stage.db
+
+# empacotamento antigo (cópia integral do repo; fonte de verdade é o git)
+zipFile.zip
