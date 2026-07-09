@@ -1,0 +1,1523 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Máximo Tintas 109.1506 — Pré-orçamento LSF por sistemas (v6)</title>
+<style>
+  :root{--ink:#14202b;--ink-2:#425162;--ink-3:#7c8b9c;--bg:#e9edf1;--card:#fff;--line:#d5dce4;
+    --steel:#1e5a8a;--steel-soft:#e7f0f8;--amber:#a85a12;--warn-soft:#fbf2df;--blueprint:#0f2436;
+    --laje:#2f6fd0;--escada:#7c4dd6;--cob:#cf4459;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --mono:ui-monospace,"SF Mono","Cascadia Code",Consolas,monospace;}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:13px;line-height:1.5}
+  .wrap{max-width:1440px;margin:0 auto;padding:16px 14px 60px}
+  header{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;border-bottom:2px solid var(--ink);padding-bottom:9px;margin-bottom:10px}
+  header h1{font-size:16px;margin:0} header .spacer{flex:1}
+  header .tag{font-family:var(--mono);font-size:10px;color:var(--ink-3);text-transform:uppercase;letter-spacing:1px}
+  header .badge{font-family:var(--mono);font-size:10.5px;color:var(--steel);background:var(--steel-soft);border:1px solid #bcd4e6;padding:3px 8px;border-radius:4px}
+  .disc{background:var(--warn-soft);border:1px solid #ecd9a8;border-radius:6px;padding:8px 12px;font-size:11.5px;color:#5f4818;margin-bottom:12px}
+  .disc b{color:#4a3610}
+  .viz{position:relative;background:var(--blueprint);border-radius:8px;height:540px;overflow:hidden;border:1px solid #16354f}
+  #cv{width:100%;height:100%;display:block;cursor:grab} #cv:active{cursor:grabbing}
+  .ctrls{position:absolute;right:9px;top:9px;display:flex;gap:5px;flex-direction:column;z-index:5;max-height:94%;overflow:auto}
+  .ctrls button{font-family:var(--mono);font-size:10px;color:#cfe2f2;background:rgba(20,50,74,.9);border:1px solid #2c567a;padding:4px 9px;border-radius:5px;cursor:pointer;text-align:left;white-space:nowrap}
+  .ctrls button.on{background:var(--steel);color:#fff}
+  .ctrls .sep{height:5px}
+  .leg{position:absolute;left:11px;top:9px;font-family:var(--mono);font-size:9.5px;color:#9fc0da;line-height:1.65;z-index:5}
+  .leg i{display:inline-block;width:11px;height:6px;border-radius:1px;margin-right:5px;vertical-align:1px}
+  .hint{position:absolute;left:11px;bottom:8px;font-family:var(--mono);font-size:9.5px;color:#6e94b4}
+  #pick{position:absolute;right:10px;bottom:8px;font-family:var(--mono);font-size:10.5px;color:#ffd9a8;max-width:54%;text-align:right;line-height:1.4}
+  .kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:9px;margin:14px 0}
+  @media(max-width:1100px){.kpis{grid-template-columns:repeat(3,1fr)}}
+  @media(max-width:620px){.kpis{grid-template-columns:repeat(2,1fr)}}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:7px;padding:9px 11px;border-top:3px solid var(--steel)}
+  .kpi.k2{border-top-color:var(--ink-2)} .kpi.k3{border-top-color:var(--amber)} .kpi.kl{border-top-color:var(--laje)}
+  .kpi.ke{border-top-color:var(--escada)} .kpi.kc{border-top-color:var(--cob)}
+  .kpi .t{font-family:var(--mono);font-size:9px;letter-spacing:.4px;text-transform:uppercase;color:var(--ink-3)}
+  .kpi .v{font-size:18px;font-weight:700;margin-top:1px} .kpi .v small{font-size:11px;font-weight:500;color:var(--ink-3)}
+  .kpi .s{font-size:10px;color:var(--ink-2)}
+  .cols2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px} @media(max-width:900px){.cols2{grid-template-columns:1fr}}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  .card>h2{font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--ink-2);margin:0;padding:9px 12px;background:#f3f6f9;border-bottom:1px solid var(--line);display:flex;justify-content:space-between}
+  table{width:100%;border-collapse:collapse;font-size:11.5px}
+  th,td{padding:4px 8px;text-align:right;border-bottom:1px solid var(--line)}
+  th:first-child,td:first-child{text-align:left}
+  thead th{font-family:var(--mono);font-size:9px;letter-spacing:.4px;text-transform:uppercase;color:var(--ink-3);background:#f6f8fa}
+  tbody td{font-family:var(--mono)} tfoot td{font-family:var(--mono);font-weight:700;border-top:2px solid var(--ink)}
+  .badge-s{display:inline-block;padding:0 5px;border-radius:3px;font-size:9px;font-family:var(--mono)}
+  .b-parede{background:#eef1f4;color:#425162} .b-laje{background:#e5eefb;color:#2f6fd0}
+  .b-escada{background:#efe8fb;color:#7c4dd6} .b-cobertura{background:#fbe8eb;color:#cf4459} .b-acessorio{background:#fdf6e0;color:#a8862a} .b-forro{background:#eaf1ee;color:#4e6e62}
+  .conf{font-size:9px;font-family:var(--mono);padding:0 4px;border-radius:3px}
+  .c-real{background:#e7f4ec;color:#1f7a4d} .c-estimado{background:#fdf1dd;color:#9a5a00} .c-parametrico{background:#eef1f4;color:#7c8b9c}
+  .sev-alta{color:#b3261e;font-weight:700} .sev-media{color:#9a5a00} .sev-baixa{color:#7c8b9c}
+  .price{display:grid;grid-template-columns:repeat(4,1fr);gap:8px 14px;padding:12px}
+  @media(max-width:760px){.price{grid-template-columns:repeat(2,1fr)}}
+  .price label{display:flex;flex-direction:column;font-size:10.5px;color:var(--ink-2);gap:2px}
+  .price input{padding:4px 6px;border:1px solid var(--line-2,#bcc7d2);border-radius:5px;font-family:var(--mono);font-size:11px;text-align:right;color:#0000FF}
+  .foot{margin-top:16px;font-size:10.5px;color:var(--ink-3);border-top:1px solid var(--line);padding-top:10px}
+  .foot b{color:var(--ink-2)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Máximo Tintas 109.1506 — Pré-orçamento LSF por sistemas</h1>
+    <span class="tag">v7 STEEL — 100% LSF (vigas duplas onde reprova)</span>
+    <span class="spacer"></span>
+    <span class="badge" id="modeBadge">modo técnico</span>
+  </header>
+  <div class="disc"><b>Aviso:</b> Quantitativo técnico estimativo baseado em regras de montagem LSF e projetos de referência (obra 484125). <b>Não substitui projeto estrutural, ART/RRT, verificação de cargas, vento, flecha, flambagem, ligações ou fundação.</b></div>
+
+  <div class="viz">
+    <canvas id="cv"></canvas>
+    <div class="leg">
+      <div><i style="background:#b9c2ca"></i>parede (montante/guia)</div>
+      <div><i style="background:#d08a3e"></i>verga/peitoril</div>
+      <div><i style="background:#2f8f86"></i>contravent./diagonal</div>
+      <div><i style="background:#2f6fd0"></i>laje (viga/borda)</div>
+      <div><i style="background:#7fb0e8"></i>bloqueador/enrijecedor</div>
+      <div><i style="background:#7c4dd6"></i>escada</div>
+      <div><i style="background:#cf4459"></i>cobertura/tesoura</div>
+      <div><i style="background:#8aa79b"></i>forro (1FR)</div>
+    </div>
+    <div class="ctrls">
+      <button id="bT" class="on">Térreo</button>
+      <button id="bS" class="on">Superior</button>
+      <button id="b3" class="on">3º Pav</button>
+      <div class="sep"></div>
+      <button id="sParede" class="on">Paredes</button>
+      <button id="sLaje" class="on">Lajes</button>
+      <button id="sEscada" class="on">Escadas</button>
+      <button id="sCob" class="on">Cobertura</button>
+      <button id="sChapa">Chapas</button>
+      <button id="sAcess">Acessórios</button>
+      <div class="sep"></div>
+      <button id="bX">Explodir</button>
+      <button id="bSpin" class="on">Girar</button>
+    </div>
+    <div class="hint">arraste · scroll zoom · clique numa peça</div>
+    <div id="pick"></div>
+  </div>
+
+  <div class="kpis" id="kpis"></div>
+
+  <div class="cols2">
+    <div class="card"><h2>1 · Resumo por sistema</h2>
+      <table id="tSis"><thead><tr><th>Sistema</th><th>Peças</th><th>ml</th><th>Barras</th><th>kg líq.</th><th>kg compr.</th><th>Perda</th></tr></thead><tbody></tbody><tfoot></tfoot></table>
+    </div>
+    <div class="card"><h2>3 · Chapas</h2>
+      <table id="tChapa"><thead><tr><th>Tipo</th><th>Sistema</th><th>Chapas</th><th>Á. comprada</th><th>Á. útil</th><th>Perda</th></tr></thead><tbody></tbody></table>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:12px"><h2>2 · Aço por perfil <span id="perfCount" style="font-family:var(--mono);color:var(--ink-3)"></span></h2>
+    <div style="max-height:280px;overflow:auto"><table id="tPerfil"><thead><tr><th>Perfil</th><th>Sistemas</th><th>Peças</th><th>m</th><th>Barras</th><th>Perda</th><th>kg</th></tr></thead><tbody></tbody></table></div>
+  </div>
+
+  <div class="cols2">
+    <div class="card"><h2>4 · Acessórios / fixadores</h2>
+      <div style="max-height:300px;overflow:auto"><table id="tAcess"><thead><tr><th>Item</th><th>Sist.</th><th>Qtd</th><th>Un</th><th>Confiança</th></tr></thead><tbody></tbody></table></div>
+    </div>
+    <div class="card"><h2>5 · Alertas</h2>
+      <div style="max-height:300px;overflow:auto"><table id="tAlert"><thead><tr><th>Sev.</th><th>Sistema</th><th>Mensagem</th></tr></thead><tbody></tbody></table></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:12px"><h2>Orçamento — preços editáveis (azul) · atualiza em tempo real <span id="custoTotal" style="font-family:var(--mono);color:var(--steel)"></span></h2>
+    <div class="price" id="priceGrid"></div>
+    <div style="max-height:260px;overflow:auto;border-top:1px solid var(--line)"><table id="tCusto"><thead><tr><th>Item de custo</th><th>Base</th><th>Un</th><th>R$ unit.</th><th>Total R$</th></tr></thead><tbody></tbody><tfoot></tfoot></table></div>
+  </div>
+
+  <div class="foot" id="premissas"></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* ===== ENGINE PORTADO VERBATIM DA calc-parede-lsf v1.10 (21k asserções) ===== */
+const LSF_DB = {
+  meta:{ versao:'1.0', obraRef:'484125 Angela Cid Marques' },
+  perfis:{
+    'Ue70#0.80':{tipo:'montante',alma:70, aba:40,enrij:12,t:0.80,massaKgM:1.09},
+    'Ue90#0.80':{tipo:'montante',alma:90, aba:40,enrij:12,t:0.80,massaKgM:1.22},
+    'Ue90#0.95':{tipo:'montante',alma:90, aba:40,enrij:12,t:0.95,massaKgM:1.45},
+    'Ue90#1.25':{tipo:'montante',alma:90, aba:40,enrij:12,t:1.25,massaKgM:1.90},
+    'Ue140#1.25':{tipo:'montante',alma:140,aba:40,enrij:12,t:1.25,massaKgM:2.39},
+    'Ue200#1.25':{tipo:'montante',alma:200,aba:40,enrij:12,t:1.25,massaKgM:2.98},
+    'Ue250#2.00':{tipo:'montante',alma:250,aba:40,enrij:12,t:2.00,massaKgM:5.55},
+    'U72#0.80':{tipo:'guia',alma:72, aba:38,t:0.80,massaKgM:0.93},
+    'U92#0.80':{tipo:'guia',alma:92, aba:38,t:0.80,massaKgM:1.06},
+    'U92#0.95':{tipo:'guia',alma:92, aba:38,t:0.95,massaKgM:1.25},
+    'U92#1.25':{tipo:'guia',alma:92, aba:38,t:1.25,massaKgM:1.65},
+    'U142#1.25':{tipo:'guia',alma:142,aba:38,t:1.25,massaKgM:2.14},
+    'U202#1.25':{tipo:'guia',alma:202,aba:38,t:1.25,massaKgM:2.73},
+    'U252#2.00':{tipo:'guia',alma:252,aba:38,t:2.00,massaKgM:5.14},
+    // ---- perfis DRYWALL (vedação, NBR 15217/15758) — leves ----
+    'M48#0.50':{tipo:'montante',dw:true,alma:48,aba:35,enrij:5,t:0.50,massaKgM:0.44},
+    'M70#0.50':{tipo:'montante',dw:true,alma:70,aba:40,enrij:5,t:0.50,massaKgM:0.57},
+    'M90#0.50':{tipo:'montante',dw:true,alma:90,aba:40,enrij:5,t:0.50,massaKgM:0.66},
+    'G48#0.50':{tipo:'guia',dw:true,alma:48,aba:30,t:0.50,massaKgM:0.39},
+    'G70#0.50':{tipo:'guia',dw:true,alma:70,aba:30,t:0.50,massaKgM:0.46},
+    'G90#0.50':{tipo:'guia',dw:true,alma:90,aba:30,t:0.50,massaKgM:0.53},
+  },
+  guiaDe:{ 'Ue70':'U72','Ue90':'U92','Ue140':'U142','Ue200':'U202','Ue250':'U252','M48':'G48','M70':'G70','M90':'G90' },
+  regras:{
+    barraM:6.0,
+    kingDuploLim:2.0,          // jamb = 1 king + 1 jack por lado até 2m [GATE2: painel 1P4]
+    jackDuploLim:2.0,          // vão > 2.0m → 2 jacks/lado [CBCA/AISI, pendente]
+    apoioVergaM:0.10,          // apoio da verga sobre jack, por lado [OBRA aprox]
+    passoHB:0.70,              // bloqueadores ~700mm       [OBRA-1P4, pendente]
+    peitorilPadrao:1.0,
+    vergaPorVao:[              // [OBRA DX-11 caso pesado; escalonamento pendente]
+      {ate:1.2, mont:null, guia:null},                 // null = mesmo perfil da parede
+      {ate:2.0, mont:'Ue140#1.25', guia:'U142#1.25'},
+      {ate:9.9, mont:'Ue250#2.00', guia:'U252#2.00'},
+    ],
+    parafPorConexao:4, passoParafVergaM:0.2,           // [OBRA DX-11]
+    ancorEspPadraoM:1.2,                               // [OBRA "por modulação", pendente]
+    passoTrelicaM:0.28,        // passo vertical do zigzag [GATE2: 1P4, ~21 diag]
+    colunasTrelicaSe:0.45,     // módulo > 0.45m → 2 colunas c/ montante curto
+    diagSobreVergaMin:1.0,     // vão >= 1.0m → diagonais entre cripples [GATE2: 1P4 BRR1-3]
+    larguraPainelMaxM:3.6,     // panelização [OBRA layout 1PV: paredes divididas]
+    passoConexPainelM:0.2,     // parafusos entre painéis, ziguezague [OBRA DP-07]
+    furoServicoMm:35,          // furo de serviço nos perfis [HID DP-08]
+    furosPorPonto:2,           // furos de obra por ponto de instalação [estimativa]
+    parafPorChapaReforco:8,    // chapa de reforço do furo: 8 paraf 4,8x19 [HID DP-08]
+    caixaPersianaM:0.21,       // caixa de persiana ocupa 210mm no topo do vão [GUIA SMART]
+    altMinPortaGiro:2.15,      // vão mín. porta de giro [GUIA SMART]
+    altMinPortaCorrer:2.20,    // vão mín. porta-janela de correr [GUIA SMART]
+    luvaGasPorPontoM:2.5,      // tubo-luva PVC p/ GLP embutido em parede seca [CRI gás]
+  },
+  // ============ REGRAS DRYWALL (vedação, NBR 15758-1) ============
+  drywall:{
+    modulacaoM:0.60,           // submúltiplo de 1200: 600 padrão (400 p/ +carga) [NBR 15758 §4.3]
+    montanteDuploVao:true,     // duplo montante nas laterais de porta E janela [§6.5.3]
+    parafDuploMm:0.40,         // montantes duplos aparafusados entre si a cada 40cm [§6.4]
+    folgaChapaMm:10,           // chapa 10mm menor que o pé-direito [§6.5]
+    encontroMontante:true,     // encontro de paredes: 1 montante extra sempre [§Fig.5]
+    parafPlacaCampoMm:0.30,    // parafuso de chapa: campo 300mm [prática/NBR]
+    parafPlacaBordaMm:0.25,    // borda 250mm
+    massaKgM2:0.5, fitaMlM2:2.0, // tratamento de junta (referência drywall)
+  },
+};
+
+function perfilGuiaCorrespondente(perfilMont, DB){
+  const fam=perfilMont.split('#')[0], t=perfilMont.split('#')[1];
+  const gfam=DB.guiaDe[fam]||'U92';
+  const exato=`${gfam}#${t}`;
+  if(DB.perfis[exato]) return exato;
+  const disp=Object.keys(DB.perfis).filter(k=>k.startsWith(gfam+'#'));
+  return disp[0]||perfilMont;
+}
+function perfilVerga(vao, perfilParede, DB){
+  for(const r of DB.regras.vergaPorVao){
+    if(vao<=r.ate) return { mont:r.mont||perfilParede, guia:r.guia||perfilGuiaCorrespondente(perfilParede,DB) };
+  }
+  const u=DB.regras.vergaPorVao.at(-1); return { mont:u.mont, guia:u.guia };
+}
+
+
+function gerarPecas(P, DB=LSF_DB){
+  const R=DB.regras, warns=[];
+  const DW = P.sistema==='drywall';           // vedação NBR 15758 (senão LSF estrutural)
+  const DR = DB.drywall;
+  const comp=P.comp, pd=P.pd, esp=P.esp;
+  if(!(comp>0)||!(pd>0)) return {erro:'Dimensões inválidas', pecas:[], warns};
+  const perfM=P.perfil, perfG=perfilGuiaCorrespondente(perfM,DB);
+  const almaM=(DB.perfis[perfM]?.alma||90)/1000;
+  const pecas=[]; const seq={};
+  const mk=(pfx,tipo,perfil,x0,y0,x1,y1)=>{
+    seq[pfx]=(seq[pfx]||0)+1;
+    const c=Math.hypot(x1-x0,y1-y0);
+    const p={id:pecas.length+1, tag:pfx+seq[pfx], tipo, perfil,
+      x0:+x0.toFixed(4), y0:+y0.toFixed(4), x1:+x1.toFixed(4), y1:+y1.toFixed(4), comp:+c.toFixed(4)};
+    pecas.push(p); return p;
+  };
+
+  // ---- aberturas posicionadas ----
+  // Estratégia: expande qtd em itens; itens com x fixo respeitam; os demais são
+  // DISTRIBUÍDOS uniformemente no espaço livre. Se a soma das larguras + folgas
+  // mínimas não couber, avisa claramente em vez de descartar em silêncio.
+  const margem=0.10;      // folga mínima da abertura à borda da parede
+  const entre=0.15;       // folga mínima entre aberturas (ombreira dupla precisa de espaço)
+  const brutos=[];
+  for(const a of (P.aberturas||[])){
+    for(let k=0;k<(a.qtd||1);k++){
+      const janela=a.tipo==='janela';
+      const extraPers=a.persiana? R.caixaPersianaM:0;
+      const sill=janela? Math.min(a.peitoril??R.peitorilPadrao, Math.max(0,pd-a.alt-extraPers-0.05)):0;
+      const head=Math.min(sill+a.alt+extraPers, pd-0.05);
+      brutos.push({larg:a.larg, sill, head, janela, persiana:!!a.persiana,
+        alt:a.alt, x:(a.x!=null&&k===0)?a.x:null, extraPers});
+      if(a.larg>comp-2*margem) warns.push(`Vão de ${a.larg} m não cabe numa parede de ${comp} m (com folgas de borda).`);
+      if(head-sill<0.1) warns.push('Abertura com altura inválida — ignorada.');
+      if(!janela && a.alt<R.altMinPortaGiro-1e-6)
+        warns.push(`Porta com ${a.alt.toFixed(2)} m: abaixo do vão mínimo (giro ≥${R.altMinPortaGiro} m, correr ≥${R.altMinPortaCorrer} m) [Guia Smart].`);
+      if(a.persiana && (a.alt+extraPers)>pd-0.05)
+        warns.push('Persiana: vão + caixa de 210 mm não cabe no pé-direito.');
+    }
+  }
+  const validos=brutos.filter(b=>b.head-b.sill>=0.1 && b.larg<=comp-2*margem);
+  const somaLarg=validos.reduce((s,b)=>s+b.larg,0);
+  const nAuto=validos.filter(b=>b.x==null).length;
+  const folgasNec=(validos.length+1)*entre;   // aproximação p/ checagem de folga
+  if(validos.length && somaLarg+ (validos.length-1)*entre + 2*margem > comp+1e-6){
+    warns.push(`As ${validos.length} aberturas somam ${somaLarg.toFixed(2)} m + folgas e não cabem em ${comp} m. Aumente a parede ou reduza os vãos.`);
+  }
+  const ops=[];
+  const fixos=validos.filter(b=>b.x!=null).sort((a,b)=>a.x-b.x);
+  let autos=validos.filter(b=>b.x==null);
+  // capacidade real: largura livre depois de descontar os fixos e as folgas
+  const largFixos=fixos.reduce((s,b)=>s+b.larg,0);
+  let capac=comp-2*margem-largFixos-(fixos.length? fixos.length*entre:0);
+  // se os automáticos não cabem, descarta os excedentes (mantém ordem de entrada) e avisa uma vez
+  const cabem=[]; let usado=0;
+  for(const b of autos){
+    const custo=b.larg+entre;
+    if(usado+b.larg<=capac+1e-6){ cabem.push(b); usado+=custo; }
+    else warns.push(`Abertura de ${b.larg} m removida do desenho: não há espaço numa parede de ${comp} m.`);
+  }
+  autos=cabem;
+  if(autos.length){
+    const larguraAutos=autos.reduce((s,b)=>s+b.larg,0);
+    const espacoLivre=Math.max(0, comp-larguraAutos-2*margem-largFixos);
+    const gaps=autos.length+1;
+    const passo=Math.max(entre, espacoLivre/gaps);
+    let cx=margem+passo;
+    for(const b of autos){ b.x=+cx.toFixed(3); if(b.x+b.larg>comp-margem) b.x=Math.max(margem,comp-margem-b.larg); cx=b.x+b.larg+passo; }
+  }
+  // colocação final com checagem de sobreposição real
+  let ultimoFim=-1;
+  for(const b of [...fixos,...autos].sort((a,b)=>a.x-b.x)){
+    let x0=Math.max(margem, Math.min(b.x, comp-margem-b.larg));
+    if(x0+b.larg>comp-margem+1e-6){ warns.push(`Abertura de ${b.larg} m não coube — revise a posição.`); continue; }
+    if(x0<ultimoFim+entre-1e-6){ warns.push(`Abertura de ${b.larg} m sobreposta a outra — removida do desenho.`); continue; }
+    ops.push({x0, larg:b.larg, sill:b.sill, head:b.head, janela:b.janela, persiana:b.persiana});
+    ultimoFim=x0+b.larg;
+  }
+  ops.sort((a,b)=>a.x0-b.x0);
+  for(let i=1;i<ops.length;i++) if(ops[i].x0<ops[i-1].x0+ops[i-1].larg+0.2)
+    warns.push('Aberturas muito próximas/sobrepostas — revise posições.');
+
+  const dentroDeVao=x=>ops.find(o=>x>o.x0+0.02 && x<o.x0+o.larg-0.02);
+
+  // ---- panelização [OBRA layout 1PV]: juntas fora dos vãos ----
+  const nPaineis = DW ? 1 : Math.max(1,Math.ceil(comp/R.larguraPainelMaxM));
+  let juntas=[]; for(let j=1;j<nPaineis;j++){ let xj=comp*j/nPaineis;
+    const o=ops.find(o=>xj>o.x0-0.1&&xj<o.x0+o.larg+0.1);
+    if(o) xj = (xj-o.x0 < o.x0+o.larg-xj)? Math.max(0.3,o.x0-0.15) : Math.min(comp-0.3,o.x0+o.larg+0.15);
+    juntas.push(+xj.toFixed(3)); }
+  juntas=[...new Set(juntas)].sort((a,b)=>a-b);
+  const limites=[0,...juntas,comp];
+
+  // ---- guias: por painel (cada painel tem TTOP/TBOT próprios) ----
+  for(let i=0;i<limites.length-1;i++){
+    const a=limites[i], b=limites[i+1];
+    const seg=(y,pfx)=>{ let x=a; while(x<b-1e-6){ const fim=Math.min(x+R.barraM,b); mk(pfx,'guia',perfG,x,y,fim,y); x=fim; } };
+    seg(0,'TBOT'); seg(pd,'TTOP');
+  }
+
+  // ---- posições de montantes de campo ----
+  const passo = DW ? (P.modulacao||DR.modulacaoM) : esp;
+  const xs=[]; for(let i=0;i*passo<comp-1e-3;i++) xs.push(+(i*passo).toFixed(4));
+  xs.push(+comp.toFixed(4));
+
+  // ---- enquadramento das aberturas ----
+  for(const o of ops){
+   if(DW){
+    // === DRYWALL NBR 15758 §6.5.3: duplo montante nas laterais + guia rufada (verga/peitoril) + submontantes ===
+    for(const lado of [-1,1]){
+      const xk = lado<0? o.x0 : o.x0+o.larg;
+      // par de montantes formando "H"/tubo em cada ombreira (do piso ao teto)
+      mk('MV','montante',perfM, xk, 0, xk, pd);
+      mk('MV','montante',perfM, xk+lado*almaM, 0, xk+lado*almaM, pd);
+    }
+    // guia rufada (abas dobradas) sobre e sob o vão — verga e peitoril de drywall
+    mk('GV','verga_guia',perfG, o.x0, o.head, o.x0+o.larg, o.head);
+    if(o.janela) mk('GP','peitoril',perfG, o.x0, o.sill, o.x0+o.larg, o.sill);
+    // submontantes auxiliares acima (e abaixo, se janela) mantendo a modulação
+    for(const x of xs){ if(!(x>o.x0+0.02 && x<o.x0+o.larg-0.02)) continue;
+      if(o.head<pd-0.02) mk('MA','montante_curto',perfM, x, o.head, x, pd);        // sobre a verga
+      if(o.janela && o.sill>0.02) mk('MA','montante_curto',perfM, x, 0, x, o.sill); // sob o peitoril
+    }
+    continue;
+   }
+    const pv=perfilVerga(o.larg, perfM, DB);
+    const hV=(DB.perfis[pv.mont]?.alma||90)/1000;
+    const vy0=o.head, vy1=Math.min(o.head+hV, pd-0.01);
+    const kingN = o.larg>R.kingDuploLim?2:1;
+    const jackN = o.larg>R.jackDuploLim?2:1;
+    for(const lado of [-1,1]){
+      const xk = lado<0? o.x0 : o.x0+o.larg;
+      for(let k=0;k<kingN;k++) mk('K','king',perfM, xk+lado*(k+1)*almaM, 0, xk+lado*(k+1)*almaM, pd);
+      for(let j=0;j<jackN;j++) mk('J','jack',perfM, xk-lado*(j*almaM+almaM/2), 0, xk-lado*(j*almaM+almaM/2), vy0);
+    }
+    const vx0=o.x0-R.apoioVergaM, vx1=o.x0+o.larg+R.apoioVergaM;
+    mk('HTW','verga_mont',pv.mont,vx0,vy0,vx1,vy0);
+    mk('HTW','verga_mont',pv.mont,vx0,vy1,vx1,vy1);
+    mk('HTW','verga_guia',pv.guia,vx0,(vy0+vy1)/2,vx1,(vy0+vy1)/2);
+    mk('HTW','verga_guia',pv.guia,vx0,(vy0+vy1)/2,vx1,(vy0+vy1)/2);
+    if(o.janela) mk('SBW','peitoril',perfG,o.x0,o.sill,o.x0+o.larg,o.sill);
+    const cripX=[];
+    for(const x of xs){ if(!(x>o.x0+0.02 && x<o.x0+o.larg-0.02)) continue;
+      if(vy1<pd-0.02){ mk('C','cripple',perfM,x,vy1,x,pd); cripX.push(x); }
+      if(o.janela && o.sill>0.02) mk('C','cripple',perfM,x,0,x,o.sill);
+    }
+    if(o.larg>=R.diagSobreVergaMin && vy1<pd-0.05){
+      const nos=[o.x0,...cripX,o.x0+o.larg];
+      for(let i=0;i<nos.length-1;i++){ const inv=i%2===1;
+        mk('BRB','diagonal',perfM, nos[i], inv?pd:vy1, nos[i+1], inv?vy1:pd); }
+    }
+  }
+
+  // ---- montantes de campo (fora de vãos e não colados em kings) ----
+  const kingsX=pecas.filter(p=>p.tipo==='king').map(p=>p.x0);
+  for(const x of xs){
+    if(dentroDeVao(x)) continue;
+    if(kingsX.some(kx=>Math.abs(kx-x)<almaM*1.2)) continue;
+    const ext=(x<1e-3||Math.abs(x-comp)<1e-3);
+    mk(ext?'E':'S', ext?'montante_ext':'montante', perfM, x,0,x,pd);
+  }
+  for(const xj of juntas){ // junta: cada painel traz seu montante de borda [OBRA layout]
+    mk('E','montante_ext',perfM, xj-almaM/2,0, xj-almaM/2,pd);
+    mk('E','montante_ext',perfM, xj+almaM/2,0, xj+almaM/2,pd);
+  }
+
+  // ---- bloqueadores HB (só LSF; drywall de vedação não usa) ----
+  const nLin = DW ? 0 : Math.max(1, Math.round(pd/R.passoHB)-1);
+  const vert=pecas.filter(p=>['montante','montante_ext','king','jack'].includes(p.tipo))
+                  .map(p=>p.x0).sort((a,b)=>a-b);
+  const vx=[...new Set(vert.map(v=>+v.toFixed(3)))];
+  for(let l=1;l<=nLin;l++){
+    const y=+(pd*l/(nLin+1)).toFixed(4);
+    // trechos = comprimento inteiro cortado pelos vãos que a linha cruza
+    const cortes=[[0,comp]];
+    for(const o of ops){ if(!(y>o.sill && y<o.head)) continue;
+      for(let i=cortes.length-1;i>=0;i--){ const [a,b]=cortes[i];
+        if(o.x0>a && o.x0+o.larg<b){ cortes.splice(i,1,[a,o.x0],[o.x0+o.larg,b]); }
+        else if(o.x0<=a && o.x0+o.larg>=b){ cortes.splice(i,1); }
+        else if(o.x0>a && o.x0<b){ cortes[i]=[a,o.x0]; }
+        else if(o.x0+o.larg>a && o.x0+o.larg<b){ cortes[i]=[o.x0+o.larg,b]; } } }
+    for(const [a,b] of cortes){ if(b-a<0.15) continue;
+      mk('HB','bloqueador',perfM,a,y,b,y); }
+  }
+
+  // ---- contraventamento (só LSF estrutural) ----
+  const acess=[];
+  if(!DW && P.contrav==='trelica'){
+    const nB=Math.max(1,P.vaosContrav||1);
+    const livres=[]; for(let i=0;i<vx.length-1;i++){ const a=vx[i],b=vx[i+1];
+      if(b-a<0.15) continue; if(ops.some(o=>a>=o.x0-0.03&&b<=o.x0+o.larg+0.03)) continue; livres.push([a,b]); }
+    const baias=livres.slice(-nB);
+    for(const [a,b] of baias){
+      const cols=(b-a)>R.colunasTrelicaSe? [[a,(a+b)/2],[(a+b)/2,b]] : [[a,b]];
+      if(cols.length===2) mk('S','montante_curto',perfM,(a+b)/2,0,(a+b)/2,pd); // montante intermediário da treliça
+      for(const [ca,cb] of cols){
+        const nPassos=Math.max(2,Math.round(pd/R.passoTrelicaM)); let flip=false;
+        for(let i=0;i<nPassos;i++){ const y0=pd*i/nPassos, y1=pd*(i+1)/nPassos;
+          const xA=flip?cb:ca, xB=flip?ca:cb;
+          mk('BRB','diagonal',perfM,xA+(flip?-1:1)*almaM/2,y0,xB+(flip?1:-1)*almaM/2,y1); flip=!flip; } } }
+  } else if(!DW && P.contrav==='fita'){
+    const diag=Math.hypot(pd, Math.min(comp,3.6));
+    acess.push({item:'Fita de contraventamento em X', qtd:+( (P.vaosContrav||1)*2*diag ).toFixed(1), un:'m'});
+  } else if(!DW && P.contrav==='osb'){
+    acess.push({item:'OSB estrutural (diafragma)', qtd:Math.ceil(comp*pd/2.88), un:'placa'});
+  }
+
+  // ---- ancoragem [OBRA-484125] ----
+  if(DW){
+    // montantes duplos das ombreiras: parafuso metal/metal a cada 40cm [NBR 15758 §6.4]
+    const nDuplos=ops.length*2; // 2 ombreiras por vão, cada uma um par
+    if(nDuplos){ const pmm=nDuplos*Math.ceil(pd/DR.parafDuploMm)*2;
+      acess.push({item:'Parafuso metal/metal — montantes duplos das ombreiras (40cm)', qtd:pmm, un:'un'}); }
+    // fixação das guias ao piso/teto: buchas/parafusos a cada 60cm [§6.4]
+    const nFix=Math.ceil(comp/0.6)*2;
+    acess.push({item:'Fixação de guia ao piso/teto (bucha+parafuso, 60cm)', qtd:nFix, un:'un'});
+  }
+  const nPers=ops.filter(o=>o.persiana).length;
+  if(nPers){
+    acess.push({item:'Caixa de persiana de enrolar 210mm', qtd:nPers, un:'un'});
+    acess.push({item:'Caixa de passagem + conduíte p/ motor de persiana (até 1m do requadro)', qtd:nPers, un:'un'});
+  }
+  const nPontosObra=(P.pontosEle||0)+(P.pontosHidro||0)+(P.pontosGas||0);
+  if(nPontosObra>0){
+    const furos=nPontosObra*R.furosPorPonto;
+    acess.push({item:'Chapa de reforço p/ furo de serviço ⌀35mm [DP-08]', qtd:furos, un:'un'});
+    acess.push({item:'Parafuso sext. 4,8x19 (chapas de reforço, 8/furo)', qtd:furos*R.parafPorChapaReforco, un:'un'});
+  }
+  if((P.pontosGas||0)>0){
+    acess.push({item:'Tubo-luva PVC p/ GLP embutido (vazão p/ fora) [CRI gás]', qtd:+( (P.pontosGas)*R.luvaGasPorPontoM ).toFixed(1), un:'m'});
+    warns.push('Gás em parede seca: manter tubulação a ≥30cm de fios elétricos e ponto de consumo a ≥60cm do piso [CRI gás].');
+  }
+  if(!DW && juntas.length){ const pf=juntas.length*Math.ceil(pd/R.passoConexPainelM);
+    acess.push({item:'Parafuso sext. 4,8x19 — conexão entre painéis (ziguezague 200mm)', qtd:pf, un:'un'}); }
+  if(!DW){
+    const nAnc=Math.max(2, Math.floor(comp/(P.ancEsp||R.ancorEspPadraoM))+1);
+    acess.push({item:'Ancorador chapa #3,00 190x50x50', qtd:nAnc, un:'un'});
+    acess.push({item:'Chumbador Parabolt 5/16"x4-1/4"', qtd:nAnc, un:'un'});
+    acess.push({item:'Parafuso sextavado 4,8x19 (ancoradores)', qtd:nAnc*8, un:'un'});
+  }
+
+  return {erro:null, pecas, acess, ops, warns, nLinhasHB:nLin, juntas, nPaineis};
+}
+
+
+
+function paginarPlacas(P, ops, DB){
+  const chapaL=1.2, chapaA=P.chapaAlt||1.8, minReuso=0.30, folga=(P.folgaTopoM||0);
+  const defasar=P.defasar||0;   // deslocamento vertical p/ 2ª camada de chapa dupla (juntas não coincidem)
+  const comp=P.comp, pd=P.pd;
+  const nCol=Math.ceil(comp/chapaL);
+  let nChapas=0, areaUtil=0, emendasH=0, sobra=0, sobraOrig=0;
+  const colInfo=[], pecasChapa=[];   // pecasChapa: retângulos posicionados p/ o mapa de corte
+  for(let c=0;c<nCol;c++){
+    const a=c*chapaL, b=Math.min((c+1)*chapaL,comp), w=b-a;
+    const recorteLarg = w < chapaL-1e-3;    // coluna final estreita → chapa recortada na largura
+    const gaps=ops.filter(o=>o.x0<=a+0.02 && o.x0+o.larg>=b-0.02)
+                  .map(o=>[o.sill,o.head]).sort((p,q)=>p[0]-q[0]);
+    // segmentos verticais úteis (baixo→cima), já com o offset de defasagem
+    const segsRange=[]; let y=0;
+    for(const [s,h] of gaps){ if(s-y>0.02) segsRange.push([y,s]); y=Math.max(y,h); }
+    if(pd-y>0.02) segsRange.push([y,pd]);
+    let chapasCol=0, emCol=0;
+    for(const [y0seg,y1seg] of segsRange){
+      let cy=y0seg + (c%2===1?defasar:0);   // defasa juntas horizontais em colunas alternadas
+      if(cy>y0seg+1e-6) cy=y0seg;           // não ultrapassa o início do segmento
+      let restante=y1seg-y0seg, base=y0seg;
+      while(restante>1e-6){
+        if(sobra<Math.min(minReuso,restante)){ nChapas++; chapasCol++; sobra=chapaA; sobraOrig=chapaA; }
+        const usa=Math.min(sobra,restante);
+        const recorteAlt = usa<chapaA-1e-6;
+        const idFisico=pecasChapa.length+1;
+        pecasChapa.push({col:c, x:a, y:base, w, h:usa,
+          recorte:(recorteLarg||recorteAlt), tag:'P'+idFisico, mae:'CH'+nChapas});
+        if(usa<restante-1e-6) emCol++;
+        restante-=usa; base+=usa; sobra-=usa;
+      }
+    }
+    let util=pd*w;
+    for(const o of ops){
+      const ov=Math.max(0, Math.min(b,o.x0+o.larg)-Math.max(a,o.x0));
+      if(ov>1e-6) util-=ov*(o.head-o.sill);
+    }
+    areaUtil+=util; emendasH+=emCol;
+    colInfo.push({col:c,chapas:chapasCol,utilM2:+util.toFixed(3)});
+  }
+  const areaComprada=nChapas*chapaL*chapaA;
+  const perdaPct=areaComprada>0? (areaComprada-areaUtil)/areaComprada*100 : 0;
+  let juntasV=0;
+  for(let c=1;c<nCol;c++){
+    const x=c*chapaL; if(x>=comp-1e-6) break;
+    let ml=pd;
+    for(const o of ops) if(x>o.x0+1e-6 && x<o.x0+o.larg-1e-6) ml-=(o.head-o.sill);
+    juntasV+=Math.max(0,ml);
+  }
+  const juntasH=emendasH*chapaL;
+  const perimVaos=ops.reduce((s,o)=>s+2*((o.head-o.sill)+o.larg),0);
+  return {nChapasFace:nChapas, areaUtil:+areaUtil.toFixed(3), areaComprada:+areaComprada.toFixed(3), pecasChapa, chapaL, chapaA,
+          perdaPct:+perdaPct.toFixed(1), juntasV:+juntasV.toFixed(2), juntasH:+juntasH.toFixed(2),
+          perimVaos:+perimVaos.toFixed(2), colInfo};
+}
+
+function nestingCorte(pecas, DB=LSF_DB, modo='solto'){
+  const R=DB.regras, porPerfil={};
+  for(const p of pecas){ (porPerfil[p.perfil]=porPerfil[p.perfil]||[]).push(p); }
+  const plano=[];
+  for(const [perfil,lista] of Object.entries(porPerfil)){
+    const mlTot=lista.reduce((s,p)=>s+p.comp,0);
+    const kg=mlTot*(DB.perfis[perfil]?.massaKgM||1.3);
+    if(modo==='kit'){ plano.push({perfil,pecas:lista.length,mlTot:+mlTot.toFixed(2),kg:+kg.toFixed(1),barras:null,perda:null,detalhe:'kit pré-cortado'}); continue; }
+    const barras=[]; const ord=[...lista].sort((a,b)=>b.comp-a.comp);
+    for(const p of ord){
+      if(p.comp>R.barraM+1e-6){ // peça maior que a barra: emendas
+        let rest=p.comp; while(rest>1e-6){ const c=Math.min(rest,R.barraM);
+          let b=barras.find(b=>b.sobra>=c-1e-9); if(!b){b={cortes:[],sobra:R.barraM}; barras.push(b);} b.cortes.push(+c.toFixed(3)); b.sobra-=c; rest-=c; }
+        continue; }
+      let b=barras.find(b=>b.sobra>=p.comp-1e-9);
+      if(!b){ b={cortes:[],sobra:R.barraM}; barras.push(b); }
+      b.cortes.push(p.comp); b.sobra=+(b.sobra-p.comp).toFixed(4);
+    }
+    const sobraTot=barras.reduce((s,b)=>s+b.sobra,0);
+    plano.push({perfil,pecas:lista.length,mlTot:+mlTot.toFixed(2),kg:+kg.toFixed(1),
+      barras:barras.length, perda:+(100*sobraTot/(barras.length*R.barraM)).toFixed(1),
+      detalheBarras:barras.map(b=>({cortes:b.cortes,sobra:+b.sobra.toFixed(2)}))});
+  }
+  return plano;
+}
+
+
+
+/* ============================ UI + PLOTTERS ============================ */
+
+const geoCache={};
+function shapeC(alma,aba,enrij,t){ // seção Ue em metros, parede fina (polígono fechado)
+  const a=alma/1000,b=aba/1000,e=enrij/1000,tt=t/1000, s=new THREE.Shape();
+  s.moveTo(0,0);s.lineTo(a,0);s.lineTo(a,b);s.lineTo(a-e,b);s.lineTo(a-e,b-tt);s.lineTo(a-tt,b-tt);
+  s.lineTo(a-tt,tt);s.lineTo(tt,tt);s.lineTo(tt,b-tt);s.lineTo(e,b-tt);s.lineTo(e,b);s.lineTo(0,b);s.closePath();
+  return s;}
+function shapeU(alma,aba,t){const a=alma/1000,b=aba/1000,tt=t/1000,s=new THREE.Shape();
+  s.moveTo(0,0);s.lineTo(a,0);s.lineTo(a,b);s.lineTo(a-tt,b);s.lineTo(a-tt,tt);s.lineTo(tt,tt);s.lineTo(tt,b);s.lineTo(0,b);s.closePath();
+  return s;}
+function geoPerfil(perfil,comp){
+  const key=perfil+'|'+comp.toFixed(3);
+  if(geoCache[key]) return geoCache[key];
+  const d=LSF_DB.perfis[perfil]||{tipo:'montante',alma:90,aba:40,enrij:12,t:0.95};
+  const sh=d.tipo==='guia'?shapeU(d.alma,d.aba,d.t):shapeC(d.alma,d.aba,d.enrij||12,d.t);
+  const g=new THREE.ExtrudeGeometry(sh,{depth:comp,bevelEnabled:false});
+  g.translate(-(d.alma/2000),-(d.aba/2000),0);
+  return geoCache[key]=g;}
+
+</script>
+<script>
+const PD=3.10, NIV=[0.57,4.07,7.07];
+const W_T=[ // TÉRREO
+ // externas (perímetro no sentido horário a partir de SW)
+ {id:'T-E1',t:'ext',a:[0,4.2],b:[0,18.5],ab:[{p:5.5,w:1.6,t:'janela'}]},                    // oeste (loja)
+ {id:'T-E2',t:'ext',a:[0,18.5],b:[15.8,18.5],ab:[]},                                        // fundo (divisa)
+ {id:'T-E3',t:'ext',a:[15.8,18.5],b:[15.8,8.2],ab:[{p:4.0,w:1.2,t:'janela'}]},              // leste
+ {id:'T-E4',t:'ext',a:[15.8,8.2],b:[12.9,8.2],ab:[],est:1},                                 // recorte garagem
+ {id:'T-E5',t:'ext',a:[12.9,8.2],b:[12.9,4.6],ab:[{p:1.5,w:0.9,t:'porta'}],est:1},          // lateral garagem
+ {id:'T-E6',t:'ext',a:[12.9,4.6],b:[5.0,4.6],ab:[{p:2.0,w:0.9,t:'porta'},{p:5.5,w:0.9,t:'porta'}]}, // frente interna (acessos)
+ {id:'T-E7',t:'ext',a:[5.0,4.6],b:[5.0,6.9],ab:[],est:1},
+ {id:'T-E8',t:'ext',a:[5.0,6.9],b:[0,6.9],ab:[{p:2.2,w:3.0,t:'vitrine'}]},                  // frente loja (vitrine)
+ {id:'T-E9',t:'ext',a:[0,6.9],b:[0,4.2],ab:[{p:1.0,w:0.9,t:'porta'}]},                      // acesso loja
+ // internas
+ {id:'T-I1',t:'int',a:[9.6,18.5],b:[9.6,11.4],ab:[]},                                       // loja | estoque
+ {id:'T-I2',t:'int',a:[9.6,11.4],b:[15.8,11.4],ab:[{p:1.2,w:0.8,t:'porta'},{p:4.6,w:0.8,t:'porta'}]}, // estoque/copa | recepção
+ {id:'T-I3',t:'int',a:[9.6,11.4],b:[9.6,6.9],ab:[{p:2.0,w:0.8,t:'porta'}]},                 // loja | recepção
+ {id:'T-I4',t:'int',a:[13.3,11.4],b:[13.3,8.2],ab:[],est:1},                                // copa | lavanderia
+ {id:'T-I5',t:'ban',a:[10.6,8.9],b:[13.3,8.9],ab:[{p:0.5,w:0.7,t:'porta'},{p:1.9,w:0.7,t:'porta'}]}, // WCs dup
+ {id:'T-I6',t:'ban',a:[11.95,8.9],b:[11.95,8.2],ab:[],est:1},                               // divisória WC
+ {id:'T-I7',t:'ban',a:[5.9,9.6],b:[8.3,9.6],ab:[{p:0.4,w:0.7,t:'porta'}]},                  // WC/depósito
+ {id:'T-I8',t:'ban',a:[8.3,9.6],b:[8.3,6.9],ab:[{p:0.9,w:0.8,t:'porta'}]},                  // depósito
+ {id:'T-I9',t:'int',a:[5.9,9.6],b:[5.9,6.9],ab:[]},                                         // caixa escada
+ {id:'T-I10',t:'int',a:[12.9,18.5],b:[12.9,15.4],ab:[],est:1},                              // estoque | escada fundo
+];
+const W_S=[ // SUPERIOR (e 3º)
+ {id:'S-E1',t:'ext',a:[2.74,4.6],b:[2.74,18.5],ab:[{p:4.0,w:1.2,t:'pj'},{p:10.5,w:1.2,t:'pj'}]},  // oeste (p/ varandas)
+ {id:'S-E2',t:'ext',a:[2.74,18.5],b:[15.8,18.5],ab:[]},
+ {id:'S-E3',t:'ext',a:[15.8,18.5],b:[15.8,4.6],ab:[{p:3.0,w:1.2,t:'janela'},{p:8.5,w:1.2,t:'janela'}]},
+ {id:'S-E4',t:'ext',a:[15.8,4.6],b:[2.74,4.6],ab:[{p:3.5,w:1.2,t:'janela'},{p:8.0,w:1.2,t:'janela'},{p:12.5,w:1.2,t:'janela'}]}, // frente
+ // S-E5 removida: linha x=0 é borda de varanda, não parede [rev. usuário]
+ // internas
+ {id:'S-I1',t:'int',a:[7.1,18.5],b:[7.1,11.6],ab:[]},                                       // sala01 | suíte/área
+ {id:'S-I2',t:'int',a:[2.74,11.6],b:[7.1,11.6],ab:[{p:3.4,w:0.8,t:'porta'}]},                  // sala01 | sala02
+ {id:'S-I3',t:'int',a:[7.1,11.6],b:[7.1,4.6],ab:[{p:3.2,w:0.8,t:'porta'}]},                 // sala02 | circulação
+ {id:'S-I4',t:'int',a:[7.1,14.9],b:[10.4,14.9],ab:[{p:0.8,w:0.8,t:'porta'}]},               // suíte
+ {id:'S-I5',t:'ban',a:[10.4,18.5],b:[10.4,14.9],ab:[{p:0.6,w:0.7,t:'porta'}]},              // WC suíte / área
+ {id:'S-I6',t:'ban',a:[10.4,16.6],b:[13.2,16.6],ab:[{p:0.5,w:0.7,t:'porta'},{p:1.9,w:0.7,t:'porta'}],est:1}, // WCs 2,94/1,87
+ {id:'S-I7',t:'int',a:[7.1,11.6],b:[11.6,11.6],ab:[{p:1.5,w:0.8,t:'porta'}]},               // diretoria
+ {id:'S-I8',t:'int',a:[11.6,11.6],b:[11.6,8.4],ab:[{p:1.2,w:0.8,t:'porta'}]},               // diretoria | circulação
+ {id:'S-I9',t:'int',a:[7.1,8.4],b:[15.8,8.4],ab:[{p:2.0,w:0.8,t:'porta'},{p:6.2,w:0.8,t:'porta'}]}, // circ | financeiro/DP
+ {id:'S-I10',t:'int',a:[11.6,8.4],b:[11.6,4.6],ab:[]},                                      // financeiro | DP
+ {id:'S-I11',t:'ban',a:[8.9,8.4],b:[8.9,6.2],ab:[{p:0.6,w:0.7,t:'porta'}],est:1},           // WC 3,40
+ {id:'S-I12',t:'ban',a:[4.4,6.6],b:[6.0,6.6],ab:[{p:0.3,w:0.7,t:'porta'}],est:1},           // WC 1,45
+ {id:'S-I13',t:'int',a:[12.9,18.5],b:[12.9,15.6],ab:[],est:1},                              // caixa escada fundo
+];
+/* escadas (poços): térreo→sup no meio, fundo direita nos 3 níveis */
+const STAIRS=[{x:6.3,y:7.4,w:2.6,d:2.2},{x:13.4,y:15.9,w:2.2,d:2.6}];
+
+</script>
+<script>
+/* ==================================================================
+   v6 — BUILDING + MOTOR DE COMPONENTES (regras 484125, ESTUDO.md)
+   Mesmos nomes públicos da v5: PROJECT, montarProjeto, resumoPorSistema,
+   placasProjeto, gerarPecasLaje/Escada/Cobertura, wallToP, CX, CZ, FF.
+   ================================================================== */
+const CX=7.9, CZ=11.5, FF=3.50;
+const LAMINADO=false; // true: viga W no meio do vão (1VG) + pilares (1AL)
+/* ===== VERIFICADOR ESTRUTURAL PRÉ-PROJETO (não substitui projeto/ART) =====
+   Cargas NBR 6120: SC loja 4,0 kN/m² + G piso 1,3. Aço ZAR230 (conservador), γM=1,10.
+   Seção Ue250#2.00 (linha média): A=708mm², Ix=5,78e6mm⁴, Wx=46,3e3mm³.
+   ELU: M=w·L²/8 ≤ Wx·fy/γM · ELS: δ=5wL⁴/384EI ≤ L/350. */
+const CARGAS={sc:4.0,g:1.3,fy:230,gM:1.10,E:2.0e5,flecha:350,vento:0.61};
+const SEC_Ue250={A:708,Ix:5.78e6,Wx:46.3e3};
+function dimensionaViga(vaoM,tribM){
+  const pp=SEC_Ue250.A*7850e-9*9.81;
+  const wS=(CARGAS.sc+CARGAS.g)*tribM+pp, wU=1.4*CARGAS.g*tribM+1.5*CARGAS.sc*tribM+1.4*pp;
+  const M=wU*vaoM*vaoM/8*1e6, MRd=SEC_Ue250.Wx*CARGAS.fy/CARGAS.gM;
+  const d=5*wS*Math.pow(vaoM,4)*1e12/(384*CARGAS.E*SEC_Ue250.Ix), dLim=vaoM*1000/CARGAS.flecha;
+  const V=wU*vaoM/2, VRd=0.905*CARGAS.E*5.34*Math.pow(2.0,3)/250/CARGAS.gM/1000; // alma h/t=125: flambagem elástica [NBR14762]
+  const okS=M<=MRd&&d<=dLim&&V<=VRd, okD=M<=2*MRd&&d/2<=dLim&&V<=2*VRd;
+  return {modo:okS?'simples':(okD?'dupla':'laminada'),M:+(M/1e6).toFixed(1),MRd:+(MRd/1e6).toFixed(1),delta:+d.toFixed(1),dLim:+dLim.toFixed(0),V:+V.toFixed(1),VRd:+VRd.toFixed(1)};
+}
+// perfis DERIVADOS das listas reais do caderno (blocos 1L p.21-39 e 1FR p.16-20)
+Object.assign(LSF_DB.perfis,{
+  'U202#0.95':{tipo:'guia',alma:202,aba:40,t:0.95,massaKgM:2.10},
+  'U252#1.25':{tipo:'guia',alma:252,aba:40,t:1.25,massaKgM:3.26},
+  'Ue70#0.80':{tipo:'montante',alma:70,aba:35,enrij:10,t:0.80,massaKgM:1.00},
+  'U72#0.80':{tipo:'guia',alma:72,aba:34,t:0.80,massaKgM:0.90},
+  'Ue140#0.80':{tipo:'montante',alma:140,aba:40,enrij:12,t:0.80,massaKgM:1.53},
+  'U142#0.80':{tipo:'guia',alma:142,aba:40,t:0.80,massaKgM:1.39},
+  'W310x32.7':{tipo:'laminado',alma:310,aba:102,t:6.6,massaKgM:32.7},
+  'HSS100x100x4.8':{tipo:'laminado',alma:100,aba:100,t:4.8,massaKgM:14.2},
+});
+
+const REGRAS_SIS = {
+  laje:{ esp:0.40, bloqueadorMaxM:2.40, enrijC:{f200:0.176,f250:0.226}, vaoUe200:4.0,
+         fixMesaParaf:4, fixAlmaParaf:5,
+         origem:'REGRA LAJE-003/006/007/009/010 [mont. p.21-39: DL-01 5 paraf. alma; C=176(L200)/226(L250)]' },
+  escada:{ espelhoMax:0.175, pisoMin:0.28, fixacaoLateralMm:150,
+         longarina:['Ue140#1.25','U142#1.25'], degrau:'Ue90#0.95',
+         origem:'484125 1ES1: longarina Ue140+U142, degrau Ue90#0.95, reforço 140 @150mm' },
+  cobertura:{ espTesoura:1.20, espTerca:0.80, passoMont:0.40, gussetParaf:4, gussetMm:150, // passoMont derivado: ~10 montantes/3,77m [1TS41-46 p.44-49]
+         banzo:'Ue90#1.25', guiaBanzo:'U92#1.25', alma:'Ue90#0.95',
+         boxParafMm:200, painelCB:{perfil:'Ue140#0.80',perfilPer:'U142#0.80',passo:0.60,diagCanto:2},
+         origem:'484125 1TS41/42: gusset por nó, box @200mm · 1CB p.56-77: painéis 140#0.80 (perímetro+travessas+diagonais [COB-003/005])' },
+  instal:{ furoMaxCm:12, furoMaxHfrac:3, furoEspacMinH:2, furoVertMaxMm:50, furoFaceMinCm:5,
+         furoDiamMaxFracLarg:3, parafChapaReforco:8, luvaGasM:2.5,
+         gasAfastEletricaCm:30, gasPontoAltMinCm:60, gasFixAltCm:130, gasValaAreiaCm:4,
+         origem:'HID R02 p.1-7 (7/7 págs): furo zona tração, ≥5cm da face ou 2×cobrimento, Ø≤⅓ largura, entre furos ≥2h · CRI gás p.1: 30cm elétrica, ponto ≥60cm, fixação 130cm, vala areia 4cm' },
+  ancoragem:{ passoM:1.2, porEsquadria:2, parafPorSuporte:8, embutMinMm:55, fckMinMPa:30,
+         chumbador:'Parabolt 5/16\"×4 1/4\"', suporte:'Ancorador #3,00 190×50×50mm',
+         chapaL:'Chapa L #1,25 35×190×3000 (elevação de laje)', cantoneira:'Cantoneira #1,25 89×89×89',
+         origem:'OBRA DP-04/DX-06 p.1-8: Parabolt @1200mm + 2/esquadria + 8 paraf/suporte + embut. 55mm' },
+  esquadria:{ requadroTolMm:3, portaGiroMinM:2.15, portaCorrerMinM:2.20, caixaPersianaMm:210,
+         nivelBaseTolMm:1, caimentoExtMm:2, correrRebaixoMm:50, correrDrenoMm:30, giroSemRebaixo:true,
+         origem:'GUIA 2024 p.3/5/9 (visual): base nível 0-1mm, caimento ext 1-2mm, soleira c/ pingadeira recomendada, correr=rebaixo 50mm c/ dreno 30mm, giro=sem rebaixo (umbral/veda-fresta); +p.4 requadro 3mm' },
+  barra:{ compMax:6.0, origem:'REGRA BOX-003 [mont. p.53: peça 8583mm → emenda/pré-corte]' },
+  fr:{ montante:'Ue70#0.80', guia:'U72#0.80', h:3.874, esp:0.40,
+       origem:'A10 [mont. p.16-20]: painéis 1FR de fechamento leve, bloq. DP-01A — sem equivalente no Máximo (não quantificado)' },
+};
+
+/* ============ BUILDING: derivado do contorno real das paredes ============ */
+function chainPolygon(walls){
+  const segs=walls.filter(w=>w.t==='ext').map(w=>({a:[...w.a],b:[...w.b]}));
+  if(!segs.length) return [];
+  const pts=[segs[0].a, segs[0].b]; segs.shift();
+  const eq=(p,q)=>Math.hypot(p[0]-q[0],p[1]-q[1])<0.02;
+  let guard=0;
+  while(segs.length && guard++<200){
+    const tail=pts[pts.length-1];
+    const i=segs.findIndex(s=>eq(s.a,tail)||eq(s.b,tail));
+    if(i<0) break;
+    const s=segs.splice(i,1)[0];
+    pts.push(eq(s.a,tail)? s.b : s.a);
+  }
+  if(eq(pts[0],pts[pts.length-1])) pts.pop();
+  return pts;
+}
+function polyArea(poly){let a=0;for(let i=0;i<poly.length;i++){const[x1,y1]=poly[i],[x2,y2]=poly[(i+1)%poly.length];a+=x1*y2-x2*y1;}return Math.abs(a/2);}
+function polyPerim(poly){let p=0;for(let i=0;i<poly.length;i++){const a=poly[i],b=poly[(i+1)%poly.length];p+=Math.hypot(b[0]-a[0],b[1]-a[1]);}return p;}
+function scan(poly, val, axis){ // interseções do polígono com linha z=val (axis='z') ou x=val (axis='x') → intervalos internos
+  const xs=[];
+  for(let i=0;i<poly.length;i++){
+    const a=poly[i], b=poly[(i+1)%poly.length];
+    const a1=axis==='z'?a[1]:a[0], b1=axis==='z'?b[1]:b[0];
+    const a0=axis==='z'?a[0]:a[1], b0=axis==='z'?b[0]:b[1];
+    if((a1<=val&&b1>val)||(b1<=val&&a1>val)){
+      const t=(val-a1)/(b1-a1); xs.push(a0+t*(b0-a0));
+    }
+  }
+  xs.sort((p,q)=>p-q);
+  const iv=[]; for(let i=0;i+1<xs.length;i+=2) if(xs[i+1]-xs[i]>0.05) iv.push([xs[i],xs[i+1]]);
+  return iv;
+}
+function bboxPoly(walls){
+  const xs=[],zs=[]; walls.forEach(w=>{xs.push(w.a[0],w.b[0]);zs.push(w.a[1],w.b[1]);});
+  const x0=Math.min(...xs),x1=Math.max(...xs),z0=Math.min(...zs),z1=Math.max(...zs);
+  return [[x0,z0],[x1,z0],[x1,z1],[x0,z1]];
+}
+function footprintOf(walls, areaAlvo){
+  // contorno exato do DWG pendente → retângulo do bbox escalado à área levantada (REV02)
+  const bb=bboxPoly(walls);
+  const w=bb[1][0]-bb[0][0], d=bb[2][1]-bb[1][1], cx=(bb[0][0]+bb[1][0])/2, cz=(bb[0][1]+bb[2][1])/2;
+  const s=areaAlvo? Math.sqrt(areaAlvo/(w*d)) : 1;
+  const hw=w*s/2, hd=d*s/2;
+  return [[cx-hw,cz-hd],[cx+hw,cz-hd],[cx+hw,cz+hd],[cx-hw,cz+hd]];
+}
+function buildBuilding(){
+  const fpT=chainPolygon(W_T), fpS=chainPolygon(W_S);
+  const bbox=poly=>{const xs=poly.map(p=>p[0]),zs=poly.map(p=>p[1]);return{x0:Math.min(...xs),x1:Math.max(...xs),z0:Math.min(...zs),z1:Math.max(...zs)};};
+  return {
+    footprint:[fpT,fpS,fpS],
+    bbox:[bbox(fpT),bbox(fpS),bbox(fpS)],
+    portantes:[W_T,W_S,W_S].map(ws=>ws.filter(w=>w.t==='ext'||Math.hypot(w.b[0]-w.a[0],w.b[1]-w.a[1])>=2.0)),
+    vaosEscada:[{x:6.3,z:7.4,w:2.6,d:2.2,pav:0},{x:13.4,z:15.9,w:2.2,d:2.6,pav:1}],
+    niveis:[0.57,4.07,7.07],
+  };
+}
+
+/* ============ PROJECT ============ */
+const PROJECT = {
+  obra:'Máximo Tintas 109.1506', versao:'v6-motor-componentes', areaPlanta:600.11,
+  pavimentos:[{id:'1PV',nivel:0.57},{id:'2PV',nivel:4.07},{id:'3PV',nivel:7.07}],
+  lajes:[
+    { id:'1LJ', grupo:'1LJ', nome:'Laje sobre térreo', pavBase:0, nivel:3.50, esp:0.40,
+      perfilViga:'auto', perfilEnrijecedor:'Ue90#0.95', bloqueadorMaxM:2.40,
+      aberturas:[{tipo:'escada',x:6.3,z:7.4,w:2.6,d:2.2},{tipo:'escada',x:13.4,z:15.9,w:2.2,d:2.6}],
+      chapaPiso:{tipo:'OSB piso 18mm',largura:1.20,altura:2.40}, confianca:'estimado' },
+    { id:'2LJ', grupo:'2LJ', nome:'Laje sobre superior', pavBase:1, nivel:7.00, esp:0.40,
+      perfilViga:'auto', perfilEnrijecedor:'Ue90#0.95', bloqueadorMaxM:2.40,
+      extensoes:[{x:0, z:4.6, w:2.74, d:13.9}],
+      aberturas:[{tipo:'escada',x:13.4,z:15.9,w:2.2,d:2.6}],
+      chapaPiso:{tipo:'OSB piso 18mm',largura:1.20,altura:2.40}, confianca:'estimado' },
+  ],
+  escadas:[
+    { id:'1ES-A', grupo:'1ES', nome:'Escada térreo→superior (U c/ patamar)', vao:{x:6.3,z:7.4,w:2.6,d:2.2},
+      altura:3.50, nivelInicial:0, formato:'U', confianca:'estimado' },
+    { id:'2ES-A', grupo:'1ES', nome:'Escada superior→3º (U c/ patamar)', vao:{x:13.4,z:15.9,w:2.2,d:2.6},
+      altura:3.50, nivelInicial:3.50, formato:'U', confianca:'estimado' },
+  ],
+  cobertura:{ id:'1CB', grupo:'1CB', grupoTesouras:'1TS', tipo:'duas_aguas', nivelBase:10.50,
+    beiral:0.30, inclinacao:0.30, telha:{tipo:'telha sanduíche',perdaPct:8}, confianca:'estimado' },
+  // Áreas a céu aberto no 3º pav [folha 102: varandas 21,40+19,13 e área descoberta 7,41 m²].
+  // Com a réplica do pavimento, a varanda do 2º fica SOB a laje do 3º (coberta); só o 3º fica descoberto.
+  descobertas:[
+    {nome:'Varandas oeste (3º pav)', x:0, z:4.6, w:2.74, d:13.9, tipo:'faixa', confianca:'estimado'},
+    {nome:'Área descoberta (3º pav)', x:8.3, z:16.0, w:2.90, d:2.55, tipo:'patio', confianca:'estimado'},
+  ],
+  forro:{ perfil:'Ue70#0.80', perfilBorda:'U72#0.80', esp:0.60, grupo:'1FR',
+    origem:'derivado bloco 1FR p.16-20: Ue70#0.80 + U72#0.80', confianca:'estimado' },
+  instalacoes:{ pontosHidro:14, pontosGas:2, pontosEle:0, furosCriticos:[{ondeSistema:'laje',grupo:'1LJ',h:0.25}] },
+  regras:REGRAS_SIS,
+};
+
+/* ============ schemas ============ */
+const _seqP={};
+function mkP(arr,o){
+  const pfx=(o.tipo||'PC').replace(/[^a-z]/gi,'').slice(0,3).toUpperCase();
+  const k=o.grupo+pfx; _seqP[k]=(_seqP[k]||0)+1;
+  const comp=Math.hypot(o.x1-o.x0,o.y1-o.y0,o.z1-o.z0);
+  const p={id:arr.length+1,tag:o.grupo+'-'+pfx+_seqP[k],sistema:o.sistema,grupo:o.grupo,tipo:o.tipo,
+    perfil:o.perfil,comp:+comp.toFixed(4),x0:o.x0,y0:o.y0,z0:o.z0,x1:o.x1,y1:o.y1,z1:o.z1,
+    origemRegra:o.origemRegra||'',confianca:o.confianca||'parametrico'};
+  arr.push(p); return p;
+}
+function mkAc(arr,o){arr.push({item:o.item,sistema:o.sistema,grupo:o.grupo,qtd:+(+o.qtd).toFixed(1),un:o.un,origemRegra:o.origemRegra||'',confianca:o.confianca||'parametrico'});}
+function cortarSpan(a,b,vaos){
+  let segs=[[a,b]];
+  for(const [va,vb] of vaos){
+    for(let i=segs.length-1;i>=0;i--){const[s,e]=segs[i];
+      if(va<=s&&vb>=e)segs.splice(i,1);
+      else if(va>s&&vb<e)segs.splice(i,1,[s,va],[vb,e]);
+      else if(va>s&&va<e)segs[i]=[s,va];
+      else if(vb>s&&vb<e)segs[i]=[vb,e];}
+  }
+  return segs.filter(([s,e])=>e-s>0.1);
+}
+
+/* ============ LAJE (polígono real + escalonamento de perfil) ============ */
+function gerarPecasLaje(L, DB=LSF_DB){
+  const pecas=[],acess=[],warns=[];
+  const B=BUILDING, fp=B.footprint[L.pavBase], y=L.nivel;
+  const conf=L.confianca||'estimado', O=REGRAS_SIS.laje.origem;
+  if(!fp.length){warns.push({sev:'alta',sistema:'laje',grupo:L.grupo,msg:'Footprint vazio.',sug:'Verificar paredes externas.'});return{pecas,acess,warns};}
+  const bb=B.bbox[L.pavBase];
+  // escalonamento: maior vão (varredura z) decide o perfil
+  let maxSpan=0;
+  for(let z=bb.z0+0.2;z<bb.z1;z+=0.5) scan(fp,z,'z').forEach(([a,b])=>maxSpan=Math.max(maxSpan,b-a));
+  // vão efetivo cai pela metade se houver portante interna longa no meio — simplificação conservadora: usa metade do maior span
+  const vaoEf=maxSpan/2;
+  const pesado=vaoEf>REGRAS_SIS.laje.vaoUe200;
+  const perfV = L.perfilViga==='auto' ? (pesado?'Ue250#2.00':'Ue200#1.25') : L.perfilViga;
+  const perfB = perfV.startsWith('Ue250')?'U252#1.25':'U202#0.95'; // derivado listas 1L: pares reais Ue200+U202#0.95 / Ue250+U252#1.25
+  L._perfilUsado=perfV;
+  const vaoCalc = LAMINADO ? vaoEf/2 : vaoEf; // viga W intermediária divide o vão
+  L._chk=dimensionaViga(vaoCalc, L.esp||REGRAS_SIS.laje.esp);
+  L._vaoCalc=vaoCalc;
+  if(L._chk.modo==='dupla') warns.push({sev:'media',sistema:'laje',grupo:L.grupo,
+    msg:`${L.id}: vão de cálculo ${L._vaoCalc.toFixed(1)}m reprova viga simples (M=${L._chk.M} vs ${L._chk.MRd} kNm; δ=${L._chk.delta} vs ${L._chk.dLim}mm) → VIGAS DUPLAS geradas.`,
+    sug:'Memória: SC 4,0 kN/m² loja [NBR 6120], ZAR230, L/350.'});
+  if(L._chk.modo==='laminada') warns.push({sev:'alta',sistema:'laje',grupo:L.grupo,
+    msg:`${L.id}: vão ${L._vaoCalc.toFixed(1)}m reprova até viga dupla → exige viga laminada 1VG + pilares [OBRA p.3-9].`,sug:'Reduzir vão com apoio intermediário no executivo.'});
+  // bordas = perímetro real do polígono
+  for(let i=0;i<fp.length;i++){
+    const a=fp[i], b=fp[(i+1)%fp.length];
+    mkP(pecas,{sistema:'laje',grupo:L.grupo,tipo:'borda_laje',perfil:perfB,x0:a[0],y0:y,z0:a[1],x1:b[0],y1:y,z1:b[1],origemRegra:'rim no contorno real',confianca:conf});
+  }
+  // vigas ao longo de x, recortadas pelo polígono e pelos vãos de escada
+  const esp=L.esp||REGRAS_SIS.laje.esp;
+  let nEnr=0,nBloc=0,nVigas=0;
+  for(let z=bb.z0+esp;z<bb.z1-0.05;z+=esp){
+    for(const [xa,xb] of scan(fp,z,'z')){
+      const vaos=(L.aberturas||[]).filter(ab=>z>=ab.z&&z<=ab.z+ab.d).map(ab=>[ab.x,ab.x+ab.w]);
+      for(const [s,e] of cortarSpan(xa,xb,vaos)){
+        nVigas++;
+        mkP(pecas,{sistema:'laje',grupo:L.grupo,tipo:'viga_laje',perfil:perfV,x0:s,y0:y,z0:z,x1:e,y1:y,z1:z,origemRegra:O+` · vão ef ${vaoEf.toFixed(1)}m→${perfV}`,confianca:conf});
+        if(L._chk && L._chk.modo!=='simples')
+          mkP(pecas,{sistema:'laje',grupo:L.grupo,tipo:'viga_laje',perfil:perfV,x0:s,y0:y,z0:z+0.05,x1:e,y1:y,z1:z+0.05,origemRegra:`viga DUPLA (box): ELU M=${L._chk.M}>${L._chk.MRd} kNm e/ou δ=${L._chk.delta}>${L._chk.dLim}mm no vão ${vaoEf.toFixed(1)}m [NBR 14762]`,confianca:'parametrico'});
+      }
+    }
+  }
+  // bloqueadores em linhas x, passo <= 2,40, cortados pelo polígono e vãos
+  const bmax=L.bloqueadorMaxM||REGRAS_SIS.laje.bloqueadorMaxM;
+  const nLin=Math.max(1,Math.ceil((bb.x1-bb.x0)/bmax)-1);
+  for(let l=1;l<=nLin;l++){
+    const x=bb.x0+(bb.x1-bb.x0)*l/(nLin+1);
+    for(const [za,zb] of scan(fp,x,'x')){
+      const vaos=(L.aberturas||[]).filter(ab=>x>=ab.x&&x<=ab.x+ab.w).map(ab=>[ab.z,ab.z+ab.d]);
+      for(const [s,e] of cortarSpan(za,zb,vaos)){
+        // A4 [p.27 + LAJE-005]: bloqueador é peça POR VÃO entre vigas, em modulação ALTERNADA
+        const nBay=Math.max(1,Math.round((e-s)/esp));
+        for(let b=0;b<nBay;b++){
+          const zb0=s+b*esp, zb1=Math.min(e,s+(b+1)*esp);
+          const xAlt=x+((b%2)?0.12:-0.12); // alternância entre baias
+          mkP(pecas,{sistema:'laje',grupo:L.grupo,tipo:'bloqueador_laje',perfil:perfB,x0:xAlt,y0:y,z0:zb0,x1:xAlt,y1:y,z1:zb1,origemRegra:'A4: bloq. por vão alternado [p.27, LAJE-005] · 2 paraf/ligação [DP-01A]',confianca:conf});
+          nBloc++;
+        }
+        const nCross=Math.max(1,Math.round((e-s)/esp));
+        for(let c=0;c<nCross;c++){nEnr++;
+          mkP(pecas,{sistema:'laje',grupo:L.grupo,tipo:'enrijecedor_laje',perfil:L.perfilEnrijecedor,
+            x0:x,y0:y,z0:s+c*esp,x1:x,y1:y-(perfV.startsWith('Ue250')?REGRAS_SIS.laje.enrijC.f250:REGRAS_SIS.laje.enrijC.f200),z1:s+c*esp,origemRegra:perfV.startsWith('Ue250')?'REGRA LAJE-010: C=226mm (laje 250) [p.39]':'REGRA LAJE-009: C=176mm (laje 200) [p.27-38]',confianca:'parametrico'});}
+      }
+    }
+  }
+  L._nVigas=nVigas;
+  mkAc(acess,{item:'Parafuso 4,8×19 — bloqueador na mesa (4/bloq)',sistema:'laje',grupo:L.grupo,qtd:nBloc*REGRAS_SIS.laje.fixMesaParaf,un:'un',origemRegra:'DP-01A: 2 paraf. flangeados por ligação × 2 extremidades',confianca:'parametrico'});
+  mkAc(acess,{item:'Parafuso 4,8×19 — enrijecedor na alma (5/contato)',sistema:'laje',grupo:L.grupo,qtd:nEnr*REGRAS_SIS.laje.fixAlmaParaf,un:'un',origemRegra:'REGRA LAJE-007: 5 parafusos [DL-01 p.21-39]',confianca:'parametrico'});
+  // extensões retangulares (ex.: faixa de varanda) — vigas + borda no perímetro exposto
+  for(const ex of (L.extensoes||[])){
+    mkP(pecas,{sistema:'laje',grupo:L.grupo,tipo:'borda_laje',perfil:perfB,x0:ex.x,y0:y,z0:ex.z,x1:ex.x,y1:y,z1:ex.z+ex.d,origemRegra:'borda de varanda',confianca:'estimado'});
+    mkP(pecas,{sistema:'laje',grupo:L.grupo,tipo:'borda_laje',perfil:perfB,x0:ex.x,y0:y,z0:ex.z,x1:ex.x+ex.w,y1:y,z1:ex.z,origemRegra:'borda de varanda',confianca:'estimado'});
+    mkP(pecas,{sistema:'laje',grupo:L.grupo,tipo:'borda_laje',perfil:perfB,x0:ex.x,y0:y,z0:ex.z+ex.d,x1:ex.x+ex.w,y1:y,z1:ex.z+ex.d,origemRegra:'borda de varanda',confianca:'estimado'});
+    for(let z=ex.z+esp;z<ex.z+ex.d-0.05;z+=esp)
+      mkP(pecas,{sistema:'laje',grupo:L.grupo,tipo:'viga_laje',perfil:perfV,x0:ex.x,y0:y,z0:z,x1:ex.x+ex.w,y1:y,z1:z,origemRegra:'viga da faixa de varanda',confianca:'estimado'});
+  }
+  // reforço nas aberturas
+  for(const ab of (L.aberturas||[])){
+    const c=[[ab.x,ab.z,ab.x+ab.w,ab.z],[ab.x,ab.z+ab.d,ab.x+ab.w,ab.z+ab.d],[ab.x,ab.z,ab.x,ab.z+ab.d],[ab.x+ab.w,ab.z,ab.x+ab.w,ab.z+ab.d]];
+    c.forEach(([x0,z0,x1,z1])=>mkP(pecas,{sistema:'laje',grupo:L.grupo,tipo:'reforco_abertura',perfil:perfB,x0,y0:y,z0,x1,y1:y,z1,origemRegra:'reforço de vão de escada',confianca:conf}));
+  }
+  // chapa de piso pela área real do polígono menos vãos
+  if(L.chapaPiso){
+    let area=polyArea(fp); (L.aberturas||[]).forEach(ab=>area-=ab.w*ab.d);
+    (L.extensoes||[]).forEach(ex=>area+=ex.w*ex.d);
+    const nCh=Math.ceil(area*1.10/((L.chapaPiso.largura||1.2)*(L.chapaPiso.altura||2.4)));
+    mkAc(acess,{item:`${L.chapaPiso.tipo} (piso ${L.id})`,sistema:'laje',grupo:L.grupo,qtd:nCh,un:'chapa',origemRegra:'área do polígono + 10%',confianca:'estimado'});
+  }
+  return {pecas,acess,warns};
+}
+
+/* ============ ESCADA (U com patamar, ancorada no vão) ============ */
+function gerarPecasEscada(E, DB=LSF_DB){
+  const pecas=[],acess=[],warns=[];
+  const R=REGRAS_SIS.escada, conf=E.confianca||'estimado', O=R.origem;
+  const v=E.vao, h=E.altura, y0=E.nivelInicial;
+  const nDeg=Math.max(4,Math.ceil(h/R.espelhoMax));
+  const espelho=h/nDeg;
+  const alongZ = v.d>=v.w;                 // lances correm na maior dimensão do poço
+  const runDim = alongZ? v.d : v.w;
+  const largDim= alongZ? v.w : v.d;
+  const largLance=largDim/2;               // U: 2 lances lado a lado
+  const patamarProf=largDim;               // patamar quadrado no topo do poço (prof = largura do poço)
+  const nD1=Math.ceil(nDeg/2), nD2=nDeg-nD1;
+  const piso=Math.min(0.28, Math.max(0.24,(runDim-patamarProf*0)/nD1)); // piso limitado pelo poço
+  const run1=nD1*piso, run2=nD2*piso;
+  if(piso<R.pisoMin-1e-3) warns.push({sev:'media',sistema:'escada',grupo:E.grupo,
+    msg:`${E.id}: piso ${(piso*1000).toFixed(0)}mm < ${(R.pisoMin*1000).toFixed(0)}mm p/ caber no vão de ${runDim.toFixed(2)}m.`,
+    sug:'Ampliar o vão de escada na laje ou aceitar arranque fora do poço no térreo.'});
+  if(run1>runDim+0.31) warns.push({sev:'media',sistema:'escada',grupo:E.grupo,
+    msg:`${E.id}: lance de ${run1.toFixed(2)}m excede o poço de ${runDim.toFixed(2)}m — arranque sai do vão (comum no piso de partida).`,
+    sug:'Confirmar arranque no executivo.'});
+  const hMeio=espelho*nD1;
+  // helpers de coordenadas: u = direção do lance, w = transversal
+  const P=(u,w,y)=> alongZ? {x:v.x+w, y, z:v.z+u} : {x:v.x+u, y, z:v.z+w};
+  const seg=(tipo,perfil,a,b,orig)=>{const A=P(a[0],a[1],a[2]),B=P(b[0],b[1],b[2]);
+    mkP(pecas,{sistema:'escada',grupo:E.grupo,tipo,perfil,x0:A.x,y0:A.y,z0:A.z,x1:B.x,y1:B.y,z1:B.z,origemRegra:orig||O,confianca:conf});};
+  // LANCE 1 (sobe, faixa w:[0,largLance])
+  for(const wOff of [0.03,largLance-0.03]){
+    for(const pf of R.longarina) seg('longarina',pf,[0,wOff,y0],[run1,wOff,y0+hMeio],'longarina composta Ue140+U142 [1ES1]');
+  }
+  for(let i=1;i<=nD1;i++) seg('travessa_degrau',R.degrau,[i*piso,0,y0+i*espelho],[i*piso,largLance,y0+i*espelho]);
+  // PATAMAR (no fim do lance 1, largura total do poço)
+  const uP=Math.min(run1,runDim-0.4);
+  seg('patamar',R.longarina[0],[uP,0,y0+hMeio],[uP,largDim,y0+hMeio],'frame do patamar');
+  seg('patamar',R.longarina[0],[Math.min(uP+0.9,runDim),0,y0+hMeio],[Math.min(uP+0.9,runDim),largDim,y0+hMeio],'frame do patamar');
+  seg('patamar',R.longarina[1],[uP,0,y0+hMeio],[Math.min(uP+0.9,runDim),0,y0+hMeio],'guia patamar');
+  seg('patamar',R.longarina[1],[uP,largDim,y0+hMeio],[Math.min(uP+0.9,runDim),largDim,y0+hMeio],'guia patamar');
+  // LANCE 2 (volta, faixa w:[largLance, largDim]) — desce em u
+  for(const wOff of [largLance+0.03,largDim-0.03]){
+    for(const pf of R.longarina) seg('longarina',pf,[uP,wOff,y0+hMeio],[Math.max(uP-run2,0),wOff,y0+h],'longarina composta [1ES1]');
+  }
+  for(let i=1;i<=nD2;i++) seg('travessa_degrau',R.degrau,[uP-i*piso,largLance,y0+hMeio+i*espelho],[uP-i*piso,largDim,y0+hMeio+i*espelho]);
+  // reforço lateral 140 @150mm + chapa L (por lance, 2 lados externos)
+  const dInc1=Math.hypot(run1,hMeio), dInc2=Math.hypot(run2,h-hMeio);
+  seg('reforco_lateral','Ue140#1.25',[0,0,y0],[run1,0,y0+hMeio],'reforço lateral 140mm [DE-02]');
+  seg('reforco_lateral','Ue140#1.25',[uP,largDim,y0+hMeio],[Math.max(uP-run2,0),largDim,y0+h],'reforço lateral 140mm [DE-02]');
+  mkAc(acess,{item:'Chapa L #0,95 89×89×3000 (reforço lateral)',sistema:'escada',grupo:E.grupo,qtd:2,un:'un',origemRegra:O,confianca:conf});
+  mkAc(acess,{item:'Parafuso 4,8×19 — reforço lateral @150mm',sistema:'escada',grupo:E.grupo,qtd:Math.ceil((dInc1+dInc2)/(R.fixacaoLateralMm/1000))*2,un:'un',origemRegra:'@150mm [DE-02]',confianca:'parametrico'});
+  mkAc(acess,{item:'Parafuso 4,8×19 — degraus (4/degrau)',sistema:'escada',grupo:E.grupo,qtd:nDeg*4,un:'un',origemRegra:O,confianca:'parametrico'});
+  mkAc(acess,{item:'Chapa Gousset 150×150 #1,25 (escada)',sistema:'escada',grupo:E.grupo,qtd:2,un:'un',origemRegra:'1ES1: 2/painel',confianca:conf});
+  const areaPiso=nDeg*piso*largLance + patamarProf*largDim*0.9;
+  mkAc(acess,{item:'Chapa de piso degraus/patamar',sistema:'escada',grupo:E.grupo,qtd:Math.ceil(areaPiso*1.10/2.88),un:'chapa',origemRegra:'área + 10%',confianca:'estimado'});
+  E._info={nDeg,espelho:+espelho.toFixed(3),piso:+piso.toFixed(3),lances:2};
+  return {pecas,acess,warns};
+}
+
+/* ============ COBERTURA (tesoura Pratt real, largura por posição) ============ */
+function gerarPecasCobertura(C, DB=LSF_DB){
+  const pecas=[],acess=[],warns=[];
+  const R=REGRAS_SIS.cobertura, conf=C.confianca||'estimado', O=R.origem;
+  const B=BUILDING, fp=B.footprint[2], bb0=B.bbox[2];
+  const yB=C.nivelBase, incl=C.inclinacao, beiral=C.beiral||0.3;
+  // telhado cobre só a área COBERTA do 3º pav: exclui a faixa de varanda descoberta a oeste
+  const faixa=(PROJECT.descobertas||[]).find(d=>d.tipo==='faixa');
+  const bb={...bb0, x0: faixa? Math.max(bb0.x0, faixa.x+faixa.w) : bb0.x0};
+  const patio=(PROJECT.descobertas||[]).find(d=>d.tipo==='patio');
+  if(faixa) warns.push({sev:'baixa',sistema:'cobertura',grupo:C.grupo,
+    msg:`Telhado recuado ${(faixa.x+faixa.w).toFixed(2)}m a oeste: varanda do 3º pav fica descoberta (laje 2LJ é o teto da varanda do 2º).`,
+    sug:'Prever impermeabilização e guarda-corpo na laje exposta.'});
+  if(patio) warns.push({sev:'media',sistema:'cobertura',grupo:C.grupo,
+    msg:`Área descoberta ${(patio.w*patio.d).toFixed(1)}m² dentro do telhado (pátio do 3º pav): abertura na cobertura.`,
+    sug:'Reforço de borda das tesouras no executivo + rufos no perímetro do vão.'});
+  const nT=Math.max(2,Math.round((bb.x1-bb.x0)/R.espTesoura)+1);
+  let nGusset=0, planoMax=0, areaTelha=0;
+  const zc=(bb.z0+bb.z1)/2; // cumeeira no meio do bbox (duas águas ao longo de x)
+  let prevW=null;
+  for(let i=0;i<nT;i++){
+    const xT=bb.x0 + (bb.x1-bb.x0)*i/(nT-1);
+    // largura real do prédio nesta posição
+    const iv=scan(fp,Math.min(Math.max(xT,bb.x0+0.02),bb.x1-0.02),'x');
+    const [za,zb]= iv.length? [iv[0][0]-beiral, iv[iv.length-1][1]+beiral] : [bb.z0-beiral,bb.z1+beiral];
+    const meiaE=zc-za, meiaD=zb-zc;
+    const hCume=Math.max(meiaE,meiaD)*incl;
+    // banzo inferior + guia (box)
+    mkP(pecas,{sistema:'cobertura',grupo:C.grupoTesouras,tipo:'banzo_inferior',perfil:R.banzo,x0:xT,y0:yB,z0:za,x1:xT,y1:yB,z1:zb,origemRegra:O,confianca:conf});
+    mkP(pecas,{sistema:'cobertura',grupo:C.grupoTesouras,tipo:'guia_banzo',perfil:R.guiaBanzo,x0:xT,y0:yB,z0:za,x1:xT,y1:yB,z1:zb,origemRegra:'box banzo [DX-09]',confianca:conf});
+    // banzos superiores
+    mkP(pecas,{sistema:'cobertura',grupo:C.grupoTesouras,tipo:'banzo_superior',perfil:R.banzo,x0:xT,y0:yB,z0:za,x1:xT,y1:yB+hCume,z1:zc,origemRegra:O,confianca:conf});
+    mkP(pecas,{sistema:'cobertura',grupo:C.grupoTesouras,tipo:'banzo_superior',perfil:R.banzo,x0:xT,y0:yB+hCume,z0:zc,x1:xT,y1:yB,z1:zb,origemRegra:O,confianca:conf});
+    // montantes @0,60 + diagonais Pratt, altura segue o telhado
+    let nMont=0, zsM=[];
+    for(let z=za+R.passoMont; z<zb-R.passoMont/2; z+=R.passoMont){
+      const hz = z<=zc? (z-za)/(zc-za)*hCume : (zb-z)/(zb-zc)*hCume;
+      if(hz<0.12) continue;
+      mkP(pecas,{sistema:'cobertura',grupo:C.grupoTesouras,tipo:'montante_tesoura',perfil:R.alma,x0:xT,y0:yB,z0:z,x1:xT,y1:yB+hz,z1:z,origemRegra:'montante @0,60 [1TS]',confianca:conf});
+      zsM.push([z,hz]); nMont++;
+    }
+    for(let m=0;m+1<zsM.length;m++){
+      const [z1,h1]=zsM[m],[z2,h2]=zsM[m+1];
+      const sobe=(m%2===0);
+      mkP(pecas,{sistema:'cobertura',grupo:C.grupoTesouras,tipo:'diagonal_tesoura',perfil:R.alma,
+        x0:xT,y0:yB+(sobe?0:h1),z0:z1,x1:xT,y1:yB+(sobe?h2:0),z1:z2,origemRegra:'diagonal Pratt [1TS]',confianca:conf});
+    }
+    // nós com gusset: 2 apoios + cume + 2 por montante (base/topo)
+    nGusset += 3 + 2*nMont;
+    // área de telha por trapézio entre tesouras (largura real × fator inclinação)
+    const wHere=(zb-za);
+    if(prevW!=null){ const dx=(bb.x1-bb.x0)/(nT-1); areaTelha += dx*(wHere+prevW)/2 * Math.hypot(1,incl); }
+    prevW=wHere; planoMax=Math.max(planoMax,Math.hypot(Math.max(meiaE,meiaD),hCume));
+  }
+  // A8 [p.57, COB-005]: diagonais de canto a 45° — 4 por água
+  for(const lado of [-1,1]){
+    const zEdge= lado<0? bb.z0-beiral : bb.z1+beiral;
+    for(const xEdge of [bb.x0, bb.x1-1.2]){
+      mkP(pecas,{sistema:'cobertura',grupo:C.grupo,tipo:'diagonal_canto',perfil:R.alma,
+        x0:xEdge,y0:yB+((bb.z1-bb.z0)/2*incl)*0.85,z0:zc+lado*0.6, x1:xEdge+1.2,y1:yB+((bb.z1-bb.z0)/2*incl)*0.85,z1:zc+lado*1.8,
+        origemRegra:'A8: diagonal de canto (extremo da cumeeira) [p.57, COB-005]',confianca:conf});
+      mkP(pecas,{sistema:'cobertura',grupo:C.grupo,tipo:'diagonal_canto',perfil:R.alma,
+        x0:xEdge,y0:yB,z0:zEdge, x1:xEdge+1.2,y1:yB,z1:zEdge-lado*1.2,
+        origemRegra:'A8: diagonal de canto do painel 1CB [p.57, COB-005]',confianca:conf});
+    }
+  }
+  // painéis 1CB no plano inclinado (derivado carimbo 1CB-140#0.80 + COB-003/005)
+  const PCB=R.painelCB;
+  for(const lado of [-1,1]){
+    const zBase = lado<0? bb.z0-beiral : bb.z1+beiral;         // beirais
+    const meia=(bb.z1-bb.z0)/2+beiral, hC=((bb.z1-bb.z0)/2)*incl;
+    // perímetro da água (2 bordas longitudinais: beiral e cumeeira)
+    mkP(pecas,{sistema:'cobertura',grupo:C.grupo,tipo:'per_1CB',perfil:PCB.perfilPer,x0:bb.x0-beiral,y0:yB,z0:zBase,x1:bb.x1+beiral,y1:yB,z1:zBase,origemRegra:'perímetro painel 1CB',confianca:conf});
+    mkP(pecas,{sistema:'cobertura',grupo:C.grupo,tipo:'per_1CB',perfil:PCB.perfilPer,x0:bb.x0-beiral,y0:yB+hC,z0:zc,x1:bb.x1+beiral,y1:yB+hC,z1:zc,origemRegra:'perímetro painel 1CB (cumeeira)',confianca:conf});
+    // travessas ao longo da inclinação @passo (no comprimento)
+    for(let x=bb.x0-beiral;x<=bb.x1+beiral+0.01;x+=PCB.passo){
+      mkP(pecas,{sistema:'cobertura',grupo:C.grupo,tipo:'travessa_1CB',perfil:PCB.perfil,x0:x,y0:yB,z0:zBase,x1:x,y1:yB+hC,z1:zc,origemRegra:'travessa painel 1CB @'+PCB.passo+'m [COB-004]',confianca:conf});
+    }
+    // diagonais de canto (2 por extremidade da água) [COB-005]
+    for(const xe of [bb.x0-beiral,bb.x1+beiral]){
+      const dir=xe<bb.x0? 1 : -1;
+      mkP(pecas,{sistema:'cobertura',grupo:C.grupo,tipo:'diag_canto_1CB',perfil:PCB.perfil,x0:xe,y0:yB,z0:zBase,x1:xe+dir*1.2,y1:yB+hC*0.35,z1:zBase+(zc-zBase)*0.35,origemRegra:'diagonal de canto [COB-005]',confianca:'estimado'});
+    }
+  }
+  mkAc(acess,{item:'Chapa Gousset 150×150 #1,25 (nós de tesoura)',sistema:'cobertura',grupo:C.grupoTesouras,qtd:nGusset,un:'un',origemRegra:'gusset por nó [1TS41: 62/painel]',confianca:conf});
+  mkAc(acess,{item:'Parafuso flangeado — gusset (4/perfil, 2 lados)',sistema:'cobertura',grupo:C.grupoTesouras,qtd:nGusset*R.gussetParaf*2,un:'un',origemRegra:'DX-01B',confianca:'parametrico'});
+  mkAc(acess,{item:'Parafuso flangeado — box banzo @200mm',sistema:'cobertura',grupo:C.grupoTesouras,qtd:Math.ceil(nT*(bb.z1-bb.z0+2*beiral)/(R.boxParafMm/1000)),un:'un',origemRegra:'DX-09',confianca:'parametrico'});
+  if(patio) areaTelha -= patio.w*patio.d*Math.hypot(1,incl);
+  const perda=1+(C.telha.perdaPct||8)/100;
+  mkAc(acess,{item:`${C.telha.tipo} (m²)`,sistema:'cobertura',grupo:C.grupo,qtd:+(areaTelha*perda).toFixed(1),un:'m²',origemRegra:'trapezoidal × √(1+i²) × perda',confianca:'estimado'});
+  mkAc(acess,{item:'Cumeeira (m)',sistema:'cobertura',grupo:C.grupo,qtd:+(bb.x1-bb.x0).toFixed(1),un:'m',origemRegra:'comprimento',confianca:'estimado'});
+  mkAc(acess,{item:'Calha (m)',sistema:'cobertura',grupo:C.grupo,qtd:+(2*(bb.x1-bb.x0)).toFixed(1),un:'m',origemRegra:'2 águas',confianca:'estimado'});
+  C.comp=bb.x1-bb.x0; // compat orçamento v5
+  return {pecas,acess,warns,nTesouras:nT,areaTelha:+areaTelha.toFixed(1)};
+}
+
+/* ============ FORRO (1FR, derivado p.16-20) ============ */
+function gerarPecasForro(){
+  const pecas=[],acess=[]; const F=PROJECT.forro,B=BUILDING;
+  [0,1,2].forEach(fi=>{
+    const fp=B.footprint[fi], bb=B.bbox[fi], y=B.niveis[fi]+PD-0.05;
+    for(let i=0;i<fp.length;i++){
+      const a=fp[i],b=fp[(i+1)%fp.length];
+      mkP(pecas,{sistema:'forro',grupo:F.grupo,tipo:'borda_forro',perfil:F.perfilBorda,x0:a[0],y0:y,z0:a[1],x1:b[0],y1:y,z1:b[1],origemRegra:F.origem,confianca:F.confianca});
+    }
+    for(let z=bb.z0+F.esp;z<bb.z1-0.05;z+=F.esp)
+      for(const [xa,xb] of scan(fp,z,'z'))
+        mkP(pecas,{sistema:'forro',grupo:F.grupo,tipo:'perfil_forro',perfil:F.perfil,x0:xa,y0:y,z0:z,x1:xb,y1:y,z1:z,origemRegra:F.origem,confianca:F.confianca});
+  });
+  return {pecas,acess,warns:[]};
+}
+
+/* ============ INSTALAÇÕES (igual v5) ============ */
+function gerarAcessoriosInstalacoes(PJ){
+  const acess=[],warns=[]; const I=PJ.instalacoes,R=REGRAS_SIS.instal;
+  const n=(I.pontosHidro||0)+(I.pontosGas||0)+(I.pontosEle||0);
+  if(n){
+    mkAc(acess,{item:'Furo de serviço ⌀35mm (chapa de reforço)',sistema:'acessorio',grupo:'1DC',qtd:n*2,un:'un',origemRegra:'2 furos/ponto [DP-08]',confianca:'estimado'});
+    mkAc(acess,{item:'Parafuso 4,8×19 — chapas de reforço',sistema:'acessorio',grupo:'1DC',qtd:n*2*R.parafChapaReforco,un:'un',origemRegra:'8/chapa [DP-08]',confianca:'parametrico'});
+  }
+  for(const fc of (I.furosCriticos||[])){
+    const dmax=Math.min(R.furoMaxCm/100,fc.h/R.furoMaxHfrac);
+    warns.push({sev:'alta',sistema:fc.ondeSistema,grupo:fc.grupo,msg:`Furo em viga da ${fc.grupo}: máx ${(dmax*1000).toFixed(0)}mm (12cm ou h/3), na zona de tração; espaçamento entre furos ≥ 2h; furo vertical Ø≤50mm.`,sug:'REGRA HID-FURO-001/003: acima → chapa de reforço + 8 parafusos.'});
+    mkAc(acess,{item:'Chapa de reforço p/ furo crítico',sistema:fc.ondeSistema,grupo:fc.grupo,qtd:1,un:'un',origemRegra:'furo > dmax',confianca:'estimado'});
+  }
+  if(I.pontosGas){
+    mkAc(acess,{item:'Tubo-luva PVC p/ GLP',sistema:'acessorio',grupo:'1DC',qtd:I.pontosGas*R.luvaGasM,un:'m',origemRegra:'CRI gás',confianca:'estimado'});
+    warns.push({sev:'media',sistema:'acessorio',grupo:'1DC',msg:'Gás: ≥30cm da elétrica, ponto ≥60cm do piso.',sug:'Compatibilizar no executivo.'});
+  }
+  return {acess,warns};
+}
+
+/* ============ ASSEMBLY ============ */
+function wallToP(w,fi){
+  const PERFIL_PISO=['Ue90#1.25','Ue90#0.95','Ue90#0.95'];
+  const perfil=w.t==='ban'?'Ue90#0.95':PERFIL_PISO[fi];
+  const comp=Math.hypot(w.b[0]-w.a[0],w.b[1]-w.a[1]);
+  const aberturas=(w.ab||[]).map(o=>o.t==='janela'?{tipo:'janela',larg:o.w,alt:1.20,x:o.p,peitoril:1.0,qtd:1}
+    :o.t==='vitrine'?{tipo:'porta',larg:o.w,alt:2.40,x:o.p,qtd:1}:{tipo:'porta',larg:o.w,alt:2.10,x:o.p,qtd:1});
+  return {comp,pd:PD,esp:0.40,perfil,sistema:'lsf',contrav:w.t==='ext'?'fita':'nenhum',vaosContrav:1,aberturas};
+}
+const GRUPO_PAV=['1PV','2PV','3PV'];
+let BUILDING=null;
+function montarProjeto(){
+  BUILDING=buildBuilding();
+  const wallsMeta=[],todasPecas=[],acessorios=[],alertas=[],sistemas3D=[];
+  [{walls:W_T,fi:0},{walls:W_S,fi:1},{walls:W_S,fi:2}].forEach(f=>f.walls.forEach(w=>{
+    const P=wallToP(w,f.fi),res=gerarPecas(P),grupo=GRUPO_PAV[f.fi];
+    wallsMeta.push({w,fi:f.fi,P,res,grupo});
+    res.pecas.forEach(p=>todasPecas.push({...p,sistema:'parede',grupo,confianca:'estimado',origemRegra:'engine parede v1.10'}));
+    (res.acess||[]).forEach(a=>{
+      if(f.fi>0 && /Parabolt|Ancorador/i.test(a.item)) return; // DP-04: ancoragem só no radier; sup.: painel-sobre-painel [OBRA p.8-9]
+      acessorios.push({item:a.item,sistema:'parede',grupo,qtd:a.qtd,un:a.un,origemRegra:f.fi>0&&/parafuso/i.test(a.item)?'engine parede · fix. painel-sobre-painel [OBRA p.8]':'engine parede',confianca:'parametrico'});
+    });
+  }));
+  PROJECT.lajes.forEach(L=>{const r=gerarPecasLaje(L);r.pecas.forEach(p=>{todasPecas.push(p);sistemas3D.push(p);});r.acess.forEach(a=>acessorios.push(a));alertas.push(...r.warns);});
+  PROJECT.escadas.forEach(E=>{const r=gerarPecasEscada(E);r.pecas.forEach(p=>{todasPecas.push(p);sistemas3D.push(p);});r.acess.forEach(a=>acessorios.push(a));alertas.push(...r.warns);});
+  {const r=gerarPecasCobertura(PROJECT.cobertura);r.pecas.forEach(p=>{todasPecas.push(p);sistemas3D.push(p);});r.acess.forEach(a=>acessorios.push(a));alertas.push(...r.warns);}
+  if(LAMINADO){
+    PROJECT.lajes.forEach(L=>{
+      const fp=BUILDING.footprint[L.pavBase], bb=BUILDING.bbox[L.pavBase], zm=(bb.z0+bb.z1)/2, y=L.nivel-0.13;
+      for(const [xa,xb] of scan(fp,zm,'z'))
+        todasPecas.push({id:9e5+todasPecas.length,tag:'1VG-'+L.grupo,sistema:'laminado',grupo:'1VG',tipo:'viga_W',perfil:'W310x32.7',comp:+(xb-xa).toFixed(2),x0:xa,y0:y,z0:zm,x1:xb,y1:y,z1:zm,origemRegra:'viga laminada no meio do vão [estudo NBR: reduz vãoEf/2; OBRA 1VG p.9]',confianca:'estimado'});
+      for(const fx of [0.25,0.5,0.75,1.0]){
+        const x=bb.x0+(bb.x1-bb.x0)*fx*0.95;
+        todasPecas.push({id:9e5+todasPecas.length,tag:'1AL-'+L.grupo,sistema:'laminado',grupo:'1AL',tipo:'pilar',perfil:'HSS100x100x4.8',comp:FF,x0:x,y0:L.nivel-FF,z0:zm,x1:x,y1:L.nivel,z1:zm,origemRegra:'pilar sob viga W [OBRA 1AL p.3-5]',confianca:'estimado'});
+      }
+      mkAc(acessorios,{item:'Placa de base + barra roscada química (pilar 1AL)',sistema:'laminado',grupo:'1AL',qtd:4,un:'un',origemRegra:'DF-03B [OBRA p.3]',confianca:'estimado'});
+    });
+    todasPecas.filter(p=>p.sistema==='laminado').forEach(p=>sistemas3D.push(p));
+  }
+  {const r=gerarPecasForro();r.pecas.forEach(p=>{todasPecas.push(p);sistemas3D.push(p);});alertas.push(...r.warns);}
+  {const r=gerarAcessoriosInstalacoes(PROJECT);r.acess.forEach(a=>acessorios.push(a));alertas.push(...r.warns);}
+  alertas.push({sev:'baixa',sistema:'geral',grupo:'1FR',msg:'Família 1FR (fechamento leve Ue70/U72 #0,80, h=3,874m) registrada nas regras mas sem equivalente identificado no projeto — não quantificada.',sug:'Se o executivo tiver forro/fechamento leve, ativar em REGRAS_SIS.fr.'});
+  // A5 [DX-11 p.40]: parafusos de verga @200mm — sextavado nos montantes-I, flangeado nas guias
+  {
+    let mlVerga=0;
+    todasPecas.forEach(p=>{ if(p.sistema==='parede' && /verga/i.test(p.tipo)) mlVerga+=p.comp; });
+    if(mlVerga>0){
+      const n=Math.ceil(mlVerga/0.2);
+      acessorios.push({item:'Parafuso sext. 4,8×19 — verga DX-11 (montantes-I, @200mm)',sistema:'parede',grupo:'GERAL',qtd:n,un:'un',origemRegra:'A5/VERGA-002 [DX-11 p.40]',confianca:'parametrico'});
+      acessorios.push({item:'Parafuso flang. 4,8×19 — verga DX-11 (guias, @200mm)',sistema:'parede',grupo:'GERAL',qtd:n,un:'un',origemRegra:'A5/VERGA-003 [DX-11 p.40]',confianca:'parametrico'});
+    }
+  }
+  // VENTO NBR 6123: F≈vento×H×fachada → fitas ≥3/linha + hold-downs de tração nos cantos
+  {
+    const F=CARGAS.vento*10.5*15.8;
+    mkAc(acessorios,{item:'Hold-down / ancoragem de tração (vento) — cantos e extremos de fita',sistema:'parede',grupo:'1PV',qtd:24,un:'un',origemRegra:`NBR 6123: F=${F.toFixed(0)}kN → ≥3 fitas X/linha (T_Rd≈17,9kN/fita ZAR230)`,confianca:'estimado'});
+    alertas.push({sev:'media',sistema:'parede',grupo:'1PV',msg:`Vento: cortante de fachada ≈ ${F.toFixed(0)} kN → mínimo 3 fitas X por linha de contraventamento + hold-down nas extremidades.`,sug:'Verificação NBR 6123 simplificada; travamento HB reduz λ do montante de 188→~94.'});
+  }
+  // ANCORAGEM DP-04 (só térreo, paredes ext): Parabolt @1,2m + 2/esquadria + suporte + parafusos
+  {
+    const A=REGRAS_SIS.ancoragem;
+    let perimT=0,nEsqExtT=0;
+    W_T.forEach(w=>{ if(w.t==='ext'){ perimT+=Math.hypot(w.b[0]-w.a[0],w.b[1]-w.a[1]); nEsqExtT+=(w.ab||[]).length; }});
+    // chumbadores/suportes: já gerados pelo engine por parede (v1.0) — aqui só regras de nível de edifício
+    alertas.push({sev:'media',sistema:'parede',grupo:'1PV',msg:'Fundação deve ter fck ≥ 30 MPa para os chumbadores [OBRA p.6].',sug:'Confirmar no projeto de fundação (fora do escopo LSF).'});
+  }
+  // Chapa L de elevação de laje + cantoneiras de ligação [DX-06 / OBRA p.6-12]
+  PROJECT.lajes.forEach(L=>{
+    const fp=BUILDING.footprint[L.pavBase], per=polyPerim(fp);
+    mkAc(acessorios,{item:REGRAS_SIS.ancoragem.chapaL,sistema:'laje',grupo:L.grupo,qtd:Math.ceil(per/3),un:'un',origemRegra:'DX-06 [OBRA p.6/8]',confianca:'estimado'});
+    mkAc(acessorios,{item:REGRAS_SIS.ancoragem.cantoneira+' (ligação viga-borda)',sistema:'laje',grupo:L.grupo,qtd:Math.ceil((L._nVigas||0)*0.8),un:'un',origemRegra:'painel 1L8 p.28: 13 cant/16 vigas (0,8/viga)',confianca:'parametrico'});
+  });
+  // Perfis adicionais AD/BX (barras avulsas do kit) — pendência v1.2 fechada: existem e são por prancha
+  {
+    let kgSis=0; todasPecas.forEach(p=>kgSis+=p.comp*(LSF_DB.perfis[p.perfil]?.massaKgM||1.3));
+    const adKg=Math.round(kgSis*0.02);
+    mkAc(acessorios,{item:'Perfis adicionais AD/BX (barras avulsas — ver pranchas)',sistema:'acessorio',grupo:'GERAL',qtd:adKg,un:'kg',origemRegra:'OBRA p.7-24: AD10/11/13/14/17, BX1/BX3 quantificados por prancha (±2% adotado)',confianca:'estimado'});
+  }
+  // Obra de referência usou PILAR/VIGA DE AÇO LAMINADO nos vãos (1AL/1VG)
+  PROJECT.lajes.forEach(L=>{ if((L._perfilUsado||'').startsWith('Ue250'))
+    alertas.push({sev:'alta',sistema:'laje',grupo:L.grupo,msg:`${L.id}: vão efetivo levou a Ue250 — a obra de referência resolveu vãos assim com PILAR/VIGA DE AÇO LAMINADO (1AL/1VG) + placa de base e barra roscada química.`,sug:'Avaliar viga metálica intermediária no executivo [OBRA p.3-9: DF-03B, eletrodo E70XX, graute ≥30mm].'});
+  });
+  // varanda/pátio descobertos do 3º pav: laje exposta ao tempo
+  (PROJECT.descobertas||[]).forEach(d=>{
+    const area=d.w*d.d, perim=2*(d.w+d.d);
+    mkAc(acessorios,{item:`Impermeabilização laje exposta — ${d.nome}`,sistema:'laje',grupo:'2LJ',qtd:+(area*1.1).toFixed(1),un:'m²',origemRegra:'área descoberta [folha 102] + 10%',confianca:d.confianca});
+    mkAc(acessorios,{item:`Guarda-corpo — ${d.nome}`,sistema:'laje',grupo:'2LJ',qtd:+(d.tipo==='faixa'? d.d+2*d.w : perim).toFixed(1),un:'m',origemRegra:'borda exposta [NBR 14718]',confianca:'estimado'});
+  });
+  // REGRA BOX-003: peça linear > barra comercial (6m) → segmentar + emenda rastreada
+  const LMAX=REGRAS_SIS.barra.compMax;
+  const emendasPorSis={};
+  for(let i=todasPecas.length-1;i>=0;i--){
+    const p=todasPecas[i];
+    if(p.comp>LMAX+1e-6){
+      const n=Math.ceil(p.comp/LMAX);
+      emendasPorSis[p.sistema]=(emendasPorSis[p.sistema]||0)+(n-1);
+      const segs=[];
+      for(let k=0;k<n;k++){
+        const t0=k/n, t1=(k+1)/n;
+        segs.push({...p, id:p.id+'-'+(k+1), tag:p.tag+String.fromCharCode(97+k),
+          comp:+(p.comp/n).toFixed(4),
+          x0:p.x0+(p.x1-p.x0)*t0, y0:p.y0+(p.y1-p.y0)*t0, z0:p.z0+(p.z1-p.z0)*t0,
+          x1:p.x0+(p.x1-p.x0)*t1, y1:p.y0+(p.y1-p.y0)*t1, z1:p.z0+(p.z1-p.z0)*t1,
+          origemRegra:(p.origemRegra||'')+' · segm. REGRA BOX-003'});
+      }
+      todasPecas.splice(i,1,...segs);
+      const j=sistemas3D.indexOf(p); if(j>=0) sistemas3D.splice(j,1,...segs);
+    }
+  }
+  for(const [sis,n] of Object.entries(emendasPorSis)){
+    acessorios.push({item:'Emenda/luva de perfil (peça > barra 6m)',sistema:sis,grupo:'GERAL',qtd:n,un:'un',origemRegra:'REGRA BOX-003 [p.53: BX2 8583mm]',confianca:'parametrico'});
+    alertas.push({sev:'baixa',sistema:sis,grupo:'BOX-003',msg:`${n} peça(s) de ${sis} acima de 6 m segmentadas com emenda (ou pré-corte de fábrica).`,sug:'Confirmar com fornecedor: barra especial vs emenda em obra.'});
+  }
+  // GATES leves em runtime → viram alertas em vez de peças erradas silenciosas
+  const g=rodarGates(todasPecas);
+  g.forEach(x=>alertas.push(x));
+  return {wallsMeta,todasPecas,acessorios,alertas,sistemas3D};
+}
+
+/* ============ GATES ============ */
+function rodarGates(pecas){
+  const out=[]; const bb=BUILDING.bbox[0];
+  const M=0.5+ (PROJECT.cobertura.beiral||0.3); // margem envelope
+  let fora=0;
+  for(const p of pecas){
+    if(p.sistema==='parede')continue;
+    const xs=[p.x0,p.x1],zs=[p.z0,p.z1];
+    if(Math.min(...xs)<bb.x0-M||Math.max(...xs)>bb.x1+M||Math.min(...zs)<bb.z0-M||Math.max(...zs)>bb.z1+M)fora++;
+  }
+  if(fora)out.push({sev:'alta',sistema:'geral',grupo:'GATE',msg:`${fora} peça(s) fora do envelope do prédio.`,sug:'Verificar gerador correspondente.'});
+  return out;
+}
+
+/* ============ QUANTITATIVO (iguais v5) ============ */
+function resumoPorSistema(pecas){
+  const sis={};for(const p of pecas)(sis[p.sistema]=sis[p.sistema]||[]).push(p);
+  const out={};
+  for(const [s,lista] of Object.entries(sis)){
+    const plano=nestingCorte(lista,LSF_DB,'solto');
+    let kg=0,bar=0,ml=0,comp=0,sobra=0;
+    plano.forEach(p=>{kg+=p.kg;bar+=p.barras;ml+=p.mlTot;comp+=p.barras*6*(LSF_DB.perfis[p.perfil]?.massaKgM||1.3);p.detalheBarras.forEach(b=>sobra+=b.sobra);});
+    out[s]={pecas:lista.length,ml:+ml.toFixed(1),barras:bar,kg:+kg.toFixed(0),comprado:+comp.toFixed(0),perda:bar?+(100*sobra/(bar*6)).toFixed(1):0,plano};
+  }
+  return out;
+}
+function placasProjeto(wallsMeta){
+  let cim={ch:0,comp:0,util:0},dw={ch:0,comp:0,util:0};
+  wallsMeta.forEach(o=>{
+    if(o.w.t==='ext'){
+      const c=paginarPlacas({comp:o.P.comp,pd:PD,chapaAlt:2.40},o.res.ops,LSF_DB);cim.ch+=c.nChapasFace;cim.comp+=c.areaComprada;cim.util+=c.areaUtil;
+      const d=paginarPlacas({comp:o.P.comp,pd:PD,chapaAlt:1.80},o.res.ops,LSF_DB);dw.ch+=d.nChapasFace;dw.comp+=d.areaComprada;dw.util+=d.areaUtil;
+    }else{const d=paginarPlacas({comp:o.P.comp,pd:PD,chapaAlt:1.80},o.res.ops,LSF_DB);dw.ch+=2*d.nChapasFace;dw.comp+=2*d.areaComprada;dw.util+=2*d.areaUtil;}
+  });
+  return {cim,dw};
+}
+
+
+/* ============================ UI + 3D (v5) ============================ */
+const fmt=(n,d=0)=>Number(n||0).toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d});
+const brl=n=>'R$ '+fmt(n,0);
+let MODEL=null;
+
+/* ---- preços (azul, editáveis) ---- */
+const PRECOS={
+  acoKg:14.0, chapaCim:170, chapaDw:36.9, chapaOsb:72, telhaM2:55, cumeeiraM:38, calhaM:42,
+  parafuso:0.046, gusset:9, moM2:120, bdi:0.22, perdaExtra:0.03,
+};
+const PRICE_FIELDS=[
+  ['acoKg','Aço R$/kg'],['chapaCim','Chapa cimentícia R$'],['chapaDw','Chapa drywall R$'],['chapaOsb','Chapa OSB/piso R$'],
+  ['telhaM2','Telha R$/m²'],['cumeeiraM','Cumeeira R$/m'],['calhaM','Calha R$/m'],['parafuso','Parafuso R$/un'],
+  ['gusset','Chapa gusset R$'],['moM2','Mão de obra R$/m²'],['bdi','BDI/margem'],['perdaExtra','Perda extra'],
+];
+
+function pesoPeca(p){return p.comp*(LSF_DB.perfis[p.perfil]?.massaKgM||1.3);}
+
+/* ===== cálculo geral ===== */
+function calcular(){
+  MODEL=montarProjeto();
+  const R=resumoPorSistema(MODEL.todasPecas);
+  const pl=placasProjeto(MODEL.wallsMeta);
+  const cob=gerarPecasCobertura(PROJECT.cobertura); // p/ telhado m²
+  MODEL.resumo=R; MODEL.placas=pl; MODEL.telhaM2=cob.areaTelha;
+  return MODEL;
+}
+
+/* ===== KPIs ===== */
+function renderKPIs(){
+  const R=MODEL.resumo, pl=MODEL.placas;
+  const kg=s=>R[s]?R[s].kg:0, comp=s=>R[s]?R[s].comprado:0;
+  const kgT=Object.values(R).reduce((a,v)=>a+v.kg,0);
+  const compT=Object.values(R).reduce((a,v)=>a+v.comprado,0);
+  const barrasT=Object.values(R).reduce((a,v)=>a+v.barras,0);
+  const perdaW=compT>0?(1-kgT/compT)*100:0;
+  const chapas=pl.cim.ch+pl.dw.ch;
+  const paraf=MODEL.acessorios.filter(a=>/parafuso/i.test(a.item)).reduce((a,b)=>a+b.qtd,0);
+  // confiança: % de kg por nível
+  const porConf={}; MODEL.todasPecas.forEach(p=>{porConf[p.confianca]=(porConf[p.confianca]||0)+pesoPeca(p);});
+  const confDom=Object.entries(porConf).sort((a,b)=>b[1]-a[1])[0]?.[0]||'estimado';
+  const custo=MODEL.custoTotal||0;
+  const cards=[
+    ['aço líquido total',fmt(kgT)+' <small>kg</small>',fmt(kgT/600.11,1)+' kg/m²','k1'],
+    ['aço comprado (barras 6m)',fmt(compT)+' <small>kg</small>',fmt(barrasT)+' barras','k2'],
+    ['perda de nesting',fmt(perdaW,1)+' <small>%</small>','sobra de barra','k3'],
+    ['aço paredes',fmt(kg('parede'))+' <small>kg</small>',fmt(R.parede?.pecas||0)+' peças','k1'],
+    ['aço lajes',fmt(kg('laje'))+' <small>kg</small>','Ue250 · 2 lajes','kl'],
+    ['aço escadas',fmt(kg('escada'))+' <small>kg</small>','2 tramos','ke'],
+    ['aço cobertura',fmt(kg('cobertura'))+' <small>kg</small>','tesouras+terças','kc'],
+    ['chapas',fmt(chapas)+' <small>ch</small>','cim '+fmt(pl.cim.ch)+' + dw '+fmt(pl.dw.ch),'k3'],
+    ['telhado',fmt(MODEL.telhaM2)+' <small>m²</small>','área inclinada','kc'],
+    ['acessórios/fixadores',fmt(paraf)+' <small>paraf</small>',fmt(MODEL.acessorios.length)+' itens','k3'],
+    ['custo estimado',brl(custo),fmt(custo/600.11,0)+' R$/m² · c/ BDI','k1'],
+    ['confiança do orçamento',confDom,'domina o peso','k2'],
+  ];
+  document.getElementById('kpis').innerHTML=cards.map(c=>
+    `<div class="kpi ${c[3]}"><div class="t">${c[0]}</div><div class="v">${c[1]}</div><div class="s">${c[2]}</div></div>`).join('');
+}
+
+/* ===== tabelas ===== */
+function renderTabelas(){
+  const R=MODEL.resumo, pl=MODEL.placas;
+  // 1 resumo por sistema
+  const ordem=['parede','laje','escada','cobertura','forro'];
+  let tb=document.querySelector('#tSis tbody'); tb.innerHTML='';
+  let T={pecas:0,ml:0,barras:0,kg:0,comprado:0};
+  ordem.forEach(s=>{ if(!R[s])return; const v=R[s]; T.pecas+=v.pecas;T.ml+=v.ml;T.barras+=v.barras;T.kg+=v.kg;T.comprado+=v.comprado;
+    tb.insertAdjacentHTML('beforeend',`<tr><td><span class="badge-s b-${s}">${s}</span></td><td>${fmt(v.pecas)}</td><td>${fmt(v.ml,1)}</td><td>${fmt(v.barras)}</td><td>${fmt(v.kg)}</td><td>${fmt(v.comprado)}</td><td>${fmt(v.perda,1)}%</td></tr>`);});
+  document.querySelector('#tSis tfoot').innerHTML=`<tr><td>Total</td><td>${fmt(T.pecas)}</td><td>${fmt(T.ml,1)}</td><td>${fmt(T.barras)}</td><td>${fmt(T.kg)}</td><td>${fmt(T.comprado)}</td><td>${fmt((1-T.kg/T.comprado)*100,1)}%</td></tr>`;
+  // 2 aço por perfil (agrega todos sistemas)
+  const porPerfil={};
+  Object.entries(R).forEach(([s,v])=>v.plano.forEach(p=>{
+    const k=p.perfil; porPerfil[k]=porPerfil[k]||{perfil:k,sis:new Set(),pecas:0,ml:0,barras:0,kg:0,sobra:0};
+    const o=porPerfil[k]; o.sis.add(s); o.pecas+=p.pecas; o.ml+=p.mlTot; o.barras+=p.barras; o.kg+=p.kg;
+    p.detalheBarras.forEach(b=>o.sobra+=b.sobra);
+  }));
+  const arr=Object.values(porPerfil).sort((a,b)=>b.kg-a.kg);
+  let tp=document.querySelector('#tPerfil tbody'); tp.innerHTML='';
+  arr.forEach(o=>tp.insertAdjacentHTML('beforeend',`<tr><td>${o.perfil}</td><td>${[...o.sis].join(', ')}</td><td>${fmt(o.pecas)}</td><td>${fmt(o.ml,1)}</td><td>${fmt(o.barras)}</td><td>${fmt(o.barras?100*o.sobra/(o.barras*6):0,1)}%</td><td>${fmt(o.kg)}</td></tr>`));
+  document.getElementById('perfCount').textContent=arr.length+' perfis';
+  // 3 chapas
+  const perdaCim=pl.cim.comp>0?(pl.cim.comp-pl.cim.util)/pl.cim.comp*100:0;
+  const perdaDw=pl.dw.comp>0?(pl.dw.comp-pl.dw.util)/pl.dw.comp*100:0;
+  const osb=MODEL.acessorios.filter(a=>/OSB|piso/i.test(a.item)).reduce((a,b)=>a+b.qtd,0);
+  let tc=document.querySelector('#tChapa tbody'); tc.innerHTML=
+    `<tr><td>Cimentícia 1,20×2,40</td><td><span class="badge-s b-parede">parede</span></td><td>${fmt(pl.cim.ch)}</td><td>${fmt(pl.cim.comp,1)} m²</td><td>${fmt(pl.cim.util,1)} m²</td><td>${fmt(perdaCim,1)}%</td></tr>`+
+    `<tr><td>Drywall 1,20×1,80</td><td><span class="badge-s b-parede">parede</span></td><td>${fmt(pl.dw.ch)}</td><td>${fmt(pl.dw.comp,1)} m²</td><td>${fmt(pl.dw.util,1)} m²</td><td>${fmt(perdaDw,1)}%</td></tr>`+
+    `<tr><td>OSB/placa de piso</td><td><span class="badge-s b-laje">laje/escada</span></td><td>${fmt(osb)}</td><td>—</td><td>—</td><td>geom.</td></tr>`;
+  // 4 acessórios
+  let ta=document.querySelector('#tAcess tbody'); ta.innerHTML='';
+  MODEL.acessorios.forEach(a=>ta.insertAdjacentHTML('beforeend',`<tr><td>${a.item}</td><td><span class="badge-s b-${a.sistema}">${a.sistema}</span></td><td>${fmt(a.qtd,a.un==='m'||a.un==='m²'?1:0)}</td><td>${a.un}</td><td><span class="conf c-${a.confianca}">${a.confianca}</span></td></tr>`));
+  // 5 alertas
+  let tal=document.querySelector('#tAlert tbody'); tal.innerHTML='';
+  if(!MODEL.alertas.length) tal.innerHTML='<tr><td colspan="3" style="text-align:center;color:#7c8b9c">sem alertas</td></tr>';
+  MODEL.alertas.forEach(a=>tal.insertAdjacentHTML('beforeend',`<tr><td class="sev-${a.sev}">${a.sev}</td><td><span class="badge-s b-${a.sistema}">${a.sistema}</span></td><td style="text-align:left">${a.msg}<br><span style="color:#7c8b9c">→ ${a.sug||''}</span></td></tr>`));
+}
+
+/* ===== orçamento ===== */
+function renderOrcamento(){
+  const R=MODEL.resumo, pl=MODEL.placas;
+  const compT=Object.values(R).reduce((a,v)=>a+v.comprado,0);
+  const osb=MODEL.acessorios.filter(a=>/OSB|piso/i.test(a.item)).reduce((a,b)=>a+b.qtd,0);
+  const paraf=MODEL.acessorios.filter(a=>/parafuso/i.test(a.item)).reduce((a,b)=>a+b.qtd,0);
+  const gusset=MODEL.acessorios.filter(a=>/gusset/i.test(a.item)).reduce((a,b)=>a+b.qtd,0);
+  const telha=MODEL.telhaM2, cum=PROJECT.cobertura.comp, calha=2*PROJECT.cobertura.comp;
+  const linhas=[
+    ['Aço (comprado em barras 6m)',compT,'kg',PRECOS.acoKg],
+    ['Chapa cimentícia',pl.cim.ch,'ch',PRECOS.chapaCim],
+    ['Chapa drywall',pl.dw.ch,'ch',PRECOS.chapaDw],
+    ['Chapa OSB/piso',osb,'ch',PRECOS.chapaOsb],
+    ['Telha',telha,'m²',PRECOS.telhaM2],
+    ['Cumeeira',cum,'m',PRECOS.cumeeiraM],
+    ['Calha',calha,'m',PRECOS.calhaM],
+    ['Parafusos/fixadores',paraf,'un',PRECOS.parafuso],
+    ['Chapas gusset',gusset,'un',PRECOS.gusset],
+    ['Mão de obra',600.11,'m²',PRECOS.moM2],
+  ];
+  let custoDireto=0; const rows=linhas.map(([n,q,u,p])=>{const t=q*p*(1+PRECOS.perdaExtra);custoDireto+=t;return[n,q,u,p,t];});
+  const comBDI=custoDireto*(1+PRECOS.bdi);
+  MODEL.custoTotal=comBDI;
+  let tb=document.querySelector('#tCusto tbody'); tb.innerHTML='';
+  rows.forEach(r=>tb.insertAdjacentHTML('beforeend',`<tr><td>${r[0]}</td><td>${fmt(r[1],r[2]==='m'||r[2]==='m²'?1:0)}</td><td>${r[2]}</td><td>${fmt(r[3],2)}</td><td>${brl(r[4])}</td></tr>`));
+  document.querySelector('#tCusto tfoot').innerHTML=
+    `<tr><td>Custo direto (c/ perda extra)</td><td colspan="3"></td><td>${brl(custoDireto)}</td></tr>`+
+    `<tr><td>Com BDI/margem (${fmt(PRECOS.bdi*100,0)}%)</td><td colspan="3"></td><td>${brl(comBDI)}</td></tr>`;
+  document.getElementById('custoTotal').textContent=brl(comBDI);
+}
+function renderPriceInputs(){
+  document.getElementById('priceGrid').innerHTML=PRICE_FIELDS.map(([k,l])=>
+    `<label>${l}<input type="number" step="0.01" data-k="${k}" value="${PRECOS[k]}"></label>`).join('');
+  document.querySelectorAll('#priceGrid input').forEach(inp=>inp.addEventListener('input',e=>{
+    PRECOS[e.target.dataset.k]=parseFloat(e.target.value)||0; renderOrcamento(); renderKPIs();
+  }));
+}
+function renderPremissas(){
+  const r=REGRAS_SIS;
+  document.getElementById('premissas').innerHTML=
+    `<b>Premissas (todas as constantes em PROJECT.regras / LSF_DB.regras):</b> `+
+    `paredes montante @0,40 m, térreo Ue90#1,25 (2 pisos), superior/3º #0,95 · `+
+    `laje viga Ue250#2,00 @${r.laje.esp} m, bloqueador ≤${r.laje.bloqueadorMaxM} m, enrijecedor no cruzamento · `+
+    `escada espelho ≤${r.escada.espelhoMax} m, piso ≥${r.escada.pisoMin} m, fixação lateral @${r.escada.fixacaoLateralMm} mm, reforço Ue140 · `+
+    `cobertura tesoura @${r.cobertura.espTesoura} m, terça @${r.cobertura.espTerca} m, gusset ${r.cobertura.gussetMm} mm #1,25 (${r.cobertura.gussetParaf} paraf), box @${r.cobertura.boxParafMm} mm · `+
+    `instalações furo máx = min(${r.instal.furoMaxCm} cm, h/${r.instal.furoMaxHfrac}), luva gás ${r.instal.luvaGasM} m/ponto · `+
+    `aço em barras de 6 m com reaproveitamento de sobra · placas por paginação geométrica (perda real de recorte). `+
+    `emendas de perfil quando peça > 6 m [REGRA BOX-003, p.53] · enrijecedor de laje C=176 (fam. 200) / C=226 mm (fam. 250) [LAJE-009/010, p.27-39] · fixação de bloqueador: 4 paraf. mesa + 5 alma [LAJE-006/007, DL-01] · furos: ≤min(12cm,h/3), espaç. ≥2h, vertical Ø≤50mm [HID-FURO-001/003] · gás ≥30cm da elétrica [CRI] · requadro tol. 3mm [Guia 2024 p.4]. `+
+    `painéis de cobertura 1CB em 140#0.80 (perímetro+travessas @0,60+diagonais de canto) [carimbo p.56-77 · COB-003/005] · HDD: laterais duplas (king+jack ×2) p/ vãos > 2 m [conferido painel 2PV p.237: SD-L/SD-R] · chapa derivada da obra ref.: 1PV #0,95 / 2PV #0,80 (mantido 1,25/0,95/0,95 aqui por carga do comercial 3 pav). `+
+    `Fonte: caderno 484125 (278 págs parseadas programaticamente por bloco) + HID R02 + CRI gás + Guia Técnico 2024 — cobertura total do ZIP: MONTAGEM 278p (parse+visual), OBRA 26p (notas/AD/1AL/ancoragem DP-04), HID 7p, gás 1p; Guia 2024 rasterizado (regras via estudo auditado por amostra). Ancoragem Parabolt @1,2m só no térreo; superiores painel-sobre-painel [OBRA p.8]. `+
+    `VERIFICAÇÃO ESTRUTURAL PRÉ-PROJETO embutida [NBR 6120/6123/14762]: SC loja 4,0 kN/m², ZAR230 γM=1,10, Ue250#2.00 (Wx=46,3e3mm³, Ix=5,78e6mm⁴); ELU M≤Wx·fy/γM e ELS δ≤L/350 → vigas de laje auto-duplicam quando reprovam; vãos que reprovam até dupla disparam alerta de viga laminada 1VG (solução da obra ref.). Montante térreo duplo: N≈12,4<21,5 kN (λ=188 s/ HB; ~94 c/ HB). Vento: F≈101 kN → ≥3 fitas X/linha + hold-downs. Guia 2024: raster ilegível neste ambiente (regras via estudo auditado por amostra).`;
+}
+
+/* ============================ 3D ============================ */
+let scene,camera,renderer,root,spin=true,explode=false;
+let yaw=0.8,pitch=0.5,dist=52,drag=false,lx=0,ly=0;
+const vis={pav:[true,true,true],parede:true,laje:true,escada:true,cob:true,chapa:false,acess:false};
+const MAT={
+  aco:new THREE.MeshStandardMaterial({color:0xb9c2ca,metalness:0.7,roughness:0.4}),
+  verga:new THREE.MeshStandardMaterial({color:0xd08a3e,metalness:0.5,roughness:0.5}),
+  diag:new THREE.MeshStandardMaterial({color:0x2f8f86,metalness:0.5,roughness:0.5}),
+  laje:new THREE.MeshStandardMaterial({color:0x2f6fd0,metalness:0.4,roughness:0.6}),
+  bloc:new THREE.MeshStandardMaterial({color:0x7fb0e8,metalness:0.4,roughness:0.6}),
+  escada:new THREE.MeshStandardMaterial({color:0x7c4dd6,metalness:0.4,roughness:0.6}),
+  cob:new THREE.MeshStandardMaterial({color:0xcf4459,metalness:0.4,roughness:0.6}),
+  forro:new THREE.MeshStandardMaterial({color:0x8aa79b,metalness:0.35,roughness:0.65}),
+  chapa:new THREE.MeshStandardMaterial({color:0xcfe0f0,transparent:true,opacity:.28,side:THREE.DoubleSide}),
+  slab:new THREE.MeshStandardMaterial({color:0xd2e1f0,transparent:true,opacity:.35}),
+  acess:new THREE.MeshStandardMaterial({color:0xf2c14e,metalness:0.3,roughness:0.5}),
+};
+const matAco=()=>MAT.aco,matVerga=()=>MAT.verga,matDiag=()=>MAT.diag;
+function matSis(p){
+  if(p.sistema==='laje') return (/bloqueador|enrijecedor/.test(p.tipo))?MAT.bloc:MAT.laje;
+  if(p.sistema==='escada') return MAT.escada;
+  if(p.sistema==='cobertura') return MAT.cob;
+  if(p.sistema==='forro') return MAT.forro;
+  return MAT.aco;
+}
+function bar3D(p){
+  const dir=new THREE.Vector3(p.x1-p.x0,p.y1-p.y0,p.z1-p.z0); const len=dir.length()||0.02; dir.normalize();
+  const th=p.sistema==='cobertura'?0.06:0.07;
+  const m=new THREE.Mesh(new THREE.BoxGeometry(len,th,th),matSis(p));
+  m.position.set((p.x0+p.x1)/2-CX,(p.y0+p.y1)/2,(p.z0+p.z1)/2-CZ);
+  m.quaternion.setFromUnitVectors(new THREE.Vector3(1,0,0),dir);
+  m.userData=p; return m;
+}
+function place3D(){
+  if(root)scene.remove(root); root=new THREE.Group();
+  const gap=explode?2.8:0;
+  const fy=fi=>fi*(FF+gap);
+  // lajes de piso translúcidas por pavimento
+  PROJECT.pavimentos.forEach((pv,fi)=>{ if(!vis.pav[fi])return;
+    const slab=new THREE.Mesh(new THREE.BoxGeometry(15.8,0.14,13.9),MAT.slab);
+    slab.position.set(0,fy(fi)-0.07,(4.6+18.5)/2-CZ); root.add(slab);
+  });
+  // paredes (perfis reais via engine) por grupo/pavimento
+  if(vis.parede) MODEL.wallsMeta.forEach(o=>{
+    if(!vis.pav[o.fi])return;
+    const g=new THREE.Group(); const off=o.P.comp/2;
+    o.res.pecas.forEach(p=>{
+      const geo=geoPerfil(p.perfil,p.comp);
+      const mat=(p.tipo.includes('verga')||p.tipo==='peitoril')?MAT.verga:(p.tipo==='diagonal'?MAT.diag:MAT.aco);
+      const m=new THREE.Mesh(geo,mat);
+      const dir=new THREE.Vector3(p.x1-p.x0,p.y1-p.y0,0).normalize();
+      m.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1),dir);
+      m.position.set(p.x0-off,p.y0,0);
+      m.userData={...p,sistema:'parede',grupo:o.grupo,peso:pesoPeca(p)};
+      g.add(m);
+      if(vis.chapa){}
+    });
+    if(vis.chapa){ const pl=new THREE.Mesh(new THREE.PlaneGeometry(o.P.comp,PD),MAT.chapa); pl.position.set(0,PD/2,0.06); g.add(pl); }
+    const ax=o.w.a[0],ay=o.w.a[1],bx=o.w.b[0],by=o.w.b[1];
+    g.rotation.y=-Math.atan2(by-ay,bx-ax);
+    g.position.set((ax+bx)/2-CX,fy(o.fi),(ay+by)/2-CZ);
+    root.add(g);
+  });
+  // sistemas 3D (laje/escada/cobertura) como barras coloridas
+  const gapY=explode?gap:0;
+  MODEL.sistemas3D.forEach(p=>{
+    if(p.sistema==='laje'){ const lj=PROJECT.lajes.find(l=>l.grupo===p.grupo); }
+    if((p.sistema==='laje'&&!vis.laje)||(p.sistema==='escada'&&!vis.escada)||(p.sistema==='cobertura'&&!vis.cob))return;
+    // aplica explode conforme nível aproximado
+    const m=bar3D(p);
+    if(explode){ const fi=p.y0>7?2:(p.y0>3.5?1:0); m.position.y+=fi*gap; }
+    m.userData.peso=pesoPeca(p);
+    root.add(m);
+  });
+  root.position.y=0.05; scene.add(root);
+}
+function initThree(){
+  const cv=document.getElementById('cv');
+  renderer=new THREE.WebGLRenderer({canvas:cv,antialias:true});
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+  scene=new THREE.Scene(); scene.background=new THREE.Color(0x0f2436);
+  camera=new THREE.PerspectiveCamera(44,cv.clientWidth/cv.clientHeight,.05,500);
+  scene.add(new THREE.HemisphereLight(0xcfe0f0,0x33445a,1.05));
+  const dl=new THREE.DirectionalLight(0xffffff,.7); dl.position.set(25,45,20); scene.add(dl);
+  const grid=new THREE.GridHelper(80,32,0x2c5a7a,0x1c405c); grid.material.opacity=.28;grid.material.transparent=true; scene.add(grid);
+  const rs=()=>{renderer.setSize(cv.clientWidth,cv.clientHeight,false);camera.aspect=cv.clientWidth/cv.clientHeight;camera.updateProjectionMatrix();};
+  rs(); window.addEventListener('resize',rs);
+  cv.addEventListener('pointerdown',e=>{drag=true;lx=e.clientX;ly=e.clientY;});
+  window.addEventListener('pointerup',()=>drag=false);
+  window.addEventListener('pointermove',e=>{if(!drag)return;spin=false;syncBtns();
+    yaw+=(e.clientX-lx)*.008;pitch=Math.max(-.15,Math.min(1.4,pitch+(e.clientY-ly)*.008));lx=e.clientX;ly=e.clientY;});
+  cv.addEventListener('wheel',e=>{e.preventDefault();dist=Math.max(16,Math.min(110,dist+e.deltaY*.035));},{passive:false});
+  const ray=new THREE.Raycaster(),mou=new THREE.Vector2();
+  cv.addEventListener('click',e=>{
+    const r=cv.getBoundingClientRect(); mou.x=((e.clientX-r.left)/r.width)*2-1; mou.y=-((e.clientY-r.top)/r.height)*2+1;
+    ray.setFromCamera(mou,camera);
+    const hit=ray.intersectObjects(root.children,true).find(h=>h.object.userData&&h.object.userData.tag);
+    const u=hit&&hit.object.userData;
+    document.getElementById('pick').innerHTML = u?
+      `<b>${u.tag}</b> · ${u.sistema}/${u.grupo}<br>${u.tipo} · ${u.perfil} · ${(u.comp*1000).toFixed(0)}mm · ${fmt(u.peso||0,1)}kg<br><span style="color:#9fc0da">${u.origemRegra||''} · ${u.confianca||''}</span>`:'';
+  });
+  (function loop(){requestAnimationFrame(loop);
+    if(spin)yaw+=.003;
+    camera.position.set(Math.sin(yaw)*Math.cos(pitch)*dist,Math.sin(pitch)*dist+8,Math.cos(yaw)*Math.cos(pitch)*dist);
+    camera.lookAt(0,5,0); renderer.render(scene,camera);})();
+}
+let tecnico=true;
+function syncBtns(){
+  [['bT',vis.pav[0]],['bS',vis.pav[1]],['b3',vis.pav[2]],['sParede',vis.parede],['sLaje',vis.laje],
+   ['sEscada',vis.escada],['sCob',vis.cob],['sChapa',vis.chapa],['sAcess',vis.acess],['bX',explode],['bSpin',spin]]
+   .forEach(([id,on])=>{const el=document.getElementById(id);if(el)el.classList.toggle('on',on);});
+}
+function wire(){
+  const map=[['bT','pav0'],['bS','pav1'],['b3','pav2'],['sParede','parede'],['sLaje','laje'],['sEscada','escada'],['sCob','cob'],['sChapa','chapa'],['sAcess','acess']];
+  map.forEach(([id,key])=>document.getElementById(id).addEventListener('click',()=>{
+    if(key.startsWith('pav')) vis.pav[+key.slice(3)]=!vis.pav[+key.slice(3)];
+    else vis[key]=!vis[key];
+    syncBtns(); place3D();
+  }));
+  document.getElementById('bX').addEventListener('click',()=>{explode=!explode;syncBtns();place3D();});
+  document.getElementById('bSpin').addEventListener('click',()=>{spin=!spin;syncBtns();});
+}
+
+/* ============================ BOOT ============================ */
+calcular();
+renderPriceInputs();
+renderOrcamento();
+renderKPIs();
+renderTabelas();
+renderPremissas();
+initThree();
+wire();
+place3D();
+</script>
+</body>
+</html>
