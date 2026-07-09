@@ -1,0 +1,82 @@
+{
+ "obra": "109.1506 Maximo Tintas",
+ "origem": "assets/calc-edificio-109_1506-v7-steel.html — engine executado headless (renderOrcamento reproduzido)",
+ "perda_extra": 0.03,
+ "bdi": 0.22,
+ "aco_liquido_kg": 23673,
+ "aco_comprado_kg": 31345,
+ "linhas": [
+  {
+   "item": "Aço (comprado em barras 6m)",
+   "qtd": 31345,
+   "un": "kg",
+   "preco_unit": 14,
+   "total": 451994.9
+  },
+  {
+   "item": "Chapa cimentícia",
+   "qtd": 201,
+   "un": "ch",
+   "preco_unit": 170,
+   "total": 35195.1
+  },
+  {
+   "item": "Chapa drywall",
+   "qtd": 782,
+   "un": "ch",
+   "preco_unit": 36.9,
+   "total": 29721.474
+  },
+  {
+   "item": "Chapa OSB/piso",
+   "qtd": 162,
+   "un": "ch",
+   "preco_unit": 72,
+   "total": 12013.92
+  },
+  {
+   "item": "Telha",
+   "qtd": 190,
+   "un": "m²",
+   "preco_unit": 55,
+   "total": 10763.5
+  },
+  {
+   "item": "Cumeeira",
+   "qtd": 13.06,
+   "un": "m",
+   "preco_unit": 38,
+   "total": 511.1684
+  },
+  {
+   "item": "Calha",
+   "qtd": 26.12,
+   "un": "m",
+   "preco_unit": 42,
+   "total": 1129.9512
+  },
+  {
+   "item": "Parafusos/fixadores",
+   "qtd": 15572,
+   "un": "un",
+   "preco_unit": 0.046,
+   "total": 737.80136
+  },
+  {
+   "item": "Chapas gusset",
+   "qtd": 7008,
+   "un": "un",
+   "preco_unit": 9,
+   "total": 64964.16
+  },
+  {
+   "item": "Mão de obra",
+   "qtd": 600.11,
+   "un": "m²",
+   "preco_unit": 120,
+   "total": 74173.596
+  }
+ ],
+ "custo_direto": 681205.57096,
+ "total_com_bdi": 831070.7965712
+}

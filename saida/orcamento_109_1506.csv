@@ -1,0 +1,18 @@
+eap;descricao;unidade;quantidade;origem;custo_unitario;custo_direto;preco_bdi;preco_min;preco_max;confianca;pendencia
+03.02;Aço (comprado em barras 6m);kg;31345,00;MANUAL;14,4200;451994,90;551433,78;468718,71;634148,84;estimado;
+03.03;Chapa OSB/piso;ch;162,00;MANUAL;74,1600;12013,92;14656,98;12458,44;16855,53;estimado;
+03.04;Parafusos/fixadores;un;15572,00;MANUAL;0,0474;737,80;900,12;765,10;1035,14;estimado;
+03.05;Chapas gusset;un;7008,00;MANUAL;9,2700;64964,16;79256,28;67367,83;91144,72;estimado;
+03.06;Mão de obra;m²;600,11;MANUAL;123,6000;74173,60;90491,79;76918,02;104065,56;estimado;
+04.04;Chapa cimentícia;ch;201,00;MANUAL;175,1000;35195,10;42938,02;36497,32;49378,73;estimado;
+04.05;Telha;m²;190,00;MANUAL;56,6500;10763,50;13131,47;11161,75;15101,19;estimado;
+04.06;Cumeeira;m;13,06;MANUAL;39,1400;511,17;623,63;530,08;717,17;estimado;
+04.07;Calha;m;26,12;MANUAL;43,2600;1129,95;1378,54;1171,76;1585,32;estimado;
+06.02;Chapa drywall;ch;782,00;MANUAL;38,0070;29721,47;36260,20;30821,17;41699,23;estimado;
+
+TOTAL;BDI 22,00%;;;;;681205,57;831070,80;;;estimado;
+ALERTA;macroetapa 01 sem quantitativo (escopo vazado? R7)
+ALERTA;macroetapa 02 sem quantitativo (escopo vazado? R7)
+ALERTA;macroetapa 05 sem quantitativo (escopo vazado? R7)
+ALERTA;macroetapa 07 sem quantitativo (escopo vazado? R7)
+ALERTA;macroetapa 08 sem quantitativo (escopo vazado? R7)

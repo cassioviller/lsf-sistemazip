@@ -4,10 +4,13 @@ Você está trabalhando no sistema que transforma um projeto arquitetônico (DXF
 
 ## Estado atual (o que JÁ existe e funciona — não reescrever, evoluir)
 
-- **`db/schema.sql` + `db/seed.sql`**: base de conhecimento multi-fonte versionada por data-base. 12 fontes cadastradas, 20 perfis LSF (portados do v7 em `assets/`), 9 regras NBR 15758, pesos por camada, 5 classes de solo, 4 composições próprias exemplo, mapeamento item→composição. `python3 db/build_db.py` constrói `lsf_base.db`. A view `vw_custo_composicao` já precifica com propagação de confiança.
-- **`tests/spikes_validacao.py`**: 6 spikes que provaram cada elo (DXF→eixos, CPM, Curva S + BDI TCU, takedown de cargas via banco, panelizador junta×vão, cadeia item→custo). São a suíte de regressão — `pytest tests/` deve passar SEMPRE. Se um spike quebrar, o commit está errado.
-- **`tools/bridge_autosinapi.py`**: ponte staging AutoSINAPI → nosso schema, provada fim-a-fim (SINAPI 96359 custeando a R$ 99,55/m² pela view).
+- **`db/schema.sql` + `db/seed.sql` + `db/migrations/`**: base de conhecimento multi-fonte versionada por data-base. 12 fontes, 20 perfis LSF (portados do v7 em `assets/`), 9 regras NBR 15758, pesos por camada, 5 classes de solo, composições próprias, mapeamento item→composição. Migração 001: `projeto` (trava referência+uf+desonerado), `quantitativo` (origem MANUAL|PARAMETRICO|TAKEOFF, trigger só-em-folha), `eap_item` (hierarquia com CHECK nas 8 macroetapas). Migração 002: `parametros_globais` (BDI TCU decomposto). `db/build_db.py` aplica schema+seed+migrações em ordem.
+- **`src/lsf/motores/orcamento.py` — FASE 1 CONCLUÍDA (aceite: desvio 0,00% vs orçamento v7 da 109.1506)**: `custo_composicao` recursivo (aninhamento, ciclo detectado, memoização; dado ausente = exceção, nunca custo parcial), `custo_direto_projeto` (linhas + subtotais por macroetapa + total que se recusa a fechar com pendência; `macroetapas_zeradas` alimenta o gate R7), `carregar_parametros_bdi`/`bdi_tcu`/`aplicar_bdi` (27,79% reproduzido do banco). Confiança propagada por rank numérico `real<estimado<parametrico` — NUNCA por MIN() de string (ordem alfabética elege o pior errado). O motor NÃO usa `vw_custo_composicao` (1 nível, INNER JOIN engole dado faltante); a view fica para consulta rápida de composição plana.
+- **`src/lsf/relatorios.py`**: relatório analítico CSV (';', decimal vírgula) e HTML estático (D6), com faixa ±% em itens estimado/parametrico (D4) e alertas de macroetapa zerada + pendências.
+- **`tests/`**: 55 testes; `tests/spikes_validacao.py` (6 spikes: DXF→eixos, CPM, Curva S + BDI TCU, takedown via banco, panelizador, cadeia item→custo) segue como regressão — se um spike quebrar, o commit está errado. `tests/test_aceite_fase1.py` guarda o aceite contra `tests/fixtures/orcamento_v7_109_1506.json` (engine do v7 executado headless via node; `tools/carregar_orcamento_v7.py` é o carregador + CLI de conferência).
+- **`tools/bridge_autosinapi.py`**: ponte staging AutoSINAPI → nosso schema, provada fim-a-fim (SINAPI 96359 a R$ 99,55/m²). ATENÇÃO: não é idempotente — reexecutar duplica `composicao_item` e infla o preço; corrigir antes de usar em rotina mensal.
 - **Decisão SINAPI tomada** (docs/03): Rota A condicional — AutoSINAPI (GPLv3) como serviço isolado em container; a ponte é nossa. Gate pendente: smoke test com 1 arquivo real da Caixa na máquina do usuário.
+- **Ambiente**: não há python no PATH deste workspace; usar `.venv/bin/python` (criado do nix store) com `export LD_LIBRARY_PATH=/nix/store/0gnnf8s259nn28s41zs4rhpbfqm148rm-gcc-11.4.0-lib/lib` (numpy). Node headless: `/nix/store/0akvkk9k1a7z5vjp34yz6dr91j776jhv-nodejs-20.11.1/bin/node`. Git: `origin=github.com/cassioviller/lsf-sistemazip`.
 
 ## Decisões de arquitetura TRAVADAS (não reabrir sem motivo forte — detalhes em docs/01 §2)
 
@@ -19,6 +22,10 @@ Você está trabalhando no sistema que transforma um projeto arquitetônico (DXF
 - **D6 — Motores são funções puras** sobre o banco. Zero acoplamento a framework web. Testáveis isolados.
 - **D7 — SINAPI é camada de mapeamento, não de lógica**: LSF estrutural = composições próprias (SINAPI não cobre; drywall sim — caderno oficial, ex. 96359/96114).
 - **D8 — Stack**: Python + SQLite (→Postgres quando doer) + saídas HTML/planilha/docx identidade Veks.
+
+Decisões complementares tomadas na Fase 1 (mesma força das D1–D8):
+- **D5.1 — Projeto trava REFERÊNCIA (YYYY-MM + uf + desonerado), não `data_base_id`**: cada insumo é precificado na data-base da SUA fonte naquela referência (base da UF ganha da nacional). É o que permite composição própria (D7) misturar material VEKS com mão de obra SINAPI. Assinatura: `custo_composicao(con, composicao_id, referencia, uf, desonerado)`.
+- **D4.1 — Dado ausente é ERRO, não zero nem custo parcial**: insumo sem preço, composição sem analítica ou mapeamento NULL viram `CustoIndisponivel`/pendência, e o total do orçamento fica `None` até resolver. Confiança etiqueta incerteza; ausência derruba.
 
 ## Política de licenças (OBRIGATÓRIA — docs/02 §3-I4)
 
@@ -36,27 +43,29 @@ MIT/Apache/BSD → pode embutir (ezdxf MIT ✓). GPL (AutoSINAPI, TF2DeepFloorpl
 
 ```
 CLAUDE.md               ← você está aqui (fonte de verdade)
-PROMPT_INICIAL.md       ← primeira mensagem sugerida p/ a sessão
+PROMPT_INICIAL.md       ← primeira mensagem sugerida p/ a sessão (Fase 1, já executada)
 docs/01..04             ← plano v1, plano validado v2, decisão SINAPI, referências/colheita
-db/                     ← schema.sql, seed.sql, build_db.py (gera lsf_base.db)
-tests/                  ← spikes (regressão) + test_regressao.py
-tools/bridge_autosinapi.py
-src/lsf/motores/        ← orcamento.py, cronograma.py, cargas.py (stubs com contratos)
+db/                     ← schema.sql, seed.sql, migrations/ (001 projeto/EAP, 002 BDI), build_db.py
+tests/                  ← 55 testes: spikes (regressão), motor, aceite F1 + fixtures/
+tools/                  ← bridge_autosinapi.py, carregar_orcamento_v7.py (aceite F1, CLI)
+src/lsf/motores/        ← orcamento.py (Fase 1 ✓), cronograma.py, cargas.py (stubs com contratos)
+src/lsf/relatorios.py   ← CSV/HTML analítico com faixas D4
+saida/                  ← relatórios gerados (orcamento_109_1506.html/csv)
 assets/calc-...v7.html  ← calculador v7 (READ-ONLY: fonte das regras já portadas; consultar, não editar)
 ```
 
-## Fase atual: FASE 1 — Motor de orçamento
+## Fase atual: FASE 2 — Cadeia de inferência paramétrica (estágios 1–3)
 
-Implementar em `src/lsf/motores/orcamento.py`:
-1. `custo_composicao(con, composicao_id, data_base_id)` — recursivo (item_tipo=COMPOSICAO), retorna (custo, confianca) com confiança = pior componente. A view cobre 1 nível; o motor resolve aninhamento.
-2. Tabelas de projeto (schema já previsto em docs/01 §4): `projeto`, `quantitativo` com `origem`.
-3. `custo_direto_projeto` agregando por hierarquia da EAP.
-4. `aplicar_bdi` (fórmula TCU do spike 3) → preço de venda por linha e total.
-5. Relatório analítico (planilha/HTML) com coluna de confiança e faixas para itens `estimado`.
+(Fase 1 concluída: aceite em `tests/test_aceite_fase1.py`, desvio 0,00% vs orçamento v7 da 109.1506 — quantidades e preços oficiais da obra, quantitativos MANUAL. Ressalva honesta: preços e quantidades vieram da mesma referência; o que o aceite prova é o pipeline quantitativo→composição→EAP→BDI. Calibração de coeficientes contra obra segue pendente — R6.)
 
-**Critério de aceite da fase**: reproduzir 1 orçamento real da Veks com desvio ≤ 2%, com quantitativos digitados manualmente (isola erro de preço de erro de regra — por isso orçamento vem antes do paramétrico).
+Implementar (docs/02 §4, Fase 2):
+1. Portar o gerador de estrutura do v7 para `src/lsf/geradores/estrutura.py` — `gerarPecas`, vergas, contraventamento — lendo `perfil_lsf`/`regra_lsf` do banco, não hardcode. ANTES: conferir os perfis do seed contra o v7 PÓS-`Object.assign` da linha 645 (o seed portou valores pré-override; `Ue70#0.80` e `U72#0.80` divergem, faltam U202#0.95, U252#1.25, Ue140#0.80, U142#0.80 e os laminados).
+2. Schema da `planta_normalizada` (paredes/vãos/níveis com confiança) + entrada manual/assistida.
+3. Motor de takedown de cargas por parede real (generalizar spike 4), escrevendo `quantitativo` origem=PARAMETRICO.
 
-Depois: Fase 2 (adaptador DXF completo + gerador de estrutura portado do v7 + takedown por parede real), Fase 3 (fundação + gates), Fase 4 (cronograma + curva S, validação cruzada com ProjectLibre), Fase 5 (saídas, croqui, panelizador com romaneio, migração PARAMETRICO→TAKEOFF). Sequência e aceites completos em docs/02 §4.
+**Critério de aceite**: kg de aço da 109.1506 com desvio ≤ 10% vs v7 (referência headless: 23.673 kg líquido / 31.345 kg comprado, em `tests/fixtures/orcamento_v7_109_1506.json`); cargas por parede validadas contra 1 obra com projeto estrutural (R9).
+
+Depois: Fase 3 (fundação + gates), Fase 4 (cronograma + curva S, validação ProjectLibre), Fase 5 (saídas, croqui, panelizador com romaneio, migração PARAMETRICO→TAKEOFF). Sequência completa em docs/02 §4.
 
 ## Convenções de trabalho
 
