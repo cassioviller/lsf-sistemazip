@@ -107,15 +107,26 @@ def test_composicao_mista_soma_insumo_e_subcomposicao(con, id_de, base):
     assert custo == pytest.approx(41.4 * CUSTO_VK_C_001 + 46.00, abs=0.01)
 
 
-def test_subcomposicao_repetida_e_contada_em_cada_uso(con, id_de, base):
-    """Memoização é cache de custo, não deduplicação de item."""
+def test_memoizacao_nao_dedupe_usos_em_ramos_diferentes(con, id_de, base):
+    """Memoização é cache de custo: a MESMA subcomposição usada em dois ramos da
+    árvore é avaliada uma vez, mas contada nos dois lugares."""
+    meio = _nova_composicao(con, "VK-C-900")
+    _add_item(con, meio, "COMPOSICAO", id_de("VK-C-001"), 2.0)
+    topo = _nova_composicao(con, "VK-C-901")
+    _add_item(con, topo, "COMPOSICAO", id_de("VK-C-001"), 1.0)  # uso direto
+    _add_item(con, topo, "COMPOSICAO", meio, 1.0)               # uso via VK-C-900
+    custo, _ = custo_composicao(con, topo, **base)
+    assert custo == pytest.approx(3.0 * CUSTO_VK_C_001, abs=0.01)
+
+
+def test_item_duplicado_na_mesma_composicao_e_rejeitado_pelo_banco(con, id_de):
+    """Migração 003: reinserir a mesma analítica dobrava o custo em silêncio (bug
+    provado na ponte antiga); agora o UNIQUE bloqueia na escrita."""
+    import sqlite3 as _sq
     topo = _nova_composicao(con, "VK-C-900")
     _add_item(con, topo, "COMPOSICAO", id_de("VK-C-001"), 1.0)
-    _add_item(con, topo, "COMPOSICAO", id_de("VK-C-002"), 1.0)
-    _add_item(con, topo, "COMPOSICAO", id_de("VK-C-001"), 2.0)
-    custo, _ = custo_composicao(con, topo, **base)
-    custo_002, _ = custo_composicao(con, id_de("VK-C-002"), **base)
-    assert custo == pytest.approx(3.0 * CUSTO_VK_C_001 + custo_002, abs=0.01)
+    with pytest.raises(_sq.IntegrityError):
+        _add_item(con, topo, "COMPOSICAO", id_de("VK-C-001"), 2.0)
 
 
 # ---------- confiança mista através do aninhamento ----------

@@ -49,8 +49,13 @@ INSERT INTO regra_lsf (chave,valor,unidade,referencia) VALUES
  ('paraf_placa_borda_mm',250,'mm','prática/NBR'),
  ('massa_junta_kg_m2',0.5,'kg/m²','ref. drywall'),
  ('fita_junta_ml_m2',2.0,'ml/m²','ref. drywall'),
- ('perda_perfil_pct',2.0,'%','v7: adicionais AD/BX ±2%'),
- ('caixa_persiana_m',0.21,'m','GUIA SMART');
+ ('perda_perfil_pct',2.0,'%','v7: adicionais AD/BX ±2% — ATENÇÃO: VK-C-001 já embute coef 1,02; não aplicar 2x'),
+ ('caixa_persiana_m',0.21,'m','GUIA SMART'),
+ -- panelização (colheita 07/2026: régua comercial FRAMECAD/Vertex/StrucSoft/Scottsdale + v7; ver docs/05)
+ ('largura_painel_max_m',3.6,'m','v7 REGRAS larguraPainelMaxM [OBRA layout 1PV: paredes divididas]'),
+ ('painel_comp_max_transporte_m',6.0,'m','parâmetro transporte/manuseio (CLAUDE.md); barraM v7=6,0 é emenda de PERFIL, não painel'),
+ ('junta_folga_vao_m',0.30,'m','junta nunca a <30cm da lateral de vão (montante duplo × emenda) — validar c/ eng. estrutural'),
+ ('largura_painel_min_m',0.60,'m','sem painel-lasca: mínimo 1 módulo de montante (600mm) — prática comercial, estimado');
 
 -- ---------- PESOS POR CAMADA (kg/m²) — takedown de cargas ----------
 INSERT INTO peso_camada (material,kg_m2,confianca,fonte,observacao) VALUES

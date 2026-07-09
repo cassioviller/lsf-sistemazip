@@ -17,4 +17,4 @@
 | CBCA / manuais fabricante (Knauf, Placo, Brasilit, Barbieri, LP) | — | Fonte de COEFICIENTES das composições próprias (entram como `estimado`) | 0-1 |
 | Bases oficiais de PREÇO | públicas | SINAPI (BR, mensal) é a principal; CDHU ex-CPOS (SP) é a 2ª mais relevante regionalmente; ORSE (~9k composições) como fonte de coeficiente; SICRO p/ terraplenagem/infra; SIURB/EMOP/SEINFRA/FDE conforme necessidade | 0 |
 
-Pendência registrada: fixar commit (pin) do AutoSINAPI usado em produção + procedimento de atualização mensal.
+Pendência RESOLVIDA em 09/07/2026: pin = commit `0020609` (main); licenças verificadas via API e correções registradas em docs/05-colheita-aplicada.md (augustogoncalves/sinapi é MIT; frappe-gantt MIT; Skylark confirmado sem licença).

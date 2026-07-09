@@ -12,7 +12,7 @@ replit.nix
 db/lsf_base.db
 tests/lsf_base.db
 tests/teste.dxf
-autosinapi_stage.db
+db/autosinapi_stage.db
 
 # empacotamento antigo (cópia integral do repo; fonte de verdade é o git)
 zipFile.zip
