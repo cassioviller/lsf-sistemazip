@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Motor de inferência LSF — cadeia física (D3)</title>
+<style>
+  :root {
+    --ground: #eef1f4; --panel: #ffffff; --panel-2: #f6f8fa; --ink: #16202b; --ink-2: #48586a;
+    --ink-3: #7a8896; --hair: #d9e0e7; --hair-strong: #c2ccd6;
+    --steel: #2f6f8f; --steel-ink: #22546c;
+    --real: #2e8b6b; --estimado: #c77d18; --param: #3f7fb3; --pendente: #c0392b;
+    --real-bg: #e6f2ec; --estimado-bg: #fbf1de; --param-bg: #e7f0f7; --pendente-bg: #fbe6e3;
+    --shadow: 0 1px 2px rgba(22,32,43,.05), 0 10px 28px rgba(22,32,43,.07);
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", "Cascadia Code", Menlo, Consolas, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #0d151d; --panel: #16202b; --panel-2: #1b2733; --ink: #e6ecf2; --ink-2: #a6b4c2;
+      --ink-3: #6f8092; --hair: #263543; --hair-strong: #33475a;
+      --steel: #63a8c7; --steel-ink: #8fc4dd;
+      --real: #4fc499; --estimado: #e2a544; --param: #6ba8d8; --pendente: #e8695c;
+      --real-bg: #16302a; --estimado-bg: #33280f; --param-bg: #142838; --pendente-bg: #35201e;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 12px 34px rgba(0,0,0,.4);
+    }
+  }
+  :root[data-theme="light"] {
+    --ground: #eef1f4; --panel: #ffffff; --panel-2: #f6f8fa; --ink: #16202b; --ink-2: #48586a;
+    --ink-3: #7a8896; --hair: #d9e0e7; --hair-strong: #c2ccd6; --steel: #2f6f8f; --steel-ink: #22546c;
+    --real: #2e8b6b; --estimado: #c77d18; --param: #3f7fb3; --pendente: #c0392b;
+    --real-bg: #e6f2ec; --estimado-bg: #fbf1de; --param-bg: #e7f0f7; --pendente-bg: #fbe6e3;
+    --shadow: 0 1px 2px rgba(22,32,43,.05), 0 10px 28px rgba(22,32,43,.07);
+  }
+  :root[data-theme="dark"] {
+    --ground: #0d151d; --panel: #16202b; --panel-2: #1b2733; --ink: #e6ecf2; --ink-2: #a6b4c2;
+    --ink-3: #6f8092; --hair: #263543; --hair-strong: #33475a; --steel: #63a8c7; --steel-ink: #8fc4dd;
+    --real: #4fc499; --estimado: #e2a544; --param: #6ba8d8; --pendente: #e8695c;
+    --real-bg: #16302a; --estimado-bg: #33280f; --param-bg: #142838; --pendente-bg: #35201e;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 12px 34px rgba(0,0,0,.4);
+  }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--ground); color: var(--ink); font-family: var(--sans); line-height: 1.5; -webkit-font-smoothing: antialiased; }
+  .wrap { max-width: 1140px; margin: 0 auto; padding: clamp(1rem,3vw,2.5rem) clamp(1rem,3vw,2rem) 4rem; }
+  .num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  .eyebrow { font-family: var(--mono); font-size: .68rem; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-3); font-weight: 600; }
+
+  /* header */
+  header.top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 1rem 1.5rem; padding-bottom: 1.15rem; border-bottom: 2px solid var(--ink); }
+  .brand { display: flex; align-items: baseline; gap: .7rem; }
+  .brand .mark { font-family: var(--mono); font-weight: 700; font-size: .72rem; letter-spacing: .12em; color: var(--panel); background: var(--ink); padding: .28rem .5rem; border-radius: 3px; }
+  .brand h1 { margin: 0; font-size: clamp(1.45rem,3.4vw,2rem); font-weight: 800; letter-spacing: -.02em; text-wrap: balance; }
+  .brand h1 .code { font-family: var(--mono); color: var(--steel); font-weight: 700; }
+  .legend-conf { display: flex; flex-wrap: wrap; gap: .35rem; }
+  .lchip { display: inline-flex; align-items: center; gap: .4rem; font-family: var(--mono); font-size: .72rem; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; padding: .22rem .55rem; border-radius: 5px; }
+  .lchip::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+  .lchip.real { color: var(--real); background: var(--real-bg); }
+  .lchip.estimado { color: var(--estimado); background: var(--estimado-bg); }
+  .lchip.param { color: var(--param); background: var(--param-bg); }
+  .lchip.pendente { color: var(--pendente); background: var(--pendente-bg); }
+
+  .subtitle { color: var(--ink-2); font-size: .92rem; margin: 1.2rem 0 0; max-width: 62ch; }
+  .subtitle b { color: var(--ink); }
+
+  /* pipeline */
+  .pipeline { display: grid; grid-template-columns: repeat(6, 1fr); gap: 0; margin: 2rem 0 .3rem; }
+  .node { position: relative; background: var(--panel); border: 1px solid var(--hair); border-radius: 12px; padding: .95rem .85rem 1rem; box-shadow: var(--shadow); cursor: pointer; text-align: left; font: inherit; color: inherit; display: flex; flex-direction: column; gap: .5rem; transition: transform .12s, border-color .12s, box-shadow .12s; z-index: 1; }
+  .node:not(:last-child) { margin-right: 20px; }
+  /* connector arrow */
+  .node:not(:last-child)::after {
+    content: ""; position: absolute; right: -21px; top: 50%; width: 22px; height: 2px;
+    background: var(--hair-strong); z-index: 0;
+  }
+  .node:not(:last-child)::before {
+    content: ""; position: absolute; right: -21px; top: 50%; transform: translateY(-50%);
+    border-left: 7px solid var(--hair-strong); border-top: 5px solid transparent; border-bottom: 5px solid transparent; z-index: 0;
+  }
+  .node:hover { transform: translateY(-3px); border-color: var(--steel); }
+  .node[aria-selected="true"] { border-color: var(--steel); box-shadow: 0 0 0 2px var(--steel), var(--shadow); }
+  .node:focus-visible { outline: 2px solid var(--steel); outline-offset: 2px; }
+  .node .step { font-family: var(--mono); font-size: .68rem; font-weight: 700; letter-spacing: .1em; color: var(--ink-3); }
+  .node .title { font-size: .92rem; font-weight: 700; letter-spacing: -.01em; line-height: 1.2; }
+  .node .val { font-family: var(--mono); font-variant-numeric: tabular-nums; font-weight: 700; font-size: 1.02rem; letter-spacing: -.01em; line-height: 1.15; }
+  .node .val small { display: block; font-size: .68rem; font-weight: 500; color: var(--ink-3); letter-spacing: 0; }
+  .node .cchip { align-self: flex-start; margin-top: auto; font-family: var(--mono); font-size: .66rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; padding: .15rem .45rem; border-radius: 4px; display: inline-flex; align-items: center; gap: .35rem; }
+  .node .cchip::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .c-real { color: var(--real); background: var(--real-bg); }
+  .c-estimado { color: var(--estimado); background: var(--estimado-bg); }
+  .c-param { color: var(--param); background: var(--param-bg); }
+  .c-pendente { color: var(--pendente); background: var(--pendente-bg); }
+  .node.blocked { border-color: color-mix(in srgb, var(--pendente) 45%, var(--hair)); background: linear-gradient(180deg, var(--panel), var(--pendente-bg)); }
+
+  /* confidence rail */
+  .rail-box { background: var(--panel); border: 1px solid var(--hair); border-radius: 12px; box-shadow: var(--shadow); padding: 1.1rem 1.25rem 1.2rem; margin-top: 1.3rem; }
+  .rail-head { display: flex; align-items: baseline; gap: .6rem; margin-bottom: .7rem; flex-wrap: wrap; }
+  .rail-head h3 { margin: 0; font-size: .9rem; font-weight: 800; }
+  .rail-head .note { font-size: .8rem; color: var(--ink-2); }
+  .rail { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; }
+  .rail .seg { height: 34px; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-family: var(--mono); font-size: .66rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+  .rail .seg.real { background: color-mix(in srgb, var(--real) 22%, var(--panel)); color: var(--real); }
+  .rail .seg.estimado { background: color-mix(in srgb, var(--estimado) 24%, var(--panel)); color: var(--estimado); }
+  .rail .seg.pendente { background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--pendente) 24%, var(--panel)) 0 8px, transparent 8px 16px); color: var(--pendente); border: 1px solid color-mix(in srgb, var(--pendente) 40%, transparent); }
+  .rail-foot { display: flex; align-items: center; gap: .5rem; margin-top: .75rem; font-size: .84rem; color: var(--ink-2); }
+  .rail-foot .arrow { font-family: var(--mono); color: var(--ink-3); }
+  .rail-foot b { color: var(--pendente); font-family: var(--mono); }
+
+  /* detail panel */
+  .detail { margin-top: 1.3rem; background: var(--panel); border: 1px solid var(--hair); border-radius: 12px; box-shadow: var(--shadow); overflow: hidden; }
+  .detail .dhead { display: flex; align-items: center; gap: .7rem; padding: 1rem 1.25rem; border-bottom: 1px solid var(--hair); background: var(--panel-2); flex-wrap: wrap; }
+  .detail .dhead .dstep { font-family: var(--mono); font-size: .72rem; font-weight: 700; color: var(--panel); background: var(--steel); border-radius: 5px; padding: .2rem .5rem; }
+  .detail .dhead h3 { margin: 0; font-size: 1.05rem; font-weight: 800; letter-spacing: -.01em; }
+  .detail .dbody { display: grid; grid-template-columns: 1fr 1fr; gap: 0; }
+  .detail .io { padding: 1.1rem 1.25rem; }
+  .detail .io + .io { border-left: 1px solid var(--hair); }
+  .detail .io h4 { margin: 0 0 .6rem; font-size: .68rem; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); font-family: var(--mono); font-weight: 700; }
+  .detail .io ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: .5rem; }
+  .detail .io li { display: flex; gap: .55rem; font-size: .87rem; }
+  .detail .io li .k { font-family: var(--mono); color: var(--steel); flex: none; font-size: .8rem; padding-top: .05rem; }
+  .detail .rule { padding: .85rem 1.25rem; border-top: 1px solid var(--hair); background: var(--panel-2); font-size: .82rem; color: var(--ink-2); display: flex; gap: .6rem; }
+  .detail .rule .lbl { font-family: var(--mono); font-size: .66rem; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); font-weight: 700; flex: none; padding-top: .1rem; }
+  .detail .rule b { color: var(--ink); }
+
+  /* domain callouts */
+  .callouts { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1.6rem; }
+  .callout { border-radius: 12px; padding: 1.1rem 1.2rem; border: 1px solid var(--hair); background: var(--panel); box-shadow: var(--shadow); }
+  .callout.warn { border-left: 4px solid var(--pendente); }
+  .callout.steel { border-left: 4px solid var(--steel); }
+  .callout h4 { margin: 0 0 .4rem; font-size: .9rem; font-weight: 800; display: flex; align-items: center; gap: .5rem; }
+  .callout h4 .ico { font-family: var(--mono); }
+  .callout.warn h4 .ico { color: var(--pendente); }
+  .callout.steel h4 .ico { color: var(--steel); }
+  .callout p { margin: 0; font-size: .85rem; color: var(--ink-2); }
+  .callout p b { color: var(--ink); font-family: var(--mono); font-weight: 700; }
+
+  footer.disc { margin-top: 2rem; padding: 1.1rem 1.2rem; border-radius: 10px; background: var(--panel-2); border: 1px dashed var(--hair-strong); font-size: .78rem; color: var(--ink-2); line-height: 1.55; }
+  footer.disc b { color: var(--ink); }
+
+  @media (max-width: 860px) {
+    .pipeline { grid-template-columns: 1fr; gap: 26px; }
+    .node:not(:last-child) { margin-right: 0; }
+    .node:not(:last-child)::after { right: auto; left: 50%; top: auto; bottom: -22px; width: 2px; height: 22px; }
+    .node:not(:last-child)::before { right: auto; left: 50%; top: auto; bottom: -22px; transform: translateX(-50%); border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 7px solid var(--hair-strong); border-bottom: none; }
+    .rail { grid-template-columns: repeat(3, 1fr); }
+    .detail .dbody { grid-template-columns: 1fr; }
+    .detail .io + .io { border-left: none; border-top: 1px solid var(--hair); }
+    .callouts { grid-template-columns: 1fr; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <div class="brand">
+        <span class="mark">VEKS</span>
+        <h1>Motor de inferência física <span class="code">109.1506</span></h1>
+      </div>
+      <p class="eyebrow" style="margin:.55rem 0 0">Cadeia D3 · arquitetônico → SINAPI · confiança propagada (D4)</p>
+    </div>
+    <div class="legend-conf">
+      <span class="lchip real">real</span>
+      <span class="lchip estimado">estimado</span>
+      <span class="lchip param">paramétrico</span>
+      <span class="lchip pendente">pendente</span>
+    </div>
+  </header>
+
+  <p class="subtitle">Cada estágio consome o anterior e produz um número com <b>origem</b> e <b>confiança</b>.
+    A confiança de saída herda a <b>pior</b> de todos os inputs (D4) — por isso o solo, único input que o
+    arquitetônico não dá, derruba a cadeia inteira. Clique num estágio para abrir o detalhe.</p>
+
+  <div class="pipeline" id="pipeline" role="tablist" aria-label="Estágios da cadeia de inferência"></div>
+
+  <div class="rail-box">
+    <div class="rail-head">
+      <h3>Trilha de confiança</h3>
+      <span class="note">o pior confere — não o MIN() de string, mas rank numérico real &lt; estimado &lt; paramétrico</span>
+    </div>
+    <div class="rail" id="rail"></div>
+    <div class="rail-foot">
+      <span class="arrow">saída da cadeia →</span>
+      <span class="lchip pendente">pendente / bloqueada</span>
+      <span>enquanto a sondagem não resolver o solo. <b>Dado ausente é erro, não zero (D4.1).</b></span>
+    </div>
+  </div>
+
+  <div class="detail" id="detail" aria-live="polite"></div>
+
+  <div class="callouts">
+    <div class="callout steel">
+      <h4><span class="ico">◆</span> LSF é leve — o mínimo construtivo governa</h4>
+      <p>Parede típica <b>~41 kg/m²</b>, carga <b>~5 kN/m</b> no térreo. Provado no spike 4: a fundação sai por
+        <b>max(largura teórica, 0,30 m)</b>, não pela tensão do solo. Arrancamento por vento pode governar antes da compressão.</p>
+    </div>
+    <div class="callout warn">
+      <h4><span class="ico">▲</span> Solo é o input que o arquitetônico não dá</h4>
+      <p>Classe <b>S1–S5</b> com tensão presumida conservadora + flag <b>sondagem pendente</b> que rebaixa toda a fundação.
+        <b>S1 BLOQUEIA</b> o pré-dimensionamento. Confiança etiqueta incerteza; ausência derruba.</p>
+    </div>
+  </div>
+
+  <footer class="disc">
+    <b>PRÉ-DIMENSIONAMENTO</b> para fins de orçamento — não substitui projeto estrutural, sondagem ou ART.
+    Motores são funções puras sobre o banco (D6): a mesma EAP alimenta orçamento e cronograma (D1). SINAPI é camada
+    de mapeamento, não de lógica (D7) — LSF estrutural usa composições próprias. Números derivados carregam origem e confiança, sem exceção.
+  </footer>
+</div>
+
+<script>
+  var estagios = [
+    {
+      step: "01 · ENTRADA", title: "Arquitetônico", val: "DXF / DWG", unit: "eixos + contornos + níveis",
+      conf: "real", cls: "c-real",
+      consome: [["fonte","Projeto do cliente (croqui aceito)"],["lib","ezdxf — MIT, embutido"]],
+      produz: [["geometria","Eixos de parede, pé-direito, aberturas"],["nível","térreo + pavimentos"]],
+      regra: ["ENTRADA","Geometria é dado, não inferência — confiança <b>real</b>. Croqui manual entra como <b>estimado</b>."]
+    },
+    {
+      step: "02", title: "Paredes", val: "600,11 m²", unit: "planta como grafo (cantos = nós)",
+      conf: "estimado", cls: "c-estimado",
+      consome: [["eixos","Contornos do estágio 01"],["regra_lsf","junta ≥ 0,30 m do vão · painel ≤ 6,0 m"]],
+      produz: [["planta_normalizada","paredes = arestas, vãos, níveis"],["área","600,11 m² de parede"]],
+      regra: ["MIGRAÇÃO 004","Conceito Raster-to-Graph (paper, <b>sem código</b> — licença ausente). Entrada assistida rebaixa p/ <b>estimado</b>."]
+    },
+    {
+      step: "03", title: "Estrutura LSF", val: "23.673 kg", unit: "líquido · 31.345 kg comprado (barras 6 m)",
+      conf: "estimado", cls: "c-estimado",
+      consome: [["paredes","área e vãos do estágio 02"],["perfil_lsf","Ue90#0.95, guias, montantes do banco"]],
+      produz: [["gerarPecas","montantes + guias + vergas + contravento"],["aço","23.673 kg líq · +32% perda → 31.345 kg"]],
+      regra: ["FASE 2 · GERADOR","Perfis lidos do banco, não hardcode. Panelização respeita comprimento de transporte. Coef. <b>estimado</b> até calibrar obra (R6)."]
+    },
+    {
+      step: "04", title: "Cargas", val: "~5 kN/m", unit: "takedown por parede · ~41 kg/m²",
+      conf: "estimado", cls: "c-estimado",
+      consome: [["estrutura","peças + pesos por camada (NBR 15758)"],["cobertura","telha, sobrecarga de uso"]],
+      produz: [["carga linear","~5 kN/m no térreo por parede"],["quantitativo","origem = PARAMETRICO"]],
+      regra: ["SPIKE 4 · GENERALIZADO","Takedown por parede real. Peso próprio LSF é baixo — daí o mínimo construtivo governar a fundação."]
+    },
+    {
+      step: "05", title: "Fundação", val: "max(t, 0,30 m)", unit: "mínimo construtivo · S1 BLOQUEIA",
+      conf: "pendente", cls: "c-pendente", blocked: true,
+      consome: [["cargas","5 kN/m do estágio 04"],["classe de solo","S1–S5 — NÃO vem do arquitetônico"]],
+      produz: [["largura sapata","max(teórica, 0,30 m)"],["flag","sondagem pendente → rebaixa confiança"]],
+      regra: ["FASE 3 · REVISÃO ENG.","Verificação de arrancamento por vento exige revisão de engenheiro estrutural — <b>única dependência humana</b> do plano."]
+    },
+    {
+      step: "06 · SAÍDA", title: "SINAPI", val: "R$ 14,42/kg", unit: "mapeamento → composições próprias",
+      conf: "estimado", cls: "c-estimado",
+      consome: [["quantitativos","kg, m², un dos estágios 03–05"],["referência","2026-06 · SP · não desonerado (D5.1)"]],
+      produz: [["preço","R$ 14,42/kg aço + composição própria LSF"],["orçamento","custo direto → BDI → venda"]],
+      regra: ["D7 · MAPEAMENTO","SINAPI cobre drywall (96359/96114); LSF estrutural = composição própria VEKS. Camada de mapeamento, não de lógica."]
+    }
+  ];
+
+  var pipeline = document.getElementById("pipeline");
+  pipeline.innerHTML = estagios.map(function (e, i) {
+    return '<button class="node ' + (e.blocked ? "blocked" : "") + '" role="tab" data-i="' + i + '"' +
+      ' aria-selected="' + (i === 0 ? "true" : "false") + '">' +
+      '<span class="step">' + e.step + '</span>' +
+      '<span class="title">' + e.title + '</span>' +
+      '<span class="val">' + e.val + '<small>' + e.unit + '</small></span>' +
+      '<span class="cchip ' + e.cls + '">' + e.conf + '</span>' +
+    '</button>';
+  }).join("");
+
+  var railMap = ["real","estimado","estimado","estimado","pendente","pendente"];
+  var railLbl = ["real","estimado","estimado","estimado","PENDENTE","bloqueada"];
+  document.getElementById("rail").innerHTML = railMap.map(function (c, i) {
+    return '<div class="seg ' + c + '">' + railLbl[i] + '</div>';
+  }).join("");
+
+  var detail = document.getElementById("detail");
+  function render(i) {
+    var e = estagios[i];
+    function list(arr) { return arr.map(function (r) { return '<li><span class="k">' + r[0] + '</span><span>' + r[1] + '</span></li>'; }).join(""); }
+    detail.innerHTML =
+      '<div class="dhead"><span class="dstep">' + e.step.split(" ")[0] + '</span><h3>' + e.title + '</h3>' +
+        '<span class="cchip ' + e.cls + '" style="margin-left:auto">' + e.conf + '</span></div>' +
+      '<div class="dbody">' +
+        '<div class="io"><h4>◀ Consome</h4><ul>' + list(e.consome) + '</ul></div>' +
+        '<div class="io"><h4>Produz ▶</h4><ul>' + list(e.produz) + '</ul></div>' +
+      '</div>' +
+      '<div class="rule"><span class="lbl">origem regra</span><span><b>' + e.regra[0] + '</b> · ' + e.regra[1] + '</span></div>';
+  }
+  render(0);
+
+  pipeline.addEventListener("click", function (ev) {
+    var btn = ev.target.closest(".node"); if (!btn) return;
+    pipeline.querySelectorAll(".node").forEach(function (n) { n.setAttribute("aria-selected", "false"); });
+    btn.setAttribute("aria-selected", "true");
+    render(parseInt(btn.getAttribute("data-i"), 10));
+  });
+</script>
+</body>
+</html>

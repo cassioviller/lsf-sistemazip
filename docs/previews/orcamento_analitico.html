@@ -1,0 +1,417 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Orçamento LSF — 109.1506 · preview</title>
+<style>
+  :root {
+    --ground: #eef1f4;
+    --panel: #ffffff;
+    --panel-2: #f6f8fa;
+    --ink: #16202b;
+    --ink-2: #48586a;
+    --ink-3: #7a8896;
+    --hair: #d9e0e7;
+    --hair-strong: #c2ccd6;
+    --steel: #2f6f8f;
+    --steel-ink: #22546c;
+    --real: #2e8b6b;
+    --estimado: #c77d18;
+    --pendente: #c0392b;
+    --real-bg: #e6f2ec;
+    --estimado-bg: #fbf1de;
+    --pendente-bg: #fbe6e3;
+    --shadow: 0 1px 2px rgba(22,32,43,.05), 0 8px 24px rgba(22,32,43,.06);
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", "Cascadia Code", Menlo, Consolas, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #0d151d;
+      --panel: #16202b;
+      --panel-2: #1b2733;
+      --ink: #e6ecf2;
+      --ink-2: #a6b4c2;
+      --ink-3: #6f8092;
+      --hair: #263543;
+      --hair-strong: #33475a;
+      --steel: #63a8c7;
+      --steel-ink: #8fc4dd;
+      --real: #4fc499;
+      --estimado: #e2a544;
+      --pendente: #e8695c;
+      --real-bg: #16302a;
+      --estimado-bg: #33280f;
+      --pendente-bg: #35201e;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="light"] {
+    --ground: #eef1f4; --panel: #ffffff; --panel-2: #f6f8fa; --ink: #16202b; --ink-2: #48586a;
+    --ink-3: #7a8896; --hair: #d9e0e7; --hair-strong: #c2ccd6; --steel: #2f6f8f; --steel-ink: #22546c;
+    --real: #2e8b6b; --estimado: #c77d18; --pendente: #c0392b;
+    --real-bg: #e6f2ec; --estimado-bg: #fbf1de; --pendente-bg: #fbe6e3;
+    --shadow: 0 1px 2px rgba(22,32,43,.05), 0 8px 24px rgba(22,32,43,.06);
+  }
+  :root[data-theme="dark"] {
+    --ground: #0d151d; --panel: #16202b; --panel-2: #1b2733; --ink: #e6ecf2; --ink-2: #a6b4c2;
+    --ink-3: #6f8092; --hair: #263543; --hair-strong: #33475a; --steel: #63a8c7; --steel-ink: #8fc4dd;
+    --real: #4fc499; --estimado: #e2a544; --pendente: #e8695c;
+    --real-bg: #16302a; --estimado-bg: #33280f; --pendente-bg: #35201e;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.35);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--ground); color: var(--ink);
+    font-family: var(--sans); line-height: 1.5;
+    font-feature-settings: "cv05" 1;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: clamp(1rem, 3vw, 2.5rem) clamp(1rem, 3vw, 2rem) 4rem; }
+
+  .num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  .eyebrow {
+    font-family: var(--mono); font-size: .68rem; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--ink-3); font-weight: 600;
+  }
+
+  /* ---- header ---- */
+  header.top {
+    display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between;
+    gap: 1rem 1.5rem; padding-bottom: 1.25rem; border-bottom: 2px solid var(--ink);
+  }
+  .brand { display: flex; align-items: baseline; gap: .7rem; }
+  .brand .mark {
+    font-family: var(--mono); font-weight: 700; font-size: .72rem; letter-spacing: .12em;
+    color: var(--panel); background: var(--ink); padding: .28rem .5rem; border-radius: 3px;
+  }
+  .brand h1 {
+    margin: 0; font-size: clamp(1.5rem, 3.5vw, 2.1rem); font-weight: 800;
+    letter-spacing: -.02em; text-wrap: balance;
+  }
+  .brand h1 .code { font-family: var(--mono); color: var(--steel); font-weight: 700; }
+  .meta-row { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; }
+  .tag {
+    font-family: var(--mono); font-size: .74rem; color: var(--ink-2);
+    background: var(--panel); border: 1px solid var(--hair); border-radius: 999px;
+    padding: .22rem .6rem; white-space: nowrap;
+  }
+  .tag b { color: var(--ink); font-weight: 700; }
+
+  /* ---- KPI row ---- */
+  .kpis {
+    display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 1px;
+    background: var(--hair); border: 1px solid var(--hair); border-radius: 12px;
+    overflow: hidden; margin: 1.5rem 0; box-shadow: var(--shadow);
+  }
+  .kpi { background: var(--panel); padding: 1.1rem 1.25rem 1.2rem; display: flex; flex-direction: column; gap: .35rem; }
+  .kpi.hero { background: linear-gradient(180deg, var(--panel), var(--panel-2)); }
+  .kpi .label { font-size: .7rem; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); font-weight: 700; font-family: var(--mono); }
+  .kpi .val { font-family: var(--mono); font-weight: 700; letter-spacing: -.02em; line-height: 1.05; }
+  .kpi.hero .val { font-size: clamp(1.9rem, 5vw, 2.8rem); color: var(--ink); }
+  .kpi .val { font-size: clamp(1.3rem, 3.2vw, 1.7rem); }
+  .kpi .sub { font-size: .78rem; color: var(--ink-2); }
+  .kpi .sub .pos { color: var(--steel); font-family: var(--mono); }
+
+  .chip {
+    display: inline-flex; align-items: center; gap: .4rem; align-self: flex-start;
+    font-family: var(--mono); font-size: .72rem; font-weight: 600; text-transform: uppercase; letter-spacing: .06em;
+    padding: .2rem .55rem; border-radius: 5px;
+  }
+  .chip::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+  .chip.estimado { color: var(--estimado); background: var(--estimado-bg); }
+  .chip.real { color: var(--real); background: var(--real-bg); }
+  .chip.pendente { color: var(--pendente); background: var(--pendente-bg); }
+
+  /* ---- section scaffolding ---- */
+  section { margin-top: 2.5rem; }
+  .sec-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; margin-bottom: .9rem; flex-wrap: wrap; }
+  .sec-head h2 { margin: 0; font-size: 1.02rem; font-weight: 800; letter-spacing: -.01em; }
+  .sec-head .note { font-size: .8rem; color: var(--ink-2); }
+
+  .card { background: var(--panel); border: 1px solid var(--hair); border-radius: 12px; box-shadow: var(--shadow); }
+
+  /* ---- money breakdown bar ---- */
+  .breakdown { padding: 1.25rem 1.35rem 1.4rem; }
+  .stack { display: flex; height: 30px; border-radius: 6px; overflow: hidden; margin: .2rem 0 1rem; border: 1px solid var(--hair-strong); }
+  .stack span { display: block; height: 100%; position: relative; }
+  .stack span[data-k="aco"]     { background: var(--steel); }
+  .stack span[data-k="gusset"]  { background: color-mix(in srgb, var(--steel) 74%, var(--ground)); }
+  .stack span[data-k="mo"]      { background: color-mix(in srgb, var(--steel) 55%, var(--ground)); }
+  .stack span[data-k="fech"]    { background: var(--estimado); }
+  .stack span[data-k="acab"]    { background: color-mix(in srgb, var(--estimado) 62%, var(--ground)); }
+  .stack span[data-k="outros"]  { background: var(--hair-strong); }
+  .legend { display: flex; flex-wrap: wrap; gap: .3rem 1.1rem; }
+  .legend div { display: flex; align-items: center; gap: .5rem; font-size: .82rem; color: var(--ink-2); }
+  .legend .sw { width: 11px; height: 11px; border-radius: 3px; flex: none; }
+  .legend .amt { margin-left: auto; font-family: var(--mono); color: var(--ink); font-variant-numeric: tabular-nums; }
+  .legend > div { min-width: 220px; flex: 1 1 220px; }
+
+  /* ---- completeness gate ---- */
+  .gate-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; margin: .3rem 0 1rem; }
+  .seg { border-radius: 5px; padding: .55rem .5rem .6rem; border: 1px solid var(--hair); background: var(--panel-2); min-height: 62px; display: flex; flex-direction: column; gap: .25rem; }
+  .seg .id { font-family: var(--mono); font-size: .72rem; font-weight: 700; color: var(--ink-2); }
+  .seg .nm { font-size: .64rem; line-height: 1.25; color: var(--ink-3); }
+  .seg.ok { background: var(--real-bg); border-color: color-mix(in srgb, var(--real) 40%, transparent); }
+  .seg.ok .id { color: var(--real); }
+  .seg.zero { background: repeating-linear-gradient(135deg, var(--pendente-bg) 0 7px, transparent 7px 14px); border-color: color-mix(in srgb, var(--pendente) 45%, transparent); }
+  .seg.zero .id { color: var(--pendente); }
+  .gate-caption { display: flex; align-items: center; gap: .6rem; font-size: .82rem; color: var(--ink-2); }
+  .gate-caption .big { font-family: var(--mono); font-weight: 700; font-size: 1rem; color: var(--ink); }
+
+  /* ---- analytical table ---- */
+  .table-scroll { overflow-x: auto; border: 1px solid var(--hair); border-radius: 12px; box-shadow: var(--shadow); }
+  table { border-collapse: collapse; width: 100%; min-width: 780px; background: var(--panel); }
+  thead th {
+    position: sticky; top: 0; background: var(--panel-2); text-align: left;
+    font-size: .68rem; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-3); font-weight: 700;
+    padding: .7rem .8rem; border-bottom: 1px solid var(--hair-strong); white-space: nowrap;
+  }
+  tbody td { padding: .62rem .8rem; border-bottom: 1px solid var(--hair); font-size: .86rem; vertical-align: top; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr { transition: background .12s; }
+  tbody tr:hover { background: var(--panel-2); }
+  td.eap { font-family: var(--mono); color: var(--steel); font-weight: 600; white-space: nowrap; }
+  td.n { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  td.desc { min-width: 170px; }
+  td.desc .conf-stripe { display: inline-block; width: 3px; height: 1em; border-radius: 2px; margin-right: .55rem; vertical-align: -2px; }
+  tr[data-c="estimado"] .conf-stripe { background: var(--estimado); }
+  tr[data-c="real"] .conf-stripe { background: var(--real); }
+  tr[data-c="pendente"] .conf-stripe { background: var(--pendente); }
+  .price .faixa { font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .price .ref { font-size: .72rem; color: var(--ink-3); font-family: var(--mono); margin-top: .1rem; }
+  .price.hide-faixa .faixa-view { display: none; }
+  .price:not(.hide-faixa) .ref-view { display: none; }
+  .ref-view { font-family: var(--mono); }
+  tfoot td { padding: .8rem; background: var(--panel-2); font-weight: 700; border-top: 2px solid var(--hair-strong); }
+  tfoot .n { font-size: .95rem; }
+
+  .toggle {
+    font-family: var(--mono); font-size: .74rem; color: var(--ink-2); cursor: pointer; user-select: none;
+    background: var(--panel); border: 1px solid var(--hair-strong); border-radius: 6px; padding: .3rem .65rem;
+    display: inline-flex; align-items: center; gap: .45rem;
+  }
+  .toggle:hover { border-color: var(--steel); color: var(--ink); }
+  .toggle:focus-visible { outline: 2px solid var(--steel); outline-offset: 2px; }
+  .toggle .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--estimado); }
+
+  /* ---- gates / alerts ---- */
+  .alerts { display: grid; gap: .6rem; }
+  .alert {
+    display: flex; gap: .8rem; padding: .85rem 1rem; border-radius: 10px;
+    background: var(--pendente-bg); border: 1px solid color-mix(in srgb, var(--pendente) 35%, transparent);
+    border-left: 4px solid var(--pendente);
+  }
+  .alert .ico { font-family: var(--mono); font-weight: 800; color: var(--pendente); flex: none; font-size: .95rem; }
+  .alert .body { font-size: .85rem; color: var(--ink); }
+  .alert .body b { font-family: var(--mono); }
+  .alert .body .why { display: block; color: var(--ink-2); font-size: .8rem; margin-top: .15rem; }
+
+  footer.disc {
+    margin-top: 2.5rem; padding: 1.1rem 1.2rem; border-radius: 10px;
+    background: var(--panel-2); border: 1px dashed var(--hair-strong);
+    font-size: .78rem; color: var(--ink-2); line-height: 1.55;
+  }
+  footer.disc b { color: var(--ink); }
+
+  @media (max-width: 720px) {
+    .kpis { grid-template-columns: 1fr 1fr; }
+    .kpi.hero { grid-column: 1 / -1; }
+    .gate-grid { grid-template-columns: repeat(4, 1fr); }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <div class="brand">
+        <span class="mark">VEKS</span>
+        <h1>Orçamento analítico <span class="code">109.1506</span></h1>
+      </div>
+      <p class="eyebrow" style="margin:.55rem 0 0">Turn-key · Light Steel Frame · pré-dimensionamento</p>
+    </div>
+    <div class="meta-row">
+      <span class="tag">ref. <b>2026-06</b></span>
+      <span class="tag">UF <b>SP</b></span>
+      <span class="tag"><b>não desonerado</b></span>
+      <span class="tag">BDI <b>22,00%</b> · TCU</span>
+    </div>
+  </header>
+
+  <!-- KPIs -->
+  <div class="kpis">
+    <div class="kpi hero">
+      <span class="label">Preço de venda</span>
+      <span class="val">R$ 831.070,80</span>
+      <span class="sub">custo direto <span class="pos">R$ 681.205,57</span> + BDI <span class="pos">22,00%</span></span>
+    </div>
+    <div class="kpi">
+      <span class="label">Custo direto</span>
+      <span class="val">R$ 681.205,57</span>
+      <span class="sub">10 itens · 3 macroetapas</span>
+    </div>
+    <div class="kpi">
+      <span class="label">Confiança geral</span>
+      <span class="val" style="font-size:1.1rem"><span class="chip estimado">estimado</span></span>
+      <span class="sub">herda a pior confiança dos insumos (D4)</span>
+    </div>
+  </div>
+
+  <!-- Money breakdown -->
+  <section>
+    <div class="sec-head">
+      <h2>Onde está o dinheiro</h2>
+      <span class="note">custo direto por natureza — o aço estruturado concentra 66%</span>
+    </div>
+    <div class="card breakdown">
+      <div class="stack" role="img" aria-label="Composição do custo direto">
+        <span data-k="aco"    style="width:66.35%" title="Aço 66,4%"></span>
+        <span data-k="gusset" style="width:9.54%"  title="Chapas gusset 9,5%"></span>
+        <span data-k="mo"     style="width:10.89%" title="Mão de obra 10,9%"></span>
+        <span data-k="fech"   style="width:6.99%"  title="Fechamentos 7,0%"></span>
+        <span data-k="acab"   style="width:4.36%"  title="Acabamentos 4,4%"></span>
+        <span data-k="outros" style="width:1.87%"  title="Demais 1,9%"></span>
+      </div>
+      <div class="legend">
+        <div><span class="sw" style="background:var(--steel)"></span> Aço (barras 6 m) · 31.345 kg <span class="amt">R$ 451.994,90</span></div>
+        <div><span class="sw" style="background:color-mix(in srgb,var(--steel) 55%,var(--ground))"></span> Mão de obra · 600,11 m² <span class="amt">R$ 74.173,60</span></div>
+        <div><span class="sw" style="background:color-mix(in srgb,var(--steel) 74%,var(--ground))"></span> Chapas gusset · 7.008 un <span class="amt">R$ 64.964,16</span></div>
+        <div><span class="sw" style="background:var(--estimado)"></span> Fechamentos (04) <span class="amt">R$ 47.599,72</span></div>
+        <div><span class="sw" style="background:color-mix(in srgb,var(--estimado) 62%,var(--ground))"></span> Acabamentos (06) <span class="amt">R$ 29.721,47</span></div>
+        <div><span class="sw" style="background:var(--hair-strong)"></span> OSB + parafusos <span class="amt">R$ 12.751,72</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Completeness gate -->
+  <section>
+    <div class="sec-head">
+      <h2>Completude turn-key</h2>
+      <span class="note">macroetapa zerada = escopo vazado em preço fechado (R7)</span>
+    </div>
+    <div class="card breakdown">
+      <div class="gate-grid">
+        <div class="seg zero"><span class="id">01</span><span class="nm">Serviços preliminares</span></div>
+        <div class="seg zero"><span class="id">02</span><span class="nm">Fundação</span></div>
+        <div class="seg ok"><span class="id">03</span><span class="nm">Estrutura LSF</span></div>
+        <div class="seg ok"><span class="id">04</span><span class="nm">Fechamentos</span></div>
+        <div class="seg zero"><span class="id">05</span><span class="nm">Instalações</span></div>
+        <div class="seg ok"><span class="id">06</span><span class="nm">Acabamentos</span></div>
+        <div class="seg zero"><span class="id">07</span><span class="nm">Serv. complementares</span></div>
+        <div class="seg zero"><span class="id">08</span><span class="nm">Gerenc. e canteiro</span></div>
+      </div>
+      <div class="gate-caption">
+        <span class="big">3 / 8</span> macroetapas com quantitativo.
+        <span class="chip pendente" style="margin-left:auto">5 zeradas · gate na Fase 3</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Analytical table -->
+  <section>
+    <div class="sec-head">
+      <h2>Itens analíticos</h2>
+      <button class="toggle" id="faixaToggle" aria-pressed="true">
+        <span class="dot"></span> Preço em faixa ±15% (D4)
+      </button>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>EAP</th><th>Descrição</th><th>Un</th><th class="n">Qtd</th><th>Origem</th>
+            <th class="n">Custo unit.</th><th class="n">Custo direto</th><th>Preço c/ BDI</th>
+          </tr>
+        </thead>
+        <tbody id="tbody">
+          <!-- rows injected -->
+        </tbody>
+        <tfoot>
+          <tr>
+            <td colspan="6" style="text-align:right">Custo direto total</td>
+            <td class="n">R$ 681.205,57</td>
+            <td class="n">R$ 831.070,80</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </section>
+
+  <!-- Gates -->
+  <section>
+    <div class="sec-head"><h2>Gates &amp; pendências</h2><span class="note">bloqueiam a proposta a partir da Fase 3 — não são rodapé</span></div>
+    <div class="alerts" id="alerts"></div>
+  </section>
+
+  <footer class="disc">
+    <b>PRÉ-DIMENSIONAMENTO</b> para fins de orçamento — não substitui projeto estrutural, sondagem ou ART.
+    Itens <b>estimado</b>/<b>parametrico</b> exibidos em faixa ±15% (D4); dado ausente vira pendência e o total
+    se recusa a fechar (D4.1). Preços na data-base da fonte de cada insumo (D5.1). Gerado pelo motor de orçamento LSF · Veks Engenharia.
+  </footer>
+</div>
+
+<script>
+  const linhas = [
+    ["03.02","Aço (comprado em barras 6 m)","kg","31.345,00","MANUAL","14,42","451.994,90","estimado","468.718,71","634.148,84","551.433,78"],
+    ["03.03","Chapa OSB / piso","ch","162,00","MANUAL","74,16","12.013,92","estimado","12.458,44","16.855,53","14.656,98"],
+    ["03.04","Parafusos / fixadores","un","15.572,00","MANUAL","0,05","737,80","estimado","765,10","1.035,14","900,12"],
+    ["03.05","Chapas gusset","un","7.008,00","MANUAL","9,27","64.964,16","estimado","67.367,83","91.144,72","79.256,28"],
+    ["03.06","Mão de obra","m²","600,11","MANUAL","123,60","74.173,60","estimado","76.918,02","104.065,56","90.491,79"],
+    ["04.04","Chapa cimentícia","ch","201,00","MANUAL","175,10","35.195,10","estimado","36.497,32","49.378,73","42.938,02"],
+    ["04.05","Telha","m²","190,00","MANUAL","56,65","10.763,50","estimado","11.161,75","15.101,19","13.131,47"],
+    ["04.06","Cumeeira","m","13,06","MANUAL","39,14","511,17","estimado","530,08","717,17","623,63"],
+    ["04.07","Calha","m","26,12","MANUAL","43,26","1.129,95","estimado","1.171,76","1.585,32","1.378,54"],
+    ["06.02","Chapa drywall","ch","782,00","MANUAL","38,01","29.721,47","estimado","30.821,17","41.699,23","36.260,20"],
+  ];
+  const tb = document.getElementById("tbody");
+  tb.innerHTML = linhas.map(function (l) {
+    var priceCell =
+      '<div class="price">' +
+        '<span class="faixa-view faixa">R$ ' + l[8] + ' – R$ ' + l[9] + '</span>' +
+        '<span class="ref-view">R$ ' + l[10] + '</span>' +
+        '<div class="ref faixa-view">ref. R$ ' + l[10] + ' ±15%</div>' +
+      '</div>';
+    return '<tr data-c="' + l[7] + '">' +
+      '<td class="eap">' + l[0] + '</td>' +
+      '<td class="desc"><span class="conf-stripe"></span>' + l[1] + '</td>' +
+      '<td>' + l[2] + '</td>' +
+      '<td class="n">' + l[3] + '</td>' +
+      '<td class="num" style="font-size:.76rem;color:var(--ink-3)">' + l[4] + '</td>' +
+      '<td class="n">' + l[5] + '</td>' +
+      '<td class="n">' + l[6] + '</td>' +
+      '<td>' + priceCell + '</td>' +
+    '</tr>';
+  }).join("");
+
+  const alerts = [
+    ["01","Serviços preliminares"],
+    ["02","Fundação"],
+    ["05","Instalações"],
+    ["07","Serviços complementares"],
+    ["08","Gerenciamento e canteiro"],
+  ];
+  document.getElementById("alerts").innerHTML = alerts.map(function (a) {
+    return '<div class="alert"><span class="ico">▲</span><span class="body">' +
+      'Macroetapa <b>' + a[0] + '</b> (' + a[1] + ') sem nenhum quantitativo.' +
+      '<span class="why">Escopo vazado em turn-key é prejuízo (R7). Aviso na Fase 1; bloqueia proposta a partir da Fase 3.</span>' +
+      '</span></div>';
+  }).join("");
+
+  // faixa <-> valor de referência toggle (D4)
+  var btn = document.getElementById("faixaToggle");
+  btn.addEventListener("click", function () {
+    var showRef = btn.getAttribute("aria-pressed") === "true";
+    btn.setAttribute("aria-pressed", showRef ? "false" : "true");
+    btn.innerHTML = showRef
+      ? '<span class="dot" style="background:var(--ink-3)"></span> Valor de referência seco'
+      : '<span class="dot"></span> Preço em faixa ±15% (D4)';
+    document.querySelectorAll(".price").forEach(function (p) { p.classList.toggle("hide-faixa", showRef); });
+  });
+</script>
+</body>
+</html>
