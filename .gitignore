@@ -16,3 +16,9 @@ db/autosinapi_stage.db
 
 # empacotamento antigo (cópia integral do repo; fonte de verdade é o git)
 zipFile.zip
+
+# Superpowers: área de trabalho das skills e worktrees (pré-ignorados de propósito —
+# se não estivessem aqui, as skills commitariam a alteração do .gitignore sozinhas)
+.superpowers/
+.worktrees/
+superpowers/

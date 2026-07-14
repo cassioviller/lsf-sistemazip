@@ -7,7 +7,7 @@ Você está trabalhando no sistema que transforma um projeto arquitetônico (DXF
 - **`db/schema.sql` + `db/seed.sql` + `db/migrations/`**: base de conhecimento multi-fonte versionada por data-base. 12 fontes, 20 perfis LSF (portados do v7 em `assets/`), 9 regras NBR 15758, pesos por camada, 5 classes de solo, composições próprias, mapeamento item→composição. Migração 001: `projeto` (trava referência+uf+desonerado), `quantitativo` (origem MANUAL|PARAMETRICO|TAKEOFF, trigger só-em-folha), `eap_item` (hierarquia com CHECK nas 8 macroetapas). Migração 002: `parametros_globais` (BDI TCU decomposto). `db/build_db.py` aplica schema+seed+migrações em ordem.
 - **`src/lsf/motores/orcamento.py` — FASE 1 CONCLUÍDA (aceite: desvio 0,00% vs orçamento v7 da 109.1506)**: `custo_composicao` recursivo (aninhamento, ciclo detectado, memoização; dado ausente = exceção, nunca custo parcial), `custo_direto_projeto` (linhas + subtotais por macroetapa + total que se recusa a fechar com pendência; `macroetapas_zeradas` alimenta o gate R7), `carregar_parametros_bdi`/`bdi_tcu`/`aplicar_bdi` (27,79% reproduzido do banco). Confiança propagada por rank numérico `real<estimado<parametrico` — NUNCA por MIN() de string (ordem alfabética elege o pior errado). O motor NÃO usa `vw_custo_composicao` (1 nível, INNER JOIN engole dado faltante); a view fica para consulta rápida de composição plana.
 - **`src/lsf/relatorios.py`**: relatório analítico CSV (';', decimal vírgula) e HTML estático (D6), com faixa ±% em itens estimado/parametrico (D4) e alertas de macroetapa zerada + pendências.
-- **`tests/`**: 55 testes; `tests/spikes_validacao.py` (6 spikes: DXF→eixos, CPM, Curva S + BDI TCU, takedown via banco, panelizador, cadeia item→custo) segue como regressão — se um spike quebrar, o commit está errado. `tests/test_aceite_fase1.py` guarda o aceite contra `tests/fixtures/orcamento_v7_109_1506.json` (engine do v7 executado headless via node; `tools/carregar_orcamento_v7.py` é o carregador + CLI de conferência).
+- **`tests/`**: 67 testes; `tests/spikes_validacao.py` (6 spikes: DXF→eixos, CPM, Curva S + BDI TCU, takedown via banco, panelizador, cadeia item→custo) segue como regressão — se um spike quebrar, o commit está errado. `tests/test_aceite_fase1.py` guarda o aceite contra `tests/fixtures/orcamento_v7_109_1506.json` (engine do v7 executado headless via node; `tools/carregar_orcamento_v7.py` é o carregador + CLI de conferência).
 - **`tools/bridge_autosinapi.py`**: ponte staging AutoSINAPI → nosso schema, IDEMPOTENTE (reload mensal integral da analítica, upsert de preço; testada com 3 execuções). Staging alinhado ao DataModel.md real do upstream (`precos_insumos_mensal`, PK com regime). Pin: commit `0020609`. Migração 003 impõe UNIQUE em `composicao_item` (item duplicado = erro de escrita, não preço dobrado). Colheita de referências aplicada e licenças verificadas: docs/05.
 - **Migração 004 — `planta_normalizada`** (Fase 2, estágio 1): `nivel`/`no_planta`/`parede`/`vao` como grafo (cantos=nós, paredes=arestas; conceito Raster-to-Graph, zero código — sem licença). Regras de panelização da colheita viraram dados em `regra_lsf` (`largura_painel_max_m` 3,6 · `painel_comp_max_transporte_m` 6,0 · `junta_folga_vao_m` 0,30 · `largura_painel_min_m` 0,60).
 - **Decisão SINAPI tomada** (docs/03): Rota A condicional — AutoSINAPI (GPLv3) como serviço isolado em container; a ponte é nossa. Gate pendente: smoke test com 1 arquivo real da Caixa na máquina do usuário.
@@ -45,9 +45,10 @@ MIT/Apache/BSD → pode embutir (ezdxf MIT ✓). GPL (AutoSINAPI, TF2DeepFloorpl
 ```
 CLAUDE.md               ← você está aqui (fonte de verdade)
 PROMPT_INICIAL.md       ← primeira mensagem sugerida p/ a sessão (Fase 1, já executada)
-docs/01..04             ← plano v1, plano validado v2, decisão SINAPI, referências/colheita
+docs/01..05             ← plano v1, plano validado v2, decisão SINAPI, referências/colheita
+docs/superpowers/       ← specs (brainstorming) e plans (writing-plans) gerados pelas skills
 db/                     ← schema.sql, seed.sql, migrations/ (001 projeto/EAP, 002 BDI), build_db.py
-tests/                  ← 55 testes: spikes (regressão), motor, aceite F1 + fixtures/
+tests/                  ← 67 testes: spikes (regressão), motor, aceite F1 + fixtures/
 tools/                  ← bridge_autosinapi.py, carregar_orcamento_v7.py (aceite F1, CLI)
 src/lsf/motores/        ← orcamento.py (Fase 1 ✓), cronograma.py, cargas.py (stubs com contratos)
 src/lsf/relatorios.py   ← CSV/HTML analítico com faixas D4
@@ -68,12 +69,40 @@ Implementar (docs/02 §4, Fase 2):
 
 Depois: Fase 3 (fundação + gates), Fase 4 (cronograma + curva S, validação ProjectLibre), Fase 5 (saídas, croqui, panelizador com romaneio, migração PARAMETRICO→TAKEOFF). Sequência completa em docs/02 §4.
 
+## Fluxo de trabalho: Superpowers (skills) + as regras deste projeto
+
+Este projeto usa o plugin **Superpowers** (`obra/superpowers`, MIT). As skills disparam sozinhas: `brainstorming` antes de qualquer trabalho criativo → `writing-plans` → `subagent-driven-development` (ou `executing-plans`) → `requesting-code-review` → `finishing-a-development-branch`; mais `test-driven-development`, `systematic-debugging` e `verification-before-completion` como leis de fundo. Siga as skills — MAS este arquivo tem precedência sobre elas (a própria `using-superpowers` diz: "User instructions (CLAUDE.md) take precedence over skills"). Onde há atrito, valem as regras abaixo.
+
+**Onde os artefatos vivem** (defaults do plugin, mantidos de propósito — `docs/01..05` continua sendo doc curada à mão):
+- Specs do `brainstorming`: `docs/superpowers/specs/YYYY-MM-DD-<tema>-design.md` (commitados).
+- Planos do `writing-plans`: `docs/superpowers/plans/YYYY-MM-DD-<feature>.md`.
+- `.superpowers/` e `.worktrees/` já estão no `.gitignore` — não commitar, não "consertar" o .gitignore.
+
+**Overrides deste projeto sobre o comportamento padrão das skills:**
+
+1. **O gate de fase vence a execução contínua.** A `subagent-driven-development` manda "execute todas as tarefas do plano sem parar para checar com o humano". Aqui isso só é aceitável DENTRO de uma fase/estágio. Portanto: **um plano por fase (ou por estágio da fase)** — nunca um plano que atravesse o aceite de duas fases. O gate "nenhuma fase N+1 começa sem o aceite da fase N" mora na fronteira entre planos e é humano, não negociável.
+2. **Comando de teste exato** (as skills chutam `pytest` puro e `poetry install` — ambos errados aqui): `export LD_LIBRARY_PATH=/nix/store/0gnnf8s259nn28s41zs4rhpbfqm148rm-gcc-11.4.0-lib/lib && .venv/bin/python -m pytest tests/`. Não existe python no PATH; não há poetry. Suíte inteira antes de **todo** commit — inclusive nos commits de fix despachados por subagente (a SDD permite rodar só o teste da mudança; aqui não permite).
+3. **Branch e base**: trabalho em branch `fase<N>-<slug>` (ex.: `fase2-gerador-estrutura`), base sempre `main`. Nunca implementar direto na `main`.
+4. **`finishing-a-development-branch` não fecha fase**: ela oferece merge/PR assim que as tarefas acabam. Merge é permitido; **o aceite da fase é outra coisa** — depende do critério numérico escrito na seção "Fase atual" e é declarado pelo humano.
+5. **Revisão de licença é obrigatória e as skills não a fazem**: nenhum rubrico de review do Superpowers olha proveniência de código ou licença de dependência. Por isso ela entra no bloco de constraints abaixo, que é o único canal que a SDD garante copiar verbatim para todo implementador e todo revisor.
+
+### Global Constraints — copiar VERBATIM na seção `## Global Constraints` de todo plano
+
+> - **Licenças**: MIT/Apache/BSD → pode embutir. GPL (AutoSINAPI, TF2DeepFloorplan) → só em processo/container isolado, nenhuma linha no código proprietário. Sem licença (Raster-to-Graph, Skylark, bidwright) → código PROIBIDO, só conceitos. Dependência nova exige licença verificada e registrada em docs/04.
+> - **Idioma**: nomes de domínio (tabelas, entidades, funções de negócio) em **português** — `parede`, `vao`, `custo_composicao`, `quantitativo`. Código de infraestrutura em inglês. Isto é convenção do projeto, não descuido.
+> - **Confiança e ausência**: todo número derivado carrega `origem` e confiança (`real|estimado|parametrico`), propagada pela PIOR dos inputs via rank numérico, nunca por `MIN()` de string (D4). Dado ausente é `CustoIndisponivel`/pendência — nunca zero, nunca custo parcial (D4.1).
+> - **Testes**: `export LD_LIBRARY_PATH=/nix/store/0gnnf8s259nn28s41zs4rhpbfqm148rm-gcc-11.4.0-lib/lib && .venv/bin/python -m pytest tests/` — suíte inteira, verde, antes de cada commit. Os spikes em `tests/spikes_validacao.py` são regressão: spike quebrado = commit errado.
+> - **Intocáveis**: não editar `assets/calc-...v7.html` (referência histórica) nem `db/lsf_base.db` na mão — schema/seed/migração + `db/build_db.py`.
+> - **Regra de engenharia**: ao mexer em cargas/fundação/vento, anotar a referência normativa no código (`origemRegra`).
+
+Planos precisam de títulos de tarefa na forma literal `### Task N: <nome>` — o script `task-brief` do Superpowers extrai por regex e falha silenciosamente com qualquer outro formato. Fase/estágio é agrupamento ACIMA das tarefas, nunca renomeia o heading.
+
 ## Convenções de trabalho
 
 - Português nos nomes de domínio (tabelas, funções de negócio), como já está no schema.
 - Todo número derivado carrega origem e confiança — sem exceção.
-- Nenhuma fase N+1 começa sem o aceite da fase N (docs/02 §4).
-- `pytest tests/` antes de qualquer commit; novos motores ganham testes no mesmo commit.
+- Nenhuma fase N+1 começa sem o aceite da fase N (docs/02 §4) — e isso vence a execução contínua da SDD (ver acima).
+- Suíte inteira verde antes de qualquer commit (comando exato acima); novos motores ganham testes no mesmo commit. TDD de verdade: teste vermelho pelo motivo certo, depois verde.
 - Coeficientes e produtividades novos entram como `estimado` com fonte anotada; viram `real` só com calibração de obra (109.1506 e Baias Kabod são os casos de calibração).
 - Ao tocar em regra de engenharia (cargas, fundação, vento): anotar a referência normativa no código, como o v7 fazia (`origemRegra`).
 
@@ -84,3 +113,5 @@ Depois: Fase 3 (fundação + gates), Fase 4 (cronograma + curva S, validação P
 - Não pular para o modo paramétrico antes do aceite da Fase 1.
 - Não editar `assets/calc-...v7.html` (referência histórica) nem `db/lsf_base.db` na mão (sempre via schema/seed/build).
 - Não transformar disclaimers em texto morto: gates bloqueiam, não avisam.
+- Não deixar um plano do Superpowers atravessar o aceite de duas fases, nem deixar a SDD "seguir em frente" por cima de um gate de fase.
+- Não despachar subagente sem o bloco de Global Constraints: ele não vê o histórico da sessão nem este arquivo por osmose — sem o bloco, o implementador embute GPL e o revisor reprova nome em português.
