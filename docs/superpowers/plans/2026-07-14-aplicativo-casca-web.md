@@ -669,11 +669,14 @@ def test_usuario_inativo_nao_entra(cliente, usuario, con_app):
     assert resposta.status_code == 401
 
 
-def test_logout_fecha_a_sessao(logado):
-    assert logado.get("/projetos").status_code == 200
+def test_logout_limpa_a_sessao(logado):
+    """Não usa /projetos (que só existe na Task 4): checa a sessão pela rota protegida
+    mais simples que já existe — se ainda houvesse sessão, /login redirecionaria."""
     logado.post("/logout")
-    assert logado.get("/projetos").status_code == 303
+    assert logado.get("/login").status_code == 200
 ```
+
+O teste de logout **completo** (entrar → ver `/projetos` → sair → ser barrado) nasce na Task 4, quando `/projetos` existir. Aqui ele passaria a depender de rota inexistente e o commit sairia vermelho, contra a constraint.
 
 - [ ] **Step 3: Rodar e ver falhar**
 
@@ -980,7 +983,7 @@ export LD_LIBRARY_PATH=/nix/store/0gnnf8s259nn28s41zs4rhpbfqm148rm-gcc-11.4.0-li
 .venv/bin/python -m pytest tests/test_auth.py -v
 ```
 
-Esperado: 7 passed. (O teste `test_logout_fecha_a_sessao` depende de `/projetos` existir e devolver 200 para usuário logado — implementar o mínimo em Task 4. Se ele falhar aqui por 404, deixe-o falhando e conclua na Task 4; os outros 6 devem passar.)
+Esperado: 7 passed. Nenhum teste desta tarefa depende de rota de tarefa futura — a suíte fica verde e o commit é legítimo.
 
 - [ ] **Step 11: Suíte inteira + commit**
 
@@ -1085,6 +1088,13 @@ def test_detalhe_mostra_sondagem_pendente(logado, con_app):
 
 def test_projeto_inexistente_404(logado):
     assert logado.get("/projetos/999").status_code == 404
+
+
+def test_logout_barra_o_acesso_a_projetos(logado):
+    """Fecha o par que a Task 3 não podia fechar: /projetos só existe agora."""
+    assert logado.get("/projetos").status_code == 200
+    logado.post("/logout")
+    assert logado.get("/projetos").status_code == 303
 ```
 
 - [ ] **Step 2: Rodar e ver falhar**
@@ -1330,7 +1340,7 @@ export LD_LIBRARY_PATH=/nix/store/0gnnf8s259nn28s41zs4rhpbfqm148rm-gcc-11.4.0-li
 .venv/bin/python -m pytest tests/test_app_projetos.py tests/test_auth.py -v
 ```
 
-Esperado: 6 + 7 passed (o `test_logout_fecha_a_sessao` da Task 3 agora fecha).
+Esperado: 7 + 7 passed (o `test_logout_barra_o_acesso_a_projetos` fecha o par aberto na Task 3).
 
 - [ ] **Step 7: Suíte inteira + commit**
 
@@ -2116,23 +2126,22 @@ def test_publicar_projeto_completo_cria_v1(logado, con_app, projeto_completo):
     assert "<" in proposta["html"]          # HTML congelado, não vazio
 
 
-def test_proposta_publicada_nao_muda_quando_o_preco_muda(logado, con_app, projeto_completo):
-    """D5 levado ao limite: o cliente vê o que foi publicado, para sempre."""
+def test_snapshot_gravado_nao_muda_quando_o_preco_muda(logado, con_app, projeto_completo):
+    """D5 levado ao limite, verificado no BANCO (a rota /p/{token} chega na Task 8).
+
+    O que importa aqui é que a publicação CONGELOU: mexer no preço depois não pode
+    alterar nem o html nem o total já gravados.
+    """
     pid = projeto_completo
     logado.post(f"/projetos/{pid}/publicar")
-    token = con_app.execute("SELECT token FROM proposta").fetchone()["token"]
-
-    antes = logado.get(f"/p/{token}").text
-    total_antes = con_app.execute("SELECT total_venda FROM proposta").fetchone()["total_venda"]
+    antes = con_app.execute("SELECT html, total_venda FROM proposta").fetchone()
 
     con_app.execute("UPDATE insumo_preco SET preco = preco * 2")   # o mundo muda
     con_app.commit()
 
-    depois = logado.get(f"/p/{token}").text
-    total_depois = con_app.execute("SELECT total_venda FROM proposta").fetchone()["total_venda"]
-
-    assert depois == antes
-    assert total_depois == pytest.approx(total_antes)
+    depois = con_app.execute("SELECT html, total_venda FROM proposta").fetchone()
+    assert depois["html"] == antes["html"]
+    assert depois["total_venda"] == pytest.approx(antes["total_venda"])
 
 
 def test_nova_versao_revoga_a_anterior(logado, con_app, projeto_completo):
@@ -2340,19 +2349,23 @@ def revogar(
 {% endblock %}
 ```
 
-- [ ] **Step 6: Registrar o router e rodar (a rota `/p/{token}` chega na Task 8)**
+- [ ] **Step 6: Registrar o router e rodar**
+
+Em `app/main.py`: `from app.rotas import proposta as rotas_proposta` e `app.include_router(rotas_proposta.router)`.
 
 ```bash
 export LD_LIBRARY_PATH=/nix/store/0gnnf8s259nn28s41zs4rhpbfqm148rm-gcc-11.4.0-lib/lib
 .venv/bin/python -m pytest tests/test_app_proposta.py -v
 ```
 
-Esperado: 5 passed; **`test_proposta_publicada_nao_muda_quando_o_preco_muda` falha com 404** porque `/p/{token}` ainda não existe. É o esperado — a Task 8 o fecha. Não implemente a rota pública aqui.
+Esperado: 6 passed. Nenhum teste desta tarefa toca `/p/{token}` — essa rota é da Task 8, e o congelamento é verificado aqui pelo banco.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 7: Suíte inteira + commit**
 
 ```bash
-git add app tests/test_app_proposta.py
+export LD_LIBRARY_PATH=/nix/store/0gnnf8s259nn28s41zs4rhpbfqm148rm-gcc-11.4.0-lib/lib
+.venv/bin/python -m pytest tests/
+git add app tests/test_app_proposta.py tests/conftest.py
 git commit -m "feat(app): publicação com gates (409) + snapshot congelado da proposta"
 ```
 
@@ -2453,6 +2466,22 @@ def test_sondagem_pendente_aparece_como_gate_aberto(
 
     texto = anonimo.get(f"/p/{token}").text.lower()
     assert "sondagem" in texto
+
+
+def test_o_que_o_cliente_ve_nao_muda_quando_o_preco_muda(
+    anonimo, logado, con_app, projeto_completo
+):
+    """O teste que dá sentido a tudo (spec §12.7): a página que o cliente tem em mãos
+    é a mesma depois que o mundo mudou. Se esta rota algum dia recalcular, ele quebra."""
+    logado.post(f"/projetos/{projeto_completo}/publicar")
+    token = con_app.execute("SELECT token FROM proposta").fetchone()["token"]
+
+    antes = anonimo.get(f"/p/{token}").text
+
+    con_app.execute("UPDATE insumo_preco SET preco = preco * 2")
+    con_app.commit()
+
+    assert anonimo.get(f"/p/{token}").text == antes
 ```
 
 - [ ] **Step 2: Rodar e ver falhar**
@@ -2620,7 +2649,7 @@ export LD_LIBRARY_PATH=/nix/store/0gnnf8s259nn28s41zs4rhpbfqm148rm-gcc-11.4.0-li
 .venv/bin/python -m pytest tests/test_app_publico.py tests/test_app_proposta.py -v
 ```
 
-Esperado: 6 + 6 passed — inclusive `test_proposta_publicada_nao_muda_quando_o_preco_muda`, que só fecha agora.
+Esperado: 7 + 6 passed — inclusive o teste fim-a-fim do congelamento, que só fecha agora.
 
 - [ ] **Step 7: Suíte inteira + commit**
 
