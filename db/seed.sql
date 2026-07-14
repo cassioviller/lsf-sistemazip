@@ -1,5 +1,10 @@
 -- seed.sql · Fase 0 — fontes reais, perfis do v7, pesos, solo, composições próprias exemplo
 -- Tudo que é estimativa está marcado confianca='estimado' p/ calibração (R6/§6 do plano)
+--
+-- IDEMPOTENTE: este arquivo é conhecimento declarativo e é reaplicado a TODO build
+-- (ver db/build_db.py). Cada INSERT usa ON CONFLICT ... DO UPDATE sobre a chave
+-- natural única da tabela — nunca INSERT OR REPLACE (troca rowid, quebra FK) nem
+-- INSERT OR IGNORE (engole erro real de dado).
 
 INSERT INTO fonte (sigla,nome,tipo,papel,abrangencia,url) VALUES
  ('SINAPI','Sist. Nacional de Pesquisa de Custos e Índices — CEF/IBGE','OFICIAL','AMBOS','BR','https://www.caixa.gov.br/sinapi'),
@@ -13,10 +18,15 @@ INSERT INTO fonte (sigla,nome,tipo,papel,abrangencia,url) VALUES
  ('TCPO','Tabela de Composição de Preços p/ Orçamentos — PINI','PRIVADA','COEFICIENTE','BR',NULL),
  ('CBCA','Centro Brasileiro da Construção em Aço — manuais LSF','NORMATIVA','COEFICIENTE','BR',NULL),
  ('FABR','Manuais de fabricante (Knauf/Placo/Brasilit/Barbieri/LP)','FABRICANTE','COEFICIENTE','BR',NULL),
- ('VEKS','Composições próprias Veks Engenharia','PROPRIA','AMBOS','SP',NULL);
+ ('VEKS','Composições próprias Veks Engenharia','PROPRIA','AMBOS','SP',NULL)
+ON CONFLICT (sigla) DO UPDATE SET
+  nome=excluded.nome, tipo=excluded.tipo, papel=excluded.papel,
+  abrangencia=excluded.abrangencia, url=excluded.url;
 
 INSERT INTO data_base (fonte_id,referencia,uf,desonerado,publicado_em)
- SELECT id,'2026-06','SP',0,'2026-07-01' FROM fonte WHERE sigla='VEKS';
+ SELECT id,'2026-06','SP',0,'2026-07-01' FROM fonte WHERE sigla='VEKS'
+ON CONFLICT (fonte_id,referencia,uf,desonerado) DO UPDATE SET
+  publicado_em=excluded.publicado_em;
 
 -- ---------- PERFIS (portados do LSF_DB v7) ----------
 INSERT INTO perfil_lsf (codigo,familia,tipo,drywall,alma_mm,aba_mm,enrijecedor_mm,espessura_mm,massa_kg_m) VALUES
@@ -39,7 +49,11 @@ INSERT INTO perfil_lsf (codigo,familia,tipo,drywall,alma_mm,aba_mm,enrijecedor_m
  ('M90#0.50','M90','montante',1,90,40,5,0.50,0.66),
  ('G48#0.50','G48','guia',1,48,30,NULL,0.50,0.39),
  ('G70#0.50','G70','guia',1,70,30,NULL,0.50,0.46),
- ('G90#0.50','G90','guia',1,90,30,NULL,0.50,0.53);
+ ('G90#0.50','G90','guia',1,90,30,NULL,0.50,0.53)
+ON CONFLICT (codigo) DO UPDATE SET
+  familia=excluded.familia, tipo=excluded.tipo, drywall=excluded.drywall,
+  alma_mm=excluded.alma_mm, aba_mm=excluded.aba_mm, enrijecedor_mm=excluded.enrijecedor_mm,
+  espessura_mm=excluded.espessura_mm, massa_kg_m=excluded.massa_kg_m;
 
 INSERT INTO regra_lsf (chave,valor,unidade,referencia) VALUES
  ('modulacao_m',0.60,'m','NBR 15758 §4.3 — 400mm p/ +carga'),
@@ -55,7 +69,9 @@ INSERT INTO regra_lsf (chave,valor,unidade,referencia) VALUES
  ('largura_painel_max_m',3.6,'m','v7 REGRAS larguraPainelMaxM [OBRA layout 1PV: paredes divididas]'),
  ('painel_comp_max_transporte_m',6.0,'m','parâmetro transporte/manuseio (CLAUDE.md); barraM v7=6,0 é emenda de PERFIL, não painel'),
  ('junta_folga_vao_m',0.30,'m','junta nunca a <30cm da lateral de vão (montante duplo × emenda) — validar c/ eng. estrutural'),
- ('largura_painel_min_m',0.60,'m','sem painel-lasca: mínimo 1 módulo de montante (600mm) — prática comercial, estimado');
+ ('largura_painel_min_m',0.60,'m','sem painel-lasca: mínimo 1 módulo de montante (600mm) — prática comercial, estimado')
+ON CONFLICT (chave) DO UPDATE SET
+  valor=excluded.valor, unidade=excluded.unidade, referencia=excluded.referencia;
 
 -- ---------- PESOS POR CAMADA (kg/m²) — takedown de cargas ----------
 INSERT INTO peso_camada (material,kg_m2,confianca,fonte,observacao) VALUES
@@ -68,7 +84,10 @@ INSERT INTO peso_camada (material,kg_m2,confianca,fonte,observacao) VALUES
  ('Telha shingle + OSB',18.0,'estimado','FABR','inclui OSB de base'),
  ('Telha metálica trapezoidal',5.5,'estimado','FABR',''),
  ('Contrapiso seco (2x OSB/cimentícia)',22.0,'estimado','FABR','entrepiso seco'),
- ('Peso próprio perfis parede (ref.)',9.0,'parametrico','v7 kg/m² típico','substituído por cálculo real por parede');
+ ('Peso próprio perfis parede (ref.)',9.0,'parametrico','v7 kg/m² típico','substituído por cálculo real por parede')
+ON CONFLICT (material) DO UPDATE SET
+  kg_m2=excluded.kg_m2, confianca=excluded.confianca, fonte=excluded.fonte,
+  observacao=excluded.observacao;
 
 -- ---------- CLASSES DE SOLO (tensão presumida — PRELIMINAR) ----------
 INSERT INTO classe_solo (classe,descricao,spt_min,spt_max,tensao_adm_kpa,observacao) VALUES
@@ -76,23 +95,40 @@ INSERT INTO classe_solo (classe,descricao,spt_min,spt_max,tensao_adm_kpa,observa
  ('S2','Argila mole',3,5,60,'presumido conservador — flag sondagem'),
  ('S3','Argila média / areia fofa',6,9,100,'presumido conservador — flag sondagem'),
  ('S4','Argila rija / areia med. compacta',10,18,180,'presumido — confirmar por sondagem'),
- ('S5','Solo resistente / areia compacta',19,40,280,'presumido — confirmar por sondagem');
+ ('S5','Solo resistente / areia compacta',19,40,280,'presumido — confirmar por sondagem')
+ON CONFLICT (classe) DO UPDATE SET
+  descricao=excluded.descricao, spt_min=excluded.spt_min, spt_max=excluded.spt_max,
+  tensao_adm_kpa=excluded.tensao_adm_kpa, observacao=excluded.observacao;
 
 -- ---------- INSUMOS PRÓPRIOS (preços de referência, TODOS estimados) ----------
 INSERT INTO insumo (fonte_id,codigo_fonte,descricao,tipo,unidade)
- SELECT id,'VK-I-001','Perfil aço galvanizado Z275 conformado a frio (Ue/U)','MAT','kg' FROM fonte WHERE sigla='VEKS';
+ SELECT id,'VK-I-001','Perfil aço galvanizado Z275 conformado a frio (Ue/U)','MAT','kg' FROM fonte WHERE sigla='VEKS'
+ON CONFLICT (fonte_id,codigo_fonte) DO UPDATE SET
+  descricao=excluded.descricao, tipo=excluded.tipo, unidade=excluded.unidade;
 INSERT INTO insumo (fonte_id,codigo_fonte,descricao,tipo,unidade)
- SELECT id,'VK-I-002','Parafuso estrutural autobrocante 4,8x19 ponta broca','MAT','un' FROM fonte WHERE sigla='VEKS';
+ SELECT id,'VK-I-002','Parafuso estrutural autobrocante 4,8x19 ponta broca','MAT','un' FROM fonte WHERE sigla='VEKS'
+ON CONFLICT (fonte_id,codigo_fonte) DO UPDATE SET
+  descricao=excluded.descricao, tipo=excluded.tipo, unidade=excluded.unidade;
 INSERT INTO insumo (fonte_id,codigo_fonte,descricao,tipo,unidade)
- SELECT id,'VK-I-003','Chapa OSB 11,1mm 1,20x2,40m','MAT','m2' FROM fonte WHERE sigla='VEKS';
+ SELECT id,'VK-I-003','Chapa OSB 11,1mm 1,20x2,40m','MAT','m2' FROM fonte WHERE sigla='VEKS'
+ON CONFLICT (fonte_id,codigo_fonte) DO UPDATE SET
+  descricao=excluded.descricao, tipo=excluded.tipo, unidade=excluded.unidade;
 INSERT INTO insumo (fonte_id,codigo_fonte,descricao,tipo,unidade)
- SELECT id,'VK-I-004','Membrana hidrófuga (tipo Tyvek)','MAT','m2' FROM fonte WHERE sigla='VEKS';
+ SELECT id,'VK-I-004','Membrana hidrófuga (tipo Tyvek)','MAT','m2' FROM fonte WHERE sigla='VEKS'
+ON CONFLICT (fonte_id,codigo_fonte) DO UPDATE SET
+  descricao=excluded.descricao, tipo=excluded.tipo, unidade=excluded.unidade;
 INSERT INTO insumo (fonte_id,codigo_fonte,descricao,tipo,unidade)
- SELECT id,'VK-I-005','Placa cimentícia 10mm','MAT','m2' FROM fonte WHERE sigla='VEKS';
+ SELECT id,'VK-I-005','Placa cimentícia 10mm','MAT','m2' FROM fonte WHERE sigla='VEKS'
+ON CONFLICT (fonte_id,codigo_fonte) DO UPDATE SET
+  descricao=excluded.descricao, tipo=excluded.tipo, unidade=excluded.unidade;
 INSERT INTO insumo (fonte_id,codigo_fonte,descricao,tipo,unidade)
- SELECT id,'VK-I-101','Montador LSF (c/ encargos)','MO','h' FROM fonte WHERE sigla='VEKS';
+ SELECT id,'VK-I-101','Montador LSF (c/ encargos)','MO','h' FROM fonte WHERE sigla='VEKS'
+ON CONFLICT (fonte_id,codigo_fonte) DO UPDATE SET
+  descricao=excluded.descricao, tipo=excluded.tipo, unidade=excluded.unidade;
 INSERT INTO insumo (fonte_id,codigo_fonte,descricao,tipo,unidade)
- SELECT id,'VK-I-102','Ajudante (c/ encargos)','MO','h' FROM fonte WHERE sigla='VEKS';
+ SELECT id,'VK-I-102','Ajudante (c/ encargos)','MO','h' FROM fonte WHERE sigla='VEKS'
+ON CONFLICT (fonte_id,codigo_fonte) DO UPDATE SET
+  descricao=excluded.descricao, tipo=excluded.tipo, unidade=excluded.unidade;
 
 WITH p(cod,preco) AS (VALUES ('VK-I-001',14.50),('VK-I-002',0.18),('VK-I-003',46.00),
               ('VK-I-004',6.50),('VK-I-005',58.00),('VK-I-101',34.00),('VK-I-102',23.00))
@@ -100,19 +136,35 @@ INSERT INTO insumo_preco (insumo_id,data_base_id,preco,confianca)
  SELECT i.id, db.id, p.preco, 'estimado'
  FROM p
  JOIN insumo i ON i.codigo_fonte=p.cod
- JOIN data_base db ON db.referencia='2026-06';
+ JOIN data_base db ON db.referencia='2026-06'
+ON CONFLICT (insumo_id,data_base_id) DO UPDATE SET
+  preco=excluded.preco, confianca=excluded.confianca;
 
 -- ---------- COMPOSIÇÕES PRÓPRIAS LSF (o que o SINAPI não cobre) ----------
 INSERT INTO composicao (fonte_id,codigo_fonte,descricao,unidade,grupo_eap,confianca,observacao)
- SELECT id,'VK-C-001','Montagem de estrutura LSF em painéis (perfis Ue/U), incl. fixações','kg','ESTRUTURA','estimado','coef. MO a calibrar em obra (R6)' FROM fonte WHERE sigla='VEKS';
+ SELECT id,'VK-C-001','Montagem de estrutura LSF em painéis (perfis Ue/U), incl. fixações','kg','ESTRUTURA','estimado','coef. MO a calibrar em obra (R6)' FROM fonte WHERE sigla='VEKS'
+ON CONFLICT (fonte_id,codigo_fonte) DO UPDATE SET
+  descricao=excluded.descricao, unidade=excluded.unidade, grupo_eap=excluded.grupo_eap,
+  confianca=excluded.confianca, observacao=excluded.observacao;
 INSERT INTO composicao (fonte_id,codigo_fonte,descricao,unidade,grupo_eap,confianca,observacao)
- SELECT id,'VK-C-002','Fechamento externo em OSB 11,1mm sobre estrutura LSF','m2','FECHAMENTO','estimado','' FROM fonte WHERE sigla='VEKS';
+ SELECT id,'VK-C-002','Fechamento externo em OSB 11,1mm sobre estrutura LSF','m2','FECHAMENTO','estimado','' FROM fonte WHERE sigla='VEKS'
+ON CONFLICT (fonte_id,codigo_fonte) DO UPDATE SET
+  descricao=excluded.descricao, unidade=excluded.unidade, grupo_eap=excluded.grupo_eap,
+  confianca=excluded.confianca, observacao=excluded.observacao;
 INSERT INTO composicao (fonte_id,codigo_fonte,descricao,unidade,grupo_eap,confianca,observacao)
- SELECT id,'VK-C-003','Membrana hidrófuga aplicada sobre OSB','m2','FECHAMENTO','estimado','' FROM fonte WHERE sigla='VEKS';
+ SELECT id,'VK-C-003','Membrana hidrófuga aplicada sobre OSB','m2','FECHAMENTO','estimado','' FROM fonte WHERE sigla='VEKS'
+ON CONFLICT (fonte_id,codigo_fonte) DO UPDATE SET
+  descricao=excluded.descricao, unidade=excluded.unidade, grupo_eap=excluded.grupo_eap,
+  confianca=excluded.confianca, observacao=excluded.observacao;
 INSERT INTO composicao (fonte_id,codigo_fonte,descricao,unidade,grupo_eap,confianca,observacao)
- SELECT id,'VK-C-004','Fechamento externo em placa cimentícia 10mm (parafusada)','m2','FECHAMENTO','estimado','' FROM fonte WHERE sigla='VEKS';
+ SELECT id,'VK-C-004','Fechamento externo em placa cimentícia 10mm (parafusada)','m2','FECHAMENTO','estimado','' FROM fonte WHERE sigla='VEKS'
+ON CONFLICT (fonte_id,codigo_fonte) DO UPDATE SET
+  descricao=excluded.descricao, unidade=excluded.unidade, grupo_eap=excluded.grupo_eap,
+  confianca=excluded.confianca, observacao=excluded.observacao;
 
 -- receitas (coeficientes de referência CBCA/fabricante — calibrar)
+-- UNIQUE (composicao_id,item_tipo,item_id) vem da migração 003; build_db.py aplica
+-- migrações antes do seed, então o ON CONFLICT abaixo sempre encontra o índice.
 WITH r(ccod,icod,coef) AS (VALUES
          ('VK-C-001','VK-I-001',1.02),('VK-C-001','VK-I-002',6.0),
          ('VK-C-001','VK-I-101',0.040),('VK-C-001','VK-I-102',0.040),
@@ -125,25 +177,85 @@ INSERT INTO composicao_item (composicao_id,item_tipo,item_id,coeficiente)
  SELECT c.id,'INSUMO',i.id,r.coef
  FROM r
  JOIN composicao c ON c.codigo_fonte=r.ccod
- JOIN insumo i ON i.codigo_fonte=r.icod;
+ JOIN insumo i ON i.codigo_fonte=r.icod
+ON CONFLICT (composicao_id,item_tipo,item_id) DO UPDATE SET
+  coeficiente=excluded.coeficiente;
 
 -- ---------- MAPEAMENTO: itens derivados -> composições (SINAPI reais onde existem) ----------
 INSERT INTO composicao (fonte_id,codigo_fonte,descricao,unidade,grupo_eap,confianca,observacao)
- SELECT id,'96359','Parede drywall interno, 2 faces simples, guias simples, c/ vãos','m2','ACABAMENTO','real','composição oficial SINAPI (caderno drywall) — importar analítica' FROM fonte WHERE sigla='SINAPI';
+ SELECT id,'96359','Parede drywall interno, 2 faces simples, guias simples, c/ vãos','m2','ACABAMENTO','real','composição oficial SINAPI (caderno drywall) — importar analítica' FROM fonte WHERE sigla='SINAPI'
+ON CONFLICT (fonte_id,codigo_fonte) DO UPDATE SET
+  descricao=excluded.descricao, unidade=excluded.unidade, grupo_eap=excluded.grupo_eap,
+  confianca=excluded.confianca, observacao=excluded.observacao;
 INSERT INTO composicao (fonte_id,codigo_fonte,descricao,unidade,grupo_eap,confianca,observacao)
- SELECT id,'96114','Forro em drywall, ambientes comerciais, incl. estrutura','m2','ACABAMENTO','real','composição oficial SINAPI — importar analítica' FROM fonte WHERE sigla='SINAPI';
+ SELECT id,'96114','Forro em drywall, ambientes comerciais, incl. estrutura','m2','ACABAMENTO','real','composição oficial SINAPI — importar analítica' FROM fonte WHERE sigla='SINAPI'
+ON CONFLICT (fonte_id,codigo_fonte) DO UPDATE SET
+  descricao=excluded.descricao, unidade=excluded.unidade, grupo_eap=excluded.grupo_eap,
+  confianca=excluded.confianca, observacao=excluded.observacao;
 
 INSERT INTO mapeamento_item (item_derivado,composicao_id,observacao)
- SELECT 'estrutura.aco_kg', id, 'kg de aço vindo do gerador de peças' FROM composicao WHERE codigo_fonte='VK-C-001';
+ SELECT 'estrutura.aco_kg', id, 'kg de aço vindo do gerador de peças' FROM composicao WHERE codigo_fonte='VK-C-001'
+ON CONFLICT (item_derivado) DO UPDATE SET
+  composicao_id=excluded.composicao_id, observacao=excluded.observacao;
 INSERT INTO mapeamento_item (item_derivado,composicao_id,observacao)
- SELECT 'fechamento.osb_m2', id, NULL FROM composicao WHERE codigo_fonte='VK-C-002';
+ SELECT 'fechamento.osb_m2', id, NULL FROM composicao WHERE codigo_fonte='VK-C-002'
+ON CONFLICT (item_derivado) DO UPDATE SET
+  composicao_id=excluded.composicao_id, observacao=excluded.observacao;
 INSERT INTO mapeamento_item (item_derivado,composicao_id,observacao)
- SELECT 'fechamento.membrana_m2', id, NULL FROM composicao WHERE codigo_fonte='VK-C-003';
+ SELECT 'fechamento.membrana_m2', id, NULL FROM composicao WHERE codigo_fonte='VK-C-003'
+ON CONFLICT (item_derivado) DO UPDATE SET
+  composicao_id=excluded.composicao_id, observacao=excluded.observacao;
 INSERT INTO mapeamento_item (item_derivado,composicao_id,observacao)
- SELECT 'fechamento.cimenticia_m2', id, NULL FROM composicao WHERE codigo_fonte='VK-C-004';
+ SELECT 'fechamento.cimenticia_m2', id, NULL FROM composicao WHERE codigo_fonte='VK-C-004'
+ON CONFLICT (item_derivado) DO UPDATE SET
+  composicao_id=excluded.composicao_id, observacao=excluded.observacao;
 INSERT INTO mapeamento_item (item_derivado,composicao_id,observacao)
- SELECT 'parede_interna.drywall_m2', id, 'SINAPI oficial' FROM composicao WHERE codigo_fonte='96359';
+ SELECT 'parede_interna.drywall_m2', id, 'SINAPI oficial' FROM composicao WHERE codigo_fonte='96359'
+ON CONFLICT (item_derivado) DO UPDATE SET
+  composicao_id=excluded.composicao_id, observacao=excluded.observacao;
 INSERT INTO mapeamento_item (item_derivado,composicao_id,observacao) VALUES
  ('fundacao.concreto_fck30_m3', NULL, 'TODO: código SINAPI concreto usinado bombeado fck30 na importação'),
  ('fundacao.armadura_ca50_kg', NULL, 'TODO: código SINAPI armadura CA-50 na importação'),
- ('fundacao.escavacao_m3', NULL, 'TODO: SINAPI/SICRO na importação');
+ ('fundacao.escavacao_m3', NULL, 'TODO: SINAPI/SICRO na importação')
+ON CONFLICT (item_derivado) DO UPDATE SET
+  composicao_id=excluded.composicao_id, observacao=excluded.observacao;
+
+-- ---------- FOLHAS DA EAP com composição cadastrada ----------
+-- Migrado de db/migrations/001 (estrutural) para cá (conhecimento): estas linhas
+-- dependem de `composicao`, que é seed, não schema. As demais folhas entram junto
+-- com as composições dos 8 grupos que ainda faltam.
+INSERT INTO eap_item (codigo, pai_id, descricao, unidade, grupo_eap, composicao_id)
+ SELECT '03.01', (SELECT id FROM eap_item WHERE codigo='03'),
+        'Montagem de estrutura LSF em painéis', 'kg', 'ESTRUTURA', id
+ FROM composicao WHERE codigo_fonte = 'VK-C-001'
+ON CONFLICT (codigo) DO UPDATE SET
+  pai_id=excluded.pai_id, descricao=excluded.descricao, unidade=excluded.unidade,
+  grupo_eap=excluded.grupo_eap, composicao_id=excluded.composicao_id;
+INSERT INTO eap_item (codigo, pai_id, descricao, unidade, grupo_eap, composicao_id)
+ SELECT '04.01', (SELECT id FROM eap_item WHERE codigo='04'),
+        'Fechamento externo em OSB 11,1mm', 'm2', 'FECHAMENTO', id
+ FROM composicao WHERE codigo_fonte = 'VK-C-002'
+ON CONFLICT (codigo) DO UPDATE SET
+  pai_id=excluded.pai_id, descricao=excluded.descricao, unidade=excluded.unidade,
+  grupo_eap=excluded.grupo_eap, composicao_id=excluded.composicao_id;
+INSERT INTO eap_item (codigo, pai_id, descricao, unidade, grupo_eap, composicao_id)
+ SELECT '04.02', (SELECT id FROM eap_item WHERE codigo='04'),
+        'Membrana hidrófuga sobre OSB', 'm2', 'FECHAMENTO', id
+ FROM composicao WHERE codigo_fonte = 'VK-C-003'
+ON CONFLICT (codigo) DO UPDATE SET
+  pai_id=excluded.pai_id, descricao=excluded.descricao, unidade=excluded.unidade,
+  grupo_eap=excluded.grupo_eap, composicao_id=excluded.composicao_id;
+INSERT INTO eap_item (codigo, pai_id, descricao, unidade, grupo_eap, composicao_id)
+ SELECT '04.03', (SELECT id FROM eap_item WHERE codigo='04'),
+        'Fechamento externo em placa cimentícia 10mm', 'm2', 'FECHAMENTO', id
+ FROM composicao WHERE codigo_fonte = 'VK-C-004'
+ON CONFLICT (codigo) DO UPDATE SET
+  pai_id=excluded.pai_id, descricao=excluded.descricao, unidade=excluded.unidade,
+  grupo_eap=excluded.grupo_eap, composicao_id=excluded.composicao_id;
+INSERT INTO eap_item (codigo, pai_id, descricao, unidade, grupo_eap, composicao_id)
+ SELECT '06.01', (SELECT id FROM eap_item WHERE codigo='06'),
+        'Parede drywall interno, 2 faces', 'm2', 'ACABAMENTO', id
+ FROM composicao WHERE codigo_fonte = '96359'
+ON CONFLICT (codigo) DO UPDATE SET
+  pai_id=excluded.pai_id, descricao=excluded.descricao, unidade=excluded.unidade,
+  grupo_eap=excluded.grupo_eap, composicao_id=excluded.composicao_id;

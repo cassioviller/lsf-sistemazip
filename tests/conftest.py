@@ -11,12 +11,17 @@ sys.path.insert(0, str(RAIZ / "src"))
 
 @pytest.fixture
 def con():
-    """Banco em memória, construído de schema.sql + seed.sql (nunca do artefato .db)."""
+    """Banco em memória, construído de schema.sql + migrations/ + seed.sql (nunca do artefato .db).
+
+    Ordem igual à de db/build_db.py: estrutura (schema + migrações) primeiro, seed por
+    último — o seed é idempotente via ON CONFLICT sobre chaves naturais, algumas das
+    quais (ex.: composicao_item) só existem depois de uma migração ser aplicada.
+    """
     c = sqlite3.connect(":memory:")
     c.executescript((RAIZ / "db" / "schema.sql").read_text())
-    c.executescript((RAIZ / "db" / "seed.sql").read_text())
     for migracao in sorted((RAIZ / "db" / "migrations").glob("*.sql")):
         c.executescript(migracao.read_text())
+    c.executescript((RAIZ / "db" / "seed.sql").read_text())
     c.execute("PRAGMA foreign_keys = ON")
     yield c
     c.close()

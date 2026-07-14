@@ -67,6 +67,11 @@ BEGIN
 END;
 
 -- ---------- Esqueleto da EAP: as 8 macroetapas turn-key (gate R7 conta sobre elas) ----------
+-- Puramente estrutural (não depende de nenhuma linha do seed) — por isso mora na
+-- migração. As folhas com composicao_id (03.01, 04.01...) dependem de `composicao`,
+-- que é conhecimento declarativo do seed.sql; portanto vivem lá, não aqui (ver
+-- "Modelo mental" no build_db.py: migração é estrutura, seed é conhecimento, e o
+-- seed roda DEPOIS das migrações em todo build).
 INSERT INTO eap_item (codigo, pai_id, descricao, unidade, grupo_eap, composicao_id) VALUES
  ('01', NULL, 'Serviços preliminares',      NULL, 'PRELIM',        NULL),
  ('02', NULL, 'Fundação',                   NULL, 'FUNDACAO',      NULL),
@@ -76,25 +81,3 @@ INSERT INTO eap_item (codigo, pai_id, descricao, unidade, grupo_eap, composicao_
  ('06', NULL, 'Acabamentos',                NULL, 'ACABAMENTO',    NULL),
  ('07', NULL, 'Serviços complementares',    NULL, 'COMPLEMENTO',   NULL),
  ('08', NULL, 'Gerenciamento e canteiro',   NULL, 'GERENCIAMENTO', NULL);
-
--- Folhas que já têm composição cadastrada (as demais entram com as composições dos 8 grupos).
-INSERT INTO eap_item (codigo, pai_id, descricao, unidade, grupo_eap, composicao_id)
- SELECT '03.01', (SELECT id FROM eap_item WHERE codigo='03'),
-        'Montagem de estrutura LSF em painéis', 'kg', 'ESTRUTURA', id
- FROM composicao WHERE codigo_fonte = 'VK-C-001';
-INSERT INTO eap_item (codigo, pai_id, descricao, unidade, grupo_eap, composicao_id)
- SELECT '04.01', (SELECT id FROM eap_item WHERE codigo='04'),
-        'Fechamento externo em OSB 11,1mm', 'm2', 'FECHAMENTO', id
- FROM composicao WHERE codigo_fonte = 'VK-C-002';
-INSERT INTO eap_item (codigo, pai_id, descricao, unidade, grupo_eap, composicao_id)
- SELECT '04.02', (SELECT id FROM eap_item WHERE codigo='04'),
-        'Membrana hidrófuga sobre OSB', 'm2', 'FECHAMENTO', id
- FROM composicao WHERE codigo_fonte = 'VK-C-003';
-INSERT INTO eap_item (codigo, pai_id, descricao, unidade, grupo_eap, composicao_id)
- SELECT '04.03', (SELECT id FROM eap_item WHERE codigo='04'),
-        'Fechamento externo em placa cimentícia 10mm', 'm2', 'FECHAMENTO', id
- FROM composicao WHERE codigo_fonte = 'VK-C-004';
-INSERT INTO eap_item (codigo, pai_id, descricao, unidade, grupo_eap, composicao_id)
- SELECT '06.01', (SELECT id FROM eap_item WHERE codigo='06'),
-        'Parede drywall interno, 2 faces', 'm2', 'ACABAMENTO', id
- FROM composicao WHERE codigo_fonte = '96359';
