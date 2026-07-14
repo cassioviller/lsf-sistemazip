@@ -21,4 +21,4 @@ zipFile.zip
 # se não estivessem aqui, as skills commitariam a alteração do .gitignore sozinhas)
 .superpowers/
 .worktrees/
-superpowers/
+/superpowers/
