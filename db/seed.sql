@@ -130,13 +130,18 @@ INSERT INTO insumo (fonte_id,codigo_fonte,descricao,tipo,unidade)
 ON CONFLICT (fonte_id,codigo_fonte) DO UPDATE SET
   descricao=excluded.descricao, tipo=excluded.tipo, unidade=excluded.unidade;
 
+-- D5.1: cada insumo é precificado na data-base da SUA fonte naquela referência. O join
+-- em data_base precisa filtrar por fonte_id (via i.fonte_id), não só por referência —
+-- sem isso, quando outra fonte (ex. SINAPI via bridge_autosinapi.py) ganhar uma
+-- data_base própria na mesma referência '2026-06', este INSERT..SELECT vira um produto
+-- cartesiano insumo×data_base e fabrica preço fantasma de VEKS sob a data-base errada.
 WITH p(cod,preco) AS (VALUES ('VK-I-001',14.50),('VK-I-002',0.18),('VK-I-003',46.00),
               ('VK-I-004',6.50),('VK-I-005',58.00),('VK-I-101',34.00),('VK-I-102',23.00))
 INSERT INTO insumo_preco (insumo_id,data_base_id,preco,confianca)
  SELECT i.id, db.id, p.preco, 'estimado'
  FROM p
  JOIN insumo i ON i.codigo_fonte=p.cod
- JOIN data_base db ON db.referencia='2026-06'
+ JOIN data_base db ON db.fonte_id=i.fonte_id AND db.referencia='2026-06'
 ON CONFLICT (insumo_id,data_base_id) DO UPDATE SET
   preco=excluded.preco, confianca=excluded.confianca;
 

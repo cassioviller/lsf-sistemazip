@@ -5,6 +5,23 @@ a todo build. Estrutura (schema + migrações) é aplicada uma vez, registrada e
 `schema_migrations`. O seed é conhecimento declarativo e é REAPLICADO a cada build,
 de forma idempotente — é assim que composições novas chegam a um banco existente.
 
+Atomicidade (schema/migração + ledger): `executescript` faz um COMMIT implícito de
+qualquer transação pendente ANTES de rodar o script, o que destruiria um `BEGIN`
+explícito nosso. Por isso cada script estrutural é dividido em statements individuais
+(via `sqlite3.complete_statement`, que entende strings/comentários/blocos de trigger
+BEGIN..END) e executado um a um dentro de uma única transação que também contém o
+INSERT no ledger. Uma falha no meio faz ROLLBACK total: nenhuma tabela parcial,
+nenhum ledger inconsistente, e a retentativa (depois de corrigir o SQL) começa limpa.
+
+Banco legado (sem `schema_migrations`, criado por versão anterior deste script): o
+ledger vazio faria o build reaplicar schema.sql/migrações incondicionalmente, o que
+explode com "table X already exists" — e o operador não tem, além do `--recriar`
+destrutivo, nenhuma saída. Em vez disso, quando um script estrutural falha
+especificamente porque a estrutura JÁ EXISTE (mensagem "already exists" ou
+"duplicate column name"), o build ADOTA: registra o arquivo como aplicado sem
+reexecutá-lo, e segue. Qualquer outra falha (erro de sintaxe genuíno) propaga
+normalmente, com rollback total (ver acima).
+
 Uso:
     python3 db/build_db.py                 # cria ou atualiza db/lsf_base.db
     python3 db/build_db.py --db /tmp/x.db  # outro caminho
@@ -27,13 +44,91 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
 """
 
 
+class EstruturaJaExiste(Exception):
+    """Um script estrutural falhou porque o que ele cria já existe (banco legado)."""
+
+
 def _ja_aplicadas(con) -> set[str]:
     return {linha[0] for linha in con.execute("SELECT arquivo FROM schema_migrations")}
 
 
+def _dividir_statements(sql_texto: str) -> list[str]:
+    """Divide um script SQL em statements individuais e completos.
+
+    Usa `sqlite3.complete_statement`, apoiado no mesmo tokenizer do SQLite, então
+    respeita strings literais, comentários `--` e blocos `CREATE TRIGGER ... BEGIN
+    ... END;` (que contêm ';' internos mas são um único statement). Isso é o que
+    permite executar statement-a-statement (necessário para atomicidade real — ver
+    módulo) sem quebrar scripts com múltiplas instruções.
+    """
+    statements: list[str] = []
+    buffer = ""
+    for linha in sql_texto.splitlines(keepends=True):
+        buffer += linha
+        if sqlite3.complete_statement(buffer):
+            statement = buffer.strip()
+            if statement:
+                statements.append(statement)
+            buffer = ""
+    resto_sem_comentarios = "\n".join(
+        l for l in buffer.splitlines() if not l.strip().startswith("--")
+    ).strip()
+    if resto_sem_comentarios:
+        raise ValueError(f"SQL incompleto (falta ';' final?): {resto_sem_comentarios[:200]!r}")
+    return statements
+
+
+def _mensagem_indica_estrutura_existente(exc: sqlite3.OperationalError) -> bool:
+    msg = str(exc).lower()
+    return "already exists" in msg or "duplicate column name" in msg
+
+
 def _aplicar(con, caminho: pathlib.Path) -> None:
-    con.executescript(caminho.read_text())
-    con.execute("INSERT INTO schema_migrations (arquivo) VALUES (?)", (caminho.name,))
+    """Aplica um script estrutural (schema.sql ou uma migração) e registra no ledger,
+    tudo numa ÚNICA transação: ou os dois efeitos acontecem, ou nenhum. Ver docstring
+    do módulo para o porquê de não usar `executescript` aqui.
+    """
+    statements = _dividir_statements(caminho.read_text())
+    con.execute("BEGIN")
+    try:
+        for statement in statements:
+            con.execute(statement)
+    except sqlite3.OperationalError as exc:
+        con.rollback()
+        if _mensagem_indica_estrutura_existente(exc):
+            raise EstruturaJaExiste(str(exc)) from exc
+        raise
+    else:
+        con.execute("INSERT INTO schema_migrations (arquivo) VALUES (?)", (caminho.name,))
+        con.commit()
+
+
+def _aplicar_ou_adotar(con, caminho: pathlib.Path) -> str:
+    """Aplica normalmente; se a estrutura já existir (banco legado sem ledger),
+    adota (registra como aplicada sem reexecutar) em vez de propagar o erro."""
+    try:
+        _aplicar(con, caminho)
+        return "aplicada"
+    except EstruturaJaExiste:
+        con.execute("BEGIN")
+        con.execute("INSERT INTO schema_migrations (arquivo) VALUES (?)", (caminho.name,))
+        con.commit()
+        return "adotada"
+
+
+def _aplicar_seed(con, caminho: pathlib.Path) -> None:
+    """Reaplica o seed (conhecimento declarativo, idempotente via ON CONFLICT) numa
+    única transação — uma falha no meio não deixa preço/composição pela metade."""
+    statements = _dividir_statements(caminho.read_text())
+    con.execute("BEGIN")
+    try:
+        for statement in statements:
+            con.execute(statement)
+    except Exception:
+        con.rollback()
+        raise
+    else:
+        con.commit()
 
 
 def construir(db_path: pathlib.Path = DB_PADRAO, recriar: bool = False) -> dict:
@@ -50,18 +145,19 @@ def construir(db_path: pathlib.Path = DB_PADRAO, recriar: bool = False) -> dict:
     novas: list[str] = []
 
     if "schema.sql" not in aplicadas:
-        _aplicar(con, AQUI / "schema.sql")
-        novas.append("schema.sql")
+        resultado = _aplicar_ou_adotar(con, AQUI / "schema.sql")
+        if resultado == "aplicada":
+            novas.append("schema.sql")
 
     for migracao in sorted((AQUI / "migrations").glob("*.sql")):
         if migracao.name not in aplicadas:
-            _aplicar(con, migracao)
-            novas.append(migracao.name)
+            resultado = _aplicar_ou_adotar(con, migracao)
+            if resultado == "aplicada":
+                novas.append(migracao.name)
 
     # Seed: conhecimento declarativo, reaplicado sempre (idempotente por ON CONFLICT).
-    con.executescript((AQUI / "seed.sql").read_text())
+    _aplicar_seed(con, AQUI / "seed.sql")
 
-    con.commit()
     con.close()
     return {"migracoes_aplicadas": novas, "criado": criado}
 
