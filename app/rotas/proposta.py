@@ -9,6 +9,7 @@ from fastapi.responses import RedirectResponse
 
 from app.auth import usuario_logado
 from app.db import conexao
+from app.rotas.publico import render_proposta
 from app.servicos.publicacao import PublicacaoBloqueada, publicar
 
 router = APIRouter()
@@ -27,8 +28,11 @@ def publicar_proposta(
     if projeto is None:
         raise HTTPException(status_code=404, detail="projeto não existe")
 
+    def renderizar(snapshot, tabela_html):
+        return render_proposta(request.app.state.templates, snapshot, tabela_html)
+
     try:
-        proposta = publicar(con, projeto_id, usuario["id"])
+        proposta = publicar(con, projeto_id, usuario["id"], renderizar)
     except PublicacaoBloqueada as bloqueio:
         return request.app.state.templates.TemplateResponse(
             request, "publicacao_bloqueada.html",

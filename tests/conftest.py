@@ -156,3 +156,13 @@ def projeto_completo(logado, con_app):
         )
     con_app.commit()
     return pid
+
+
+@pytest.fixture
+def anonimo(app_db):
+    """TestClient separado, garantidamente SEM sessão — é o cliente final."""
+    from starlette.testclient import TestClient
+
+    from app.main import criar_app
+
+    return TestClient(criar_app(app_db, secret="teste"), follow_redirects=False)

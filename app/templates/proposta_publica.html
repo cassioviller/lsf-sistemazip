@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Proposta {{ projeto.codigo }} — Veks Engenharia</title>
+  <link rel="stylesheet" href="/static/veks.css">
+</head>
+<body class="proposta">
+  <header>
+    <h1>Proposta — {{ projeto.codigo }}</h1>
+    <p>{{ projeto.nome }}{% if projeto.cliente %} · {{ projeto.cliente }}{% endif %}</p>
+  </header>
+
+  <section class="valor">
+    <span class="rotulo">Valor total (com BDI)</span>
+    <strong>R$ {{ "%.2f"|format(venda.preco_total) }}</strong>
+  </section>
+
+  <section class="escopo">
+    <h2>Escopo turn-key</h2>
+    <ul>
+      {% for s in venda.orcamento.subtotais %}
+      <li>{{ s.eap_codigo }} — {{ s.descricao }}</li>
+      {% endfor %}
+    </ul>
+  </section>
+
+  <section class="gates" role="alert">
+    <h2>Condições e gates abertos</h2>
+    <ul>
+      {% for g in gates_abertos %}<li>{{ g }}</li>{% endfor %}
+      <li><strong>Pré-dimensionamento</strong>: este documento é um pré-dimensionamento
+          para fins de orçamento e <strong>não substitui projeto</strong> estrutural,
+          ART/RRT nem verificação estrutural.</li>
+      <li>Itens de baixa confiança são apresentados como faixa (±), não como valor seco.</li>
+    </ul>
+  </section>
+
+  <section class="analitico">
+    <h2>Composição do valor</h2>
+    {{ tabela_html|safe }}
+  </section>
+
+  <footer><p>Veks Engenharia · proposta congelada na publicação</p></footer>
+</body>
+</html>
