@@ -24,6 +24,24 @@ def test_rota_interna_sem_sessao_redireciona_ao_login(cliente):
     assert resposta.headers["location"] == "/login"
 
 
+def test_rota_interna_sem_sessao_via_htmx_devolve_hx_redirect(cliente):
+    """XHR do htmx segue 303 e faria swap da página de login dentro do <tr>.
+    Com HX-Request presente, a resposta carrega HX-Redirect e corpo sem o form:
+    o htmx vendored processa HX-Redirect antes de olhar o status (401 ok)."""
+    resposta = cliente.post("/projetos", headers={"HX-Request": "true"})
+    assert resposta.status_code == 401
+    assert resposta.headers["hx-redirect"] == "/login"
+    assert "location" not in resposta.headers
+    assert "<form" not in resposta.text
+
+
+def test_rota_interna_sem_sessao_sem_htmx_segue_303(cliente):
+    resposta = cliente.post("/projetos", headers={})
+    assert resposta.status_code == 303
+    assert resposta.headers["location"] == "/login"
+    assert "hx-redirect" not in resposta.headers
+
+
 def test_login_com_senha_certa_abre_sessao(cliente, usuario):
     resposta = cliente.post(
         "/login", data={"email": usuario["email"], "senha": usuario["senha"]}

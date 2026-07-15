@@ -11,7 +11,7 @@ import secrets
 import sqlite3
 
 from fastapi import Depends, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, Response
 
 from app.db import conexao
 
@@ -67,5 +67,11 @@ def usuario_logado(request: Request, con: sqlite3.Connection = Depends(conexao))
     return dict(linha)
 
 
-def redirecionar_ao_login(request: Request, exc: NaoAutenticado) -> RedirectResponse:
+def redirecionar_ao_login(request: Request, exc: NaoAutenticado) -> Response:
+    """303 para navegação normal; em requisição htmx (header HX-Request), 401 com
+    HX-Redirect — o XHR do htmx segue o 303 e faria swap da página de login inteira
+    dentro do alvo (ex.: <tr>). O htmx vendored (1.x) processa HX-Redirect antes de
+    olhar o status, então o 401 não atrapalha e sinaliza corretamente a sessão ausente."""
+    if request.headers.get("HX-Request"):
+        return Response(status_code=401, headers={"HX-Redirect": "/login"})
     return RedirectResponse("/login", status_code=303)
