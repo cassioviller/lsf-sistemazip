@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block titulo %}Orçamento — {{ projeto.codigo }}{% endblock %}
+{% block conteudo %}
+<h1>Orçamento — {{ projeto.codigo }}</h1>
+
+<section class="kpis">
+  <div class="kpi">
+    <span class="rotulo">Custo direto</span>
+    <strong>{% if visao.venda.orcamento.total is not none %}
+      R$ {{ "%.2f"|format(visao.venda.orcamento.total) }}{% else %}—{% endif %}</strong>
+  </div>
+  <div class="kpi">
+    <span class="rotulo">BDI</span>
+    <strong>{{ "%.2f"|format(bdi_pct)|replace(".", ",") }}%</strong>
+  </div>
+  <div class="kpi">
+    <span class="rotulo">Preço de venda</span>
+    <strong>{% if visao.venda.preco_total is not none %}
+      R$ {{ "%.2f"|format(visao.venda.preco_total) }}{% else %}não fecha{% endif %}</strong>
+  </div>
+  <div class="kpi">
+    <span class="rotulo">Completude turn-key</span>
+    <strong>{{ completude }} macroetapas</strong>
+  </div>
+</section>
+
+{% if visao.pendencias %}
+<section class="alerta" role="alert">
+  <h2>Pendências — o orçamento não fecha (D4.1)</h2>
+  <ul>{% for p in visao.pendencias %}<li>{{ p }}</li>{% endfor %}</ul>
+</section>
+{% endif %}
+
+{% if visao.macroetapas_zeradas %}
+<section class="alerta" role="alert">
+  <h2>Macroetapas zeradas — escopo vazado (R7)</h2>
+  <ul>
+    {% for s in subtotais if s.zerada %}
+      <li>{{ s.eap_codigo }} — {{ s.descricao }}: sem quantitativo</li>
+    {% endfor %}
+  </ul>
+  <p>A publicação da proposta está <strong>bloqueada</strong> até o escopo fechar.</p>
+</section>
+{% endif %}
+
+<table>
+  <thead>
+    <tr><th>EAP</th><th>Descrição</th><th>Un.</th><th>Qtd.</th><th>Custo unit.</th>
+        <th>Preço (BDI)</th><th>Faixa</th><th>Confiança</th></tr>
+  </thead>
+  <tbody>
+    {% for l in visao.linhas %}
+    <tr class="{{ 'pendente' if l.pendencia else '' }}">
+      <td>{{ l.eap_codigo }}</td><td>{{ l.descricao }}</td><td>{{ l.unidade }}</td>
+      <td>{{ "%.2f"|format(l.quantidade)|replace(".", ",") }}</td>
+      <td>{% if l.custo_unitario is not none %}R$ {{ "%.4f"|format(l.custo_unitario) }}{% else %}—{% endif %}</td>
+      <td>{% if l.preco_venda is not none %}R$ {{ "%.2f"|format(l.preco_venda) }}{% else %}
+          <span class="erro">{{ l.pendencia }}</span>{% endif %}</td>
+      <td>{% if l.preco_min is not none %}
+          R$ {{ "%.2f"|format(l.preco_min) }} – {{ "%.2f"|format(l.preco_max) }}{% else %}—{% endif %}</td>
+      <td><span class="etiqueta {{ l.confianca }}">{{ l.confianca or "—" }}</span></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<nav class="acoes">
+  {% if visao.pode_publicar %}
+    <form method="post" action="/projetos/{{ projeto.id }}/publicar">
+      <button type="submit">Publicar proposta</button>
+    </form>
+  {% else %}
+    <button disabled title="Gates abertos: resolva pendências e macroetapas zeradas">
+      Publicar proposta (bloqueado)
+    </button>
+  {% endif %}
+</nav>
+{% endblock %}
