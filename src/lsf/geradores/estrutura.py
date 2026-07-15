@@ -272,8 +272,65 @@ def _montantes_de_campo(ops, xs, juntas, comp, pd, perfil_m, alma_m, pecas, mk):
 # implementadas nas Tasks 4 e 5 — por ora, paredes sem vãos e sem HB/contraventamento:
 
 def _enquadrar_vaos(con, ops, xs, pd, perfil_m, alma_m, R, mk):
-    if ops:
-        raise NotImplementedError("Task 4")
+    """Porta fiel do enquadramento LSF do v7: kings/jacks (duplos acima do limite),
+    verga em caixa (2 montantes + 2 guias), peitoril de janela, cripples na
+    modulação e diagonais sobre a verga em vão largo."""
+    king_lim = _regra(R, "king_duplo_lim_m")
+    jack_lim = _regra(R, "jack_duplo_lim_m")
+    apoio = _regra(R, "apoio_verga_m")
+    diag_min = _regra(R, "diag_sobre_verga_min_m")
+    guia_parede = _guia_correspondente(con, perfil_m)
+
+    for o in ops:
+        pv_mont, pv_guia = _perfil_verga(con, o["larg"], perfil_m)
+        h_v = _perfil(con, pv_mont)["alma_mm"] / 1000
+        vy0 = o["head"]
+        vy1 = min(o["head"] + h_v, pd - 0.01)
+        king_n = 2 if o["larg"] > king_lim else 1
+        jack_n = 2 if o["larg"] > jack_lim else 1
+        for lado in (-1, 1):
+            xk = o["x0"] if lado < 0 else o["x0"] + o["larg"]
+            for k in range(king_n):
+                mk("K", "king", perfil_m,
+                   xk + lado * (k + 1) * alma_m, 0, xk + lado * (k + 1) * alma_m, pd,
+                   origem="king; duplo acima de 2m [GATE2 1P4]")
+            for j in range(jack_n):
+                x = xk - lado * (j * alma_m + alma_m / 2)
+                mk("J", "jack", perfil_m, x, 0, x, vy0,
+                   origem="jack sob a verga; duplo acima de 2m [CBCA/AISI pendente]")
+        vx0 = o["x0"] - apoio
+        vx1 = o["x0"] + o["larg"] + apoio
+        mk("HTW", "verga_mont", pv_mont, vx0, vy0, vx1, vy0,
+           origem="verga escalonada por vão [OBRA DX-11]")
+        mk("HTW", "verga_mont", pv_mont, vx0, vy1, vx1, vy1,
+           origem="verga escalonada por vão [OBRA DX-11]")
+        # caixa: DUAS guias no eixo da verga (assim está no v7 — não é bug de cópia)
+        mk("HTW", "verga_guia", pv_guia, vx0, (vy0 + vy1) / 2, vx1, (vy0 + vy1) / 2,
+           origem="caixa da verga [OBRA DX-11]")
+        mk("HTW", "verga_guia", pv_guia, vx0, (vy0 + vy1) / 2, vx1, (vy0 + vy1) / 2,
+           origem="caixa da verga [OBRA DX-11]")
+        if o["janela"]:
+            mk("SBW", "peitoril", guia_parede,
+               o["x0"], o["sill"], o["x0"] + o["larg"], o["sill"],
+               origem="peitoril de janela")
+        crip_x = []
+        for x in xs:
+            if not (o["x0"] + 0.02 < x < o["x0"] + o["larg"] - 0.02):
+                continue
+            if vy1 < pd - 0.02:
+                mk("C", "cripple", perfil_m, x, vy1, x, pd,
+                   origem="cripple sobre a verga, mantém a modulação")
+                crip_x.append(x)
+            if o["janela"] and o["sill"] > 0.02:
+                mk("C", "cripple", perfil_m, x, 0, x, o["sill"],
+                   origem="cripple sob o peitoril, mantém a modulação")
+        if o["larg"] >= diag_min and vy1 < pd - 0.05:
+            nos = [o["x0"], *crip_x, o["x0"] + o["larg"]]
+            for i in range(len(nos) - 1):
+                inv = i % 2 == 1
+                mk("BRB", "diagonal", perfil_m,
+                   nos[i], pd if inv else vy1, nos[i + 1], vy1 if inv else pd,
+                   origem="diagonais sobre a verga em vão largo [GATE2 1P4 BRR1-3]")
 
 
 def _bloqueadores(ops, comp, pd, perfil_m, R, pecas, mk):
