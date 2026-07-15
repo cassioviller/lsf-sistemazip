@@ -166,3 +166,46 @@ def anonimo(app_db):
     from app.main import criar_app
 
     return TestClient(criar_app(app_db, secret="teste"), follow_redirects=False)
+
+
+@pytest.fixture
+def planta(con):
+    """Fábrica de plantas mínimas para o gerador: cria projeto+nível e devolve
+    função que cadastra uma parede (com vãos) e retorna o parede_id."""
+    con.execute(
+        "INSERT INTO projeto (codigo, nome, referencia, uf, desonerado)"
+        " VALUES ('TESTE-GER', 'Gerador', '2026-06', 'SP', 0)"
+    )
+    projeto_id = con.execute("SELECT id FROM projeto WHERE codigo='TESTE-GER'").fetchone()[0]
+
+    def criar(comp=4.0, pd=3.10, perfil="Ue90#0.95", externa=0, vaos=(),
+              confianca="real"):
+        cur = con.execute(
+            "INSERT INTO nivel (projeto_id, indice, nome, pe_direito_m) VALUES (?,?,?,?)",
+            (projeto_id, criar.seq, f"nivel-{criar.seq}", pd),
+        )
+        nivel_id = cur.lastrowid
+        criar.seq += 1
+        no_a = con.execute(
+            "INSERT INTO no_planta (nivel_id, x, y) VALUES (?,0,0)", (nivel_id,)
+        ).lastrowid
+        no_b = con.execute(
+            "INSERT INTO no_planta (nivel_id, x, y) VALUES (?,?,0)", (nivel_id, comp)
+        ).lastrowid
+        parede_id = con.execute(
+            "INSERT INTO parede (nivel_id, no_a, no_b, espessura_m, portante, externa,"
+            " perfil_codigo, origem, confianca) VALUES (?,?,?,0.14,1,?,?, 'MANUAL', ?)",
+            (nivel_id, no_a, no_b, externa, perfil, confianca),
+        ).lastrowid
+        for v in vaos:
+            con.execute(
+                "INSERT INTO vao (parede_id, tipo, posicao_m, largura_m, altura_m,"
+                " peitoril_m, confianca) VALUES (?,?,?,?,?,?,?)",
+                (parede_id, v["tipo"], v["posicao_m"], v["largura_m"], v["altura_m"],
+                 v.get("peitoril_m", 0), v.get("confianca", "real")),
+            )
+        return parede_id
+
+    criar.seq = 0
+    criar.projeto_id = projeto_id
+    return criar
