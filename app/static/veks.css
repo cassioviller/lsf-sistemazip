@@ -1,0 +1,106 @@
+/* Identidade Veks — variáveis herdadas de docs/previews/orcamento_analitico.html */
+:root {
+  --ground: #eef1f4;
+  --panel: #ffffff;
+  --panel-2: #f6f8fa;
+  --ink: #16202b;
+  --ink-2: #48586a;
+  --ink-3: #7a8896;
+  --hair: #d9e0e7;
+  --hair-strong: #c2ccd6;
+  --steel: #2f6f8f;
+  --steel-ink: #22546c;
+  --real: #2e8b6b;
+  --estimado: #c77d18;
+  --pendente: #c0392b;
+  --real-bg: #e6f2ec;
+  --estimado-bg: #fbf1de;
+  --pendente-bg: #fbe6e3;
+  --shadow: 0 1px 2px rgba(22,32,43,.05), 0 8px 24px rgba(22,32,43,.06);
+  --mono: ui-monospace, "SF Mono", "JetBrains Mono", "Cascadia Code", Menlo, Consolas, monospace;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ground: #0d151d;
+    --panel: #16202b;
+    --panel-2: #1b2733;
+    --ink: #e6ecf2;
+    --ink-2: #a6b4c2;
+    --ink-3: #6f8092;
+    --hair: #263543;
+    --hair-strong: #33475a;
+    --steel: #63a8c7;
+    --steel-ink: #8fc4dd;
+    --real: #4fc499;
+    --estimado: #e2a544;
+    --pendente: #e8695c;
+    --real-bg: #16302a;
+    --estimado-bg: #33280f;
+    --pendente-bg: #35201e;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.35);
+  }
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--ground); color: var(--ink);
+  font-family: var(--sans); line-height: 1.5;
+}
+main { max-width: 64rem; margin: 0 auto; padding: 1rem 1.25rem 3rem; }
+a { color: var(--steel); }
+h1, h2 { color: var(--ink); line-height: 1.2; }
+
+.topo {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: .6rem 1.25rem; background: var(--panel);
+  border-bottom: 1px solid var(--hair); box-shadow: var(--shadow);
+}
+.marca { font-weight: 700; color: var(--steel-ink); text-decoration: none; }
+
+.cartao {
+  background: var(--panel); border: 1px solid var(--hair); border-radius: 8px;
+  padding: 1rem 1.25rem; box-shadow: var(--shadow); max-width: 28rem;
+}
+.cartao label { display: block; margin: .6rem 0; color: var(--ink-2); }
+.cartao input, .cartao select {
+  display: block; width: 100%; margin-top: .25rem; padding: .45rem .6rem;
+  border: 1px solid var(--hair-strong); border-radius: 6px;
+  background: var(--panel-2); color: var(--ink); font: inherit;
+}
+
+button, .botao {
+  display: inline-block; margin-top: .5rem; padding: .5rem 1rem;
+  background: var(--steel); color: #fff; border: 0; border-radius: 6px;
+  font: inherit; cursor: pointer; text-decoration: none;
+}
+button:disabled { background: var(--ink-3); cursor: not-allowed; }
+button.link { background: none; color: var(--steel); padding: 0; margin: 0; }
+
+table { width: 100%; border-collapse: collapse; background: var(--panel); box-shadow: var(--shadow); }
+th, td { text-align: left; padding: .45rem .6rem; border-bottom: 1px solid var(--hair); }
+th { background: var(--panel-2); color: var(--ink-2); font-weight: 600; }
+
+.erro { color: var(--pendente); background: var(--pendente-bg); padding: .5rem .75rem; border-radius: 6px; }
+.alerta { color: var(--estimado); background: var(--estimado-bg); padding: .5rem .75rem; border-radius: 6px; }
+.vazio { color: var(--ink-3); }
+
+.kpis { display: flex; flex-wrap: wrap; gap: .75rem; margin: 1rem 0; }
+.kpi {
+  flex: 1 1 10rem; background: var(--panel); border: 1px solid var(--hair);
+  border-radius: 8px; padding: .75rem 1rem; box-shadow: var(--shadow);
+}
+.kpi .rotulo { display: block; font-size: .8rem; color: var(--ink-3); }
+.kpi strong { font-size: 1.15rem; font-family: var(--mono); }
+
+.etiqueta { padding: .1rem .5rem; border-radius: 99px; font-size: .8rem; }
+.etiqueta.real { color: var(--real); background: var(--real-bg); }
+.etiqueta.estimado, .etiqueta.parametrico { color: var(--estimado); background: var(--estimado-bg); }
+tr.pendente td { background: var(--pendente-bg); }
+
+.acoes { display: flex; gap: .75rem; margin: 1rem 0; }
+.macroetapa { margin: 1.25rem 0; }
+
+.proposta header { padding: 1.5rem 1.25rem 0; max-width: 64rem; margin: 0 auto; }
+.proposta section, .proposta footer { max-width: 64rem; margin: 1rem auto; padding: 0 1.25rem; }
+.proposta .valor strong { font-size: 1.6rem; font-family: var(--mono); }

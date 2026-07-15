@@ -7,6 +7,8 @@ import pytest
 
 RAIZ = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(RAIZ / "src"))
+sys.path.insert(0, str(RAIZ))       # para importar `app`
+sys.path.insert(0, str(RAIZ / "db"))  # para importar `build_db`
 
 
 @pytest.fixture
@@ -55,3 +57,57 @@ def id_de(con):
         "SELECT id FROM insumo WHERE codigo_fonte = ?", (codigo,)
     ).fetchone()[0]
     return composicao
+
+
+@pytest.fixture
+def app_db(tmp_path):
+    """Banco de arquivo real (o app precisa de arquivo, não de :memory:)."""
+    from build_db import construir
+
+    caminho = tmp_path / "app.db"
+    construir(caminho)
+    return caminho
+
+
+@pytest.fixture
+def con_app(app_db):
+    """Conexão ao banco do app, para arranjar dados nos testes."""
+    c = sqlite3.connect(app_db)
+    c.execute("PRAGMA foreign_keys = ON")
+    c.row_factory = sqlite3.Row
+    yield c
+    c.commit()
+    c.close()
+
+
+@pytest.fixture
+def usuario(con_app):
+    """Usuário de teste: veks@veks.com / segredo123."""
+    from app.auth import hash_senha
+
+    cur = con_app.execute(
+        "INSERT INTO usuario (email, senha_hash, nome) VALUES (?,?,?)",
+        ("veks@veks.com", hash_senha("segredo123"), "Orçamentista"),
+    )
+    con_app.commit()
+    return {"id": cur.lastrowid, "email": "veks@veks.com", "senha": "segredo123"}
+
+
+@pytest.fixture
+def cliente(app_db):
+    """TestClient sem sessão."""
+    from starlette.testclient import TestClient
+
+    from app.main import criar_app
+
+    return TestClient(criar_app(app_db, secret="teste"), follow_redirects=False)
+
+
+@pytest.fixture
+def logado(cliente, usuario):
+    """TestClient já autenticado."""
+    resposta = cliente.post(
+        "/login", data={"email": usuario["email"], "senha": usuario["senha"]}
+    )
+    assert resposta.status_code == 303, resposta.text
+    return cliente

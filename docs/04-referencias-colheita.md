@@ -18,3 +18,17 @@
 | Bases oficiais de PREÇO | públicas | SINAPI (BR, mensal) é a principal; CDHU ex-CPOS (SP) é a 2ª mais relevante regionalmente; ORSE (~9k composições) como fonte de coeficiente; SICRO p/ terraplenagem/infra; SIURB/EMOP/SEINFRA/FDE conforme necessidade | 0 |
 
 Pendência RESOLVIDA em 09/07/2026: pin = commit `0020609` (main); licenças verificadas via API e correções registradas em docs/05-colheita-aplicada.md (augustogoncalves/sinapi é MIT; frappe-gantt MIT; Skylark confirmado sem licença).
+
+## Dependências da casca web (verificadas em 2026-07-15)
+
+| Pacote | Licença | Pode embutir? | Uso |
+|---|---|---|---|
+| FastAPI 0.139 | MIT | sim | rotas |
+| Uvicorn 0.51 | BSD-3-Clause | sim | servidor ASGI |
+| Jinja2 | BSD-3-Clause | sim | templates |
+| itsdangerous | BSD-3-Clause | sim | assinatura do cookie de sessão |
+| python-multipart | Apache-2.0 | sim | formulários |
+| httpx | BSD-3-Clause | sim | só teste (TestClient) |
+| htmx 2.0.4 | BSD-2-Clause | sim (vendored em `app/static/`) | interatividade sem build step |
+
+Nenhuma GPL. Nenhuma sem licença. Todas permissivas → embutir é permitido.
