@@ -150,3 +150,66 @@ def test_junta_de_painel_desvia_do_vao(con, planta):
     # junta natural em 3.6 está EQUIDISTANTE das laterais (0.6 de cada); o v7
     # usa `<` estrito e empata para a DIREITA: min(comp-0.3, 4.2+0.15)
     assert xj == pytest.approx(4.35, abs=0.01)
+
+
+def test_bloqueadores_em_linhas_cortadas_pelos_vaos(con, planta):
+    from lsf.geradores.estrutura import gerar_parede
+
+    # pd=3.10, passo_hb=0.70 → round_js(4.43)-1 = 3 linhas (y = 0.775, 1.55, 2.325)
+    pid = planta(comp=4.0, vaos=[{"tipo": "PORTA", "posicao_m": 1.5,
+                                  "largura_m": 0.9, "altura_m": 2.1}])
+    r = gerar_parede(con, pid)
+    hb = [p for p in r.pecas if p.tipo == "bloqueador"]
+    # porta: sill=0, head=2.1. Linhas em y=0.775 e 1.55 cruzam o vão (2 trechos
+    # cada); a de y=2.325 passa ACIMA da porta e segue inteira → 2+2+1 = 5
+    assert len(hb) == 5
+    cortados = [p for p in hb if p.y0 < 2.1]
+    assert len(cortados) == 4
+    assert all(not (p.x0 < 1.6 and p.x1 > 2.3) for p in cortados)
+
+
+def test_parede_externa_deriva_fita_de_contraventamento(con, planta):
+    from lsf.geradores.estrutura import gerar_parede
+
+    r = gerar_parede(con, planta(comp=4.0, externa=1))
+    fita = [a for a in r.acessorios if "Fita" in a.item]
+    assert len(fita) == 1
+    import math
+    assert fita[0].qtd == pytest.approx(round(2 * math.hypot(3.10, 3.6), 1))
+
+
+def test_parede_interna_nao_tem_contraventamento(con, planta):
+    from lsf.geradores.estrutura import gerar_parede
+
+    r = gerar_parede(con, planta(comp=4.0, externa=0))
+    assert not any("Fita" in a.item or "OSB" in a.item for a in r.acessorios)
+    assert "montante_curto" not in {p.tipo for p in r.pecas}
+
+
+def test_trelica_gera_zigzag_numa_coluna(con, planta):
+    from lsf.geradores.estrutura import gerar_parede
+
+    r = gerar_parede(con, planta(comp=2.0), contrav="trelica")
+    t = _tipos(r)
+    # baias entre montantes adjacentes têm 0.40m <= 0.45 → coluna ÚNICA na última
+    # baia livre; n_passos = round_js(3.10/0.28) = 11 diagonais em zigzag
+    assert "montante_curto" not in t
+    assert t["diagonal"] == 11
+
+
+def test_ancoragem_por_comprimento(con, planta):
+    from lsf.geradores.estrutura import gerar_parede
+
+    r = gerar_parede(con, planta(comp=4.0))
+    anc = next(a for a in r.acessorios if "Ancorador" in a.item)
+    assert anc.qtd == 4                                # max(2, floor(4/1.2)+1)
+    paraf = next(a for a in r.acessorios if "ancoradores" in a.item)
+    assert paraf.qtd == 32
+
+
+def test_parafusos_de_conexao_entre_paineis(con, planta):
+    from lsf.geradores.estrutura import gerar_parede
+
+    r = gerar_parede(con, planta(comp=7.0))            # 1 junta
+    pf = next(a for a in r.acessorios if "conexão entre painéis" in a.item)
+    assert pf.qtd == 16                                # 1 junta × ceil(3.10/0.20)

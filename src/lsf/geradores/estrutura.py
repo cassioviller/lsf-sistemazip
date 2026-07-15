@@ -334,9 +334,84 @@ def _enquadrar_vaos(con, ops, xs, pd, perfil_m, alma_m, R, mk):
 
 
 def _bloqueadores(ops, comp, pd, perfil_m, R, pecas, mk):
-    return
+    """Bloqueadores HB em linhas horizontais, cortados pelos vãos que a linha cruza."""
+    n_lin = max(1, int(_round_js(pd / _regra(R, "passo_hb_m"))) - 1)
+    for lin in range(1, n_lin + 1):
+        y = _round_js(pd * lin / (n_lin + 1), 4)
+        cortes = [[0.0, comp]]
+        for o in ops:
+            if not (o["sill"] < y < o["head"]):
+                continue
+            for i in range(len(cortes) - 1, -1, -1):
+                a, b = cortes[i]
+                va, vb = o["x0"], o["x0"] + o["larg"]
+                if va > a and vb < b:
+                    cortes[i:i + 1] = [[a, va], [vb, b]]
+                elif va <= a and vb >= b:
+                    del cortes[i]
+                elif a < va < b:
+                    cortes[i] = [a, va]
+                elif a < vb < b:
+                    cortes[i] = [vb, b]
+        for a, b in cortes:
+            if b - a < 0.15:
+                continue
+            mk("HB", "bloqueador", perfil_m, a, y, b, y,
+               origem="bloqueador ~700mm [OBRA-1P4 pendente]")
 
 
 def _contraventamento_e_ancoragem(contrav, externa, vaos_contrav, ops, juntas,
                                   comp, pd, perfil_m, alma_m, R, pecas, mk):
-    return []
+    """Contraventamento (derivado de `externa` quando não vem explícito, como o
+    wallToP do v7) + acessórios de ancoragem [OBRA-484125]."""
+    if contrav is None:
+        contrav = "fita" if externa else "nenhum"
+    acess: list[Acessorio] = []
+
+    if contrav == "trelica":
+        n_b = max(1, vaos_contrav)
+        vx = sorted({_round_js(p.x0, 3) for p in pecas
+                     if p.tipo in ("montante", "montante_ext", "king", "jack")})
+        livres = []
+        for i in range(len(vx) - 1):
+            a, b = vx[i], vx[i + 1]
+            if b - a < 0.15:
+                continue
+            if any(a >= o["x0"] - 0.03 and b <= o["x0"] + o["larg"] + 0.03 for o in ops):
+                continue
+            livres.append((a, b))
+        for a, b in livres[-n_b:]:
+            cols = ([(a, (a + b) / 2), ((a + b) / 2, b)]
+                    if (b - a) > _regra(R, "colunas_trelica_se_m") else [(a, b)])
+            if len(cols) == 2:
+                mk("S", "montante_curto", perfil_m, (a + b) / 2, 0, (a + b) / 2, pd,
+                   origem="montante intermediário da treliça")
+            for ca, cb in cols:
+                n_passos = max(2, int(_round_js(pd / _regra(R, "passo_trelica_m"))))
+                flip = False
+                for i in range(n_passos):
+                    y0 = pd * i / n_passos
+                    y1 = pd * (i + 1) / n_passos
+                    x_a, x_b = (cb, ca) if flip else (ca, cb)
+                    mk("BRB", "diagonal", perfil_m,
+                       x_a + (-1 if flip else 1) * alma_m / 2, y0,
+                       x_b + (1 if flip else -1) * alma_m / 2, y1,
+                       origem="treliça zigzag [GATE2 1P4]")
+                    flip = not flip
+    elif contrav == "fita":
+        diag = math.hypot(pd, min(comp, 3.6))
+        acess.append(Acessorio("Fita de contraventamento em X",
+                               _round_js(vaos_contrav * 2 * diag, 1), "m"))
+    elif contrav == "osb":
+        acess.append(Acessorio("OSB estrutural (diafragma)",
+                               math.ceil(comp * pd / 2.88), "placa"))
+
+    if juntas:
+        pf = len(juntas) * math.ceil(pd / _regra(R, "passo_conex_painel_m"))
+        acess.append(Acessorio(
+            "Parafuso sext. 4,8x19 — conexão entre painéis (ziguezague 200mm)", pf, "un"))
+    n_anc = max(2, math.floor(comp / _regra(R, "ancor_esp_padrao_m")) + 1)
+    acess.append(Acessorio("Ancorador chapa #3,00 190x50x50", n_anc, "un"))
+    acess.append(Acessorio('Chumbador Parabolt 5/16"x4-1/4"', n_anc, "un"))
+    acess.append(Acessorio("Parafuso sextavado 4,8x19 (ancoradores)", n_anc * 8, "un"))
+    return acess
