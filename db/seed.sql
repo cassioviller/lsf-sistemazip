@@ -30,14 +30,14 @@ ON CONFLICT (fonte_id,referencia,uf,desonerado) DO UPDATE SET
 
 -- ---------- PERFIS (portados do LSF_DB v7) ----------
 INSERT INTO perfil_lsf (codigo,familia,tipo,drywall,alma_mm,aba_mm,enrijecedor_mm,espessura_mm,massa_kg_m) VALUES
- ('Ue70#0.80','Ue70','montante',0,70,40,12,0.80,1.09),
+ ('Ue70#0.80','Ue70','montante',0,70,35,10,0.80,1.00),
  ('Ue90#0.80','Ue90','montante',0,90,40,12,0.80,1.22),
  ('Ue90#0.95','Ue90','montante',0,90,40,12,0.95,1.45),
  ('Ue90#1.25','Ue90','montante',0,90,40,12,1.25,1.90),
  ('Ue140#1.25','Ue140','montante',0,140,40,12,1.25,2.39),
  ('Ue200#1.25','Ue200','montante',0,200,40,12,1.25,2.98),
  ('Ue250#2.00','Ue250','montante',0,250,40,12,2.00,5.55),
- ('U72#0.80','U72','guia',0,72,38,NULL,0.80,0.93),
+ ('U72#0.80','U72','guia',0,72,34,NULL,0.80,0.90),
  ('U92#0.80','U92','guia',0,92,38,NULL,0.80,1.06),
  ('U92#0.95','U92','guia',0,92,38,NULL,0.95,1.25),
  ('U92#1.25','U92','guia',0,92,38,NULL,1.25,1.65),
@@ -49,7 +49,13 @@ INSERT INTO perfil_lsf (codigo,familia,tipo,drywall,alma_mm,aba_mm,enrijecedor_m
  ('M90#0.50','M90','montante',1,90,40,5,0.50,0.66),
  ('G48#0.50','G48','guia',1,48,30,NULL,0.50,0.39),
  ('G70#0.50','G70','guia',1,70,30,NULL,0.50,0.46),
- ('G90#0.50','G90','guia',1,90,30,NULL,0.50,0.53)
+ ('G90#0.50','G90','guia',1,90,30,NULL,0.50,0.53),
+ ('U202#0.95','U202','guia',0,202,40,NULL,0.95,2.10),
+ ('U252#1.25','U252','guia',0,252,40,NULL,1.25,3.26),
+ ('Ue140#0.80','Ue140','montante',0,140,40,12,0.80,1.53),
+ ('U142#0.80','U142','guia',0,142,40,NULL,0.80,1.39),
+ ('W310x32.7','W310','laminado',0,310,102,NULL,6.6,32.7),
+ ('HSS100x100x4.8','HSS100','laminado',0,100,100,NULL,4.8,14.2)
 ON CONFLICT (codigo) DO UPDATE SET
   familia=excluded.familia, tipo=excluded.tipo, drywall=excluded.drywall,
   alma_mm=excluded.alma_mm, aba_mm=excluded.aba_mm, enrijecedor_mm=excluded.enrijecedor_mm,
@@ -264,3 +270,40 @@ INSERT INTO eap_item (codigo, pai_id, descricao, unidade, grupo_eap, composicao_
 ON CONFLICT (codigo) DO UPDATE SET
   pai_id=excluded.pai_id, descricao=excluded.descricao, unidade=excluded.unidade,
   grupo_eap=excluded.grupo_eap, composicao_id=excluded.composicao_id;
+
+-- ---------- Gerador de estrutura F2.1: guia correspondente (guiaDe v7) ----------
+INSERT INTO guia_de (familia_montante, familia_guia) VALUES
+ ('Ue70','U72'),('Ue90','U92'),('Ue140','U142'),('Ue200','U202'),('Ue250','U252'),
+ ('M48','G48'),('M70','G70'),('M90','G90')
+ON CONFLICT (familia_montante) DO UPDATE SET familia_guia=excluded.familia_guia;
+
+-- ---------- Escalonamento de verga (vergaPorVao v7) ----------
+INSERT INTO verga_escalonamento (faixa_ate_m, perfil_montante, perfil_guia, origem) VALUES
+ (1.2, NULL, NULL, 'OBRA DX-11: até 1,2m verga no perfil da parede'),
+ (2.0, 'Ue140#1.25', 'U142#1.25', 'OBRA DX-11 caso pesado; escalonamento pendente'),
+ (9.9, 'Ue250#2.00', 'U252#2.00', 'OBRA DX-11 caso pesado; escalonamento pendente')
+ON CONFLICT (faixa_ate_m) DO UPDATE SET
+  perfil_montante=excluded.perfil_montante, perfil_guia=excluded.perfil_guia,
+  origem=excluded.origem;
+
+-- ---------- Regras do gerador de paredes (REGRAS do v7, linhas 164-190) ----------
+-- Coeficiente novo sem calibração de obra = estimado (referência anotada).
+INSERT INTO regra_lsf (chave,valor,unidade,referencia) VALUES
+ ('modulacao_lsf_m',0.40,'m','wallToP v7: passo de montante LSF estrutural (drywall usa modulacao_m)'),
+ ('barra_m',6.0,'m','REGRA BOX-003 [mont. p.53]'),
+ ('king_duplo_lim_m',2.0,'m','GATE2 painel 1P4: 1 king+1 jack por lado até 2m'),
+ ('jack_duplo_lim_m',2.0,'m','CBCA/AISI, pendente'),
+ ('apoio_verga_m',0.10,'m','OBRA aprox: apoio da verga sobre jack, por lado'),
+ ('passo_hb_m',0.70,'m','OBRA-1P4, pendente: bloqueadores ~700mm'),
+ ('peitoril_padrao_m',1.0,'m','v7 peitorilPadrao'),
+ ('passo_trelica_m',0.28,'m','GATE2 1P4: passo vertical do zigzag (~21 diag)'),
+ ('colunas_trelica_se_m',0.45,'m','v7: módulo > 0,45m → 2 colunas c/ montante curto'),
+ ('diag_sobre_verga_min_m',1.0,'m','GATE2 1P4 BRR1-3: vão >= 1m → diagonais entre cripples'),
+ ('alt_min_porta_giro_m',2.15,'m','GUIA SMART: vão mín. porta de giro'),
+ ('alt_min_porta_correr_m',2.20,'m','GUIA SMART: vão mín. porta-janela de correr'),
+ ('margem_abertura_m',0.10,'m','v7 gerarPecas: folga mínima da abertura à borda'),
+ ('folga_entre_aberturas_m',0.15,'m','v7 gerarPecas: folga mínima entre aberturas'),
+ ('passo_conex_painel_m',0.20,'m','OBRA DP-07: parafusos entre painéis, ziguezague'),
+ ('ancor_esp_padrao_m',1.20,'m','OBRA "por modulação", pendente')
+ON CONFLICT (chave) DO UPDATE SET
+  valor=excluded.valor, unidade=excluded.unidade, referencia=excluded.referencia;

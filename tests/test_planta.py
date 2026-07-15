@@ -105,4 +105,5 @@ def test_regras_de_panelizacao_estao_no_banco(con):
         "painel_comp_max_transporte_m": 6.0,
         "junta_folga_vao_m": 0.30,
         "largura_painel_min_m": 0.60,
+        "passo_conex_painel_m": 0.20,
     }
