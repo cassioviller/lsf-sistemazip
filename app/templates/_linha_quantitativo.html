@@ -6,7 +6,8 @@
     <form hx-post="/projetos/{{ projeto.id }}/quantitativos"
           hx-target="#item-{{ item.id }}" hx-swap="outerHTML">
       <input type="hidden" name="eap_item_id" value="{{ item.id }}">
-      <input name="quantidade" value="{{ item.quantidade or '' }}" inputmode="decimal">
+      {# quantidade_ptbr: vírgula decimal, inteiro sem casa morta, 0 visível (nunca `or ''`) #}
+      <input name="quantidade" value="{{ item.quantidade_ptbr }}" inputmode="decimal">
       <button type="submit">Salvar</button>
     </form>
   </td>
