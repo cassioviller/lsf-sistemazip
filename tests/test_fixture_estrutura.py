@@ -27,3 +27,21 @@ def test_total_de_paredes_positivo_e_menor_que_o_edificio():
     d = json.loads(FIXTURE.read_text())
     assert 0 < d["total_paredes"]["kg_liquido"] < 23673
     assert d["total_paredes"]["kg_comprado"] > d["total_paredes"]["kg_liquido"]
+
+
+def test_todo_perfil_da_fixture_existe_em_perfil_lsf(con):
+    """Guarda equivalente à do oráculo .mjs, do lado Python: perfil citado na
+    fixture que não exista em `perfil_lsf` (ou sem massa positiva) significaria
+    kg calculado a partir de dado ausente — erro, nunca 0 kg silencioso (D4.1)."""
+    d = json.loads(FIXTURE.read_text())
+    perfis_fixture = {p["perfil"] for p in d["paredes"]}
+    assert perfis_fixture, "fixture sem perfis — truncada?"
+    conhecidos = {
+        codigo: massa
+        for codigo, massa in con.execute(
+            "SELECT codigo, massa_kg_m FROM perfil_lsf"
+        )
+    }
+    for perfil in sorted(perfis_fixture):
+        assert perfil in conhecidos, f"perfil {perfil!r} da fixture ausente de perfil_lsf"
+        assert conhecidos[perfil] > 0, f"perfil {perfil!r} sem massa_kg_m positiva"

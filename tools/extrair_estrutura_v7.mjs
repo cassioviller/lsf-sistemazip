@@ -80,6 +80,18 @@ for (const nome of requiredNames) {
 
 const { LSF_DB, W_T, W_S, PD, NIV, wallToP, gerarPecas, nestingCorte } = globalThis;
 
+// Fail-fast: perfil fora de LSF_DB.perfis (ou sem massa positiva) é ERRO do
+// oráculo, nunca 0 kg silencioso — 0 kg corromperia a fixture do aceite.
+function massaKgM(perfil, contexto) {
+  const info = LSF_DB.perfis[perfil];
+  if (!info || !(info.massaKgM > 0)) {
+    throw new Error(
+      `perfil desconhecido no oráculo v7: "${perfil}" (${contexto}) — ` +
+      'ausente de LSF_DB.perfis ou sem massaKgM > 0');
+  }
+  return info.massaKgM;
+}
+
 // wallToP já converteu {t,ab} → P.aberturas com alt/peitoril resolvidos; o gerador
 // só distingue JANELA vs não-JANELA, então todo não-janela vira PORTA
 function aberturasVao(P) {
@@ -103,7 +115,7 @@ for (const { walls, fi } of fatias) {
     for (const p of res.pecas) {
       porTipo[p.tipo] = (porTipo[p.tipo] || 0) + 1;
       ml += p.comp;
-      kg += p.comp * (LSF_DB.perfis[p.perfil]?.massaKgM || 0);
+      kg += p.comp * massaKgM(p.perfil, `parede ${fi}/${w.id}, peça ${p.tipo}`);
       todas.push({ perfil: p.perfil, comp: p.comp });
     }
     paredes.push({
@@ -121,7 +133,7 @@ const plano = nestingCorte(todas, LSF_DB, 'solto');
 let kgLiq = 0, kgComp = 0;
 for (const p of plano) {
   kgLiq += p.kg;
-  kgComp += p.barras * 6 * (LSF_DB.perfis[p.perfil]?.massaKgM || 0);
+  kgComp += p.barras * 6 * massaKgM(p.perfil, 'plano de corte');
 }
 
 process.stdout.write(JSON.stringify({
