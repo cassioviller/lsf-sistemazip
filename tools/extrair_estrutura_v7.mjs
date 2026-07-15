@@ -17,7 +17,6 @@ globalThis.localStorage = noop;
 globalThis.addEventListener = () => {};
 globalThis.requestAnimationFrame = () => 0;
 globalThis.THREE = noop;
-globalThis.Math = Math;
 
 // Keywords para converter `const` em atribuições globais
 const varMapping = {
@@ -39,14 +38,21 @@ const varMapping = {
   'GRUPO_PAV': true,
 };
 
-// Transforma `const name = ...` em `globalThis.name = ...` para vars esperadas
+// Transforma `const/let name = ...` em `globalThis.name = ...` para vars esperadas
+// Invariant: each mapped name must have exactly one top-level declaration.
+// The regex is un-anchored to find assignments anywhere in the code (block structure varies).
 const transformCode = (code) => {
   let result = code;
   for (const varName of Object.keys(varMapping)) {
-    // Replace: const NAME = ... with globalThis.NAME = ...
-    // This regex captures "const NAME" followed by anything until the value
+    // Count occurrences to enforce uniqueness invariant
+    const pattern = new RegExp(`\\b(?:const|let)\\s+${varName}\\s*=`, 'g');
+    const matches = code.match(pattern) || [];
+    if (matches.length > 1) {
+      throw new Error(`Invariant violation: ${varName} declared ${matches.length} times, expected exactly 1`);
+    }
+    // Replace: const/let NAME = ... with globalThis.NAME = ...
     result = result.replace(
-      new RegExp(`\\bconst\\s+${varName}\\s*=`, 'g'),
+      pattern,
       `globalThis.${varName} = `
     );
   }
@@ -63,7 +69,9 @@ for (const b of blocos) {
   }
 }
 
-for (const nome of ['LSF_DB', 'W_T', 'W_S', 'PD', 'NIV', 'wallToP', 'gerarPecas', 'nestingCorte']) {
+// Fail-fast: all mapped names must load (derived from varMapping + engine-only names)
+const requiredNames = [...Object.keys(varMapping), 'wallToP', 'gerarPecas', 'nestingCorte'];
+for (const nome of requiredNames) {
   if (typeof globalThis[nome] === 'undefined') {
     console.error(`engine incompleto: ${nome} não carregou`);
     process.exit(1);
