@@ -100,7 +100,13 @@ def cliente(app_db):
 
     from app.main import criar_app
 
-    return TestClient(criar_app(app_db, secret="teste"), follow_redirects=False)
+    # base_url https: o cookie de sessão pode vir com a flag `secure`
+    # (LSF_HTTPS_ONLY=1 no ambiente) e o httpx não o envia por http.
+    return TestClient(
+        criar_app(app_db, secret="teste"),
+        base_url="https://testserver",
+        follow_redirects=False,
+    )
 
 
 @pytest.fixture
@@ -165,7 +171,11 @@ def anonimo(app_db):
 
     from app.main import criar_app
 
-    return TestClient(criar_app(app_db, secret="teste"), follow_redirects=False)
+    return TestClient(
+        criar_app(app_db, secret="teste"),
+        base_url="https://testserver",
+        follow_redirects=False,
+    )
 
 
 @pytest.fixture
