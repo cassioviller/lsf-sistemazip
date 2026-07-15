@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block titulo %}Projetos{% endblock %}
+{% block conteudo %}
+<h1>Projetos</h1>
+<a class="botao" href="/projetos/novo">Novo projeto</a>
+{% if not projetos %}
+  <p class="vazio">Nenhum projeto cadastrado ainda.</p>
+{% else %}
+<table>
+  <thead><tr><th>Código</th><th>Nome</th><th>Cliente</th><th>Referência</th><th>UF</th></tr></thead>
+  <tbody>
+    {% for p in projetos %}
+    <tr>
+      <td><a href="/projetos/{{ p.id }}">{{ p.codigo }}</a></td>
+      <td>{{ p.nome }}</td><td>{{ p.cliente or "—" }}</td>
+      <td>{{ p.referencia }}</td><td>{{ p.uf or "—" }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+{% endblock %}

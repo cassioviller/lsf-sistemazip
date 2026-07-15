@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block titulo %}Novo projeto{% endblock %}
+{% block conteudo %}
+<h1>Novo projeto</h1>
+{% if erro %}<p class="erro" role="alert">{{ erro }}</p>{% endif %}
+<form method="post" action="/projetos" class="cartao">
+  <label>Código <input name="codigo" required placeholder="109.1506"></label>
+  <label>Nome <input name="nome" required></label>
+  <label>Cliente <input name="cliente"></label>
+  <label>Referência (AAAA-MM) <input name="referencia" required placeholder="2026-06"></label>
+  <label>UF <input name="uf" maxlength="2" placeholder="SP"></label>
+  <label>Desonerado
+    <select name="desonerado"><option value="0">Não</option><option value="1">Sim</option></select>
+  </label>
+  <label>Classe de solo
+    <select name="classe_solo_id">
+      <option value="">Não informada</option>
+      {% for s in solos %}<option value="{{ s.id }}">{{ s.classe }} — {{ s.descricao }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>Sondagem
+    <select name="sondagem_pendente">
+      <option value="1">Pendente (rebaixa a confiança da fundação)</option>
+      <option value="0">Realizada</option>
+    </select>
+  </label>
+  <button type="submit">Cadastrar</button>
+</form>
+{% endblock %}

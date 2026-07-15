@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block titulo %}{{ projeto.codigo }}{% endblock %}
+{% block conteudo %}
+<h1>{{ projeto.codigo }} — {{ projeto.nome }}</h1>
+<dl class="cartao">
+  <dt>Cliente</dt><dd>{{ projeto.cliente or "—" }}</dd>
+  <dt>Referência travada</dt><dd>{{ projeto.referencia }} · {{ projeto.uf or "—" }} ·
+    {{ "desonerado" if projeto.desonerado else "não desonerado" }}</dd>
+  <dt>Solo</dt><dd>{{ projeto.solo_classe or "não informado" }}</dd>
+</dl>
+{% if projeto.sondagem_pendente %}
+<p class="alerta" role="alert">
+  ⚠ Sondagem pendente — a fundação sai com confiança rebaixada e o gate aparece na proposta.
+</p>
+{% endif %}
+<nav class="acoes">
+  <a class="botao" href="/projetos/{{ projeto.id }}/quantitativos">Quantitativos</a>
+  <a class="botao" href="/projetos/{{ projeto.id }}/orcamento">Orçamento</a>
+</nav>
+{% if propostas %}
+<h2>Propostas publicadas</h2>
+<table>
+  <thead><tr><th>Versão</th><th>Publicada</th><th>Total</th><th>Status</th><th>Link</th></tr></thead>
+  <tbody>
+    {% for p in propostas %}
+    <tr>
+      <td>v{{ p.versao }}</td><td>{{ p.publicada_em }}</td>
+      <td>R$ {{ "%.2f"|format(p.total_venda) }}</td><td>{{ p.status }}</td>
+      <td><a href="/p/{{ p.token }}">/p/{{ p.token[:8] }}…</a></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+{% endblock %}
