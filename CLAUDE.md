@@ -11,6 +11,8 @@ Você está trabalhando no sistema que transforma um projeto arquitetônico (DXF
 - **`tools/bridge_autosinapi.py`**: ponte staging AutoSINAPI → nosso schema, IDEMPOTENTE (reload mensal integral da analítica, upsert de preço; testada com 3 execuções). Staging alinhado ao DataModel.md real do upstream (`precos_insumos_mensal`, PK com regime). Pin: commit `0020609`. Migração 003 impõe UNIQUE em `composicao_item` (item duplicado = erro de escrita, não preço dobrado). Colheita de referências aplicada e licenças verificadas: docs/05.
 - **Migração 004 — `planta_normalizada`** (Fase 2, estágio 1): `nivel`/`no_planta`/`parede`/`vao` como grafo (cantos=nós, paredes=arestas; conceito Raster-to-Graph, zero código — sem licença). Regras de panelização da colheita viraram dados em `regra_lsf` (`largura_painel_max_m` 3,6 · `painel_comp_max_transporte_m` 6,0 · `junta_folga_vao_m` 0,30 · `largura_painel_min_m` 0,60).
 - **Decisão SINAPI tomada** (docs/03): Rota A condicional — AutoSINAPI (GPLv3) como serviço isolado em container; a ponte é nossa. Gate pendente: smoke test com 1 arquivo real da Caixa na máquina do usuário.
+- **`app/` — casca web (FastAPI + Jinja + htmx)**: login (scrypt + sessão assinada), projetos, quantitativos MANUAL na árvore da EAP, tela de orçamento (KPIs, faixas D4, pendências D4.1, gate R7) e proposta publicada em `/p/<token>` com **snapshot congelado** (o cliente vê o que foi publicado; preço que mude depois não reescreve a proposta). `app/` NÃO contém regra de engenharia: número na UI que não veio de motor é bug de arquitetura. Publicação recusa (409) com macroetapa zerada ou pendência de custo. Migração 005: `usuario`, `proposta`. Sobe com `run_app.py` (exige `LSF_SECRET`); usuário via `tools/criar_usuario.py`. Licenças das deps web em docs/04 (todas permissivas; htmx vendored BSD-2).
+- **`db/build_db.py` é não-destrutivo**: schema e migrações aplicados uma vez via `schema_migrations`; seed reaplicado idempotente (é assim que conhecimento novo chega a banco existente). `--recriar` apaga, e só ele.
 - **Ambiente**: não há python no PATH deste workspace; usar `.venv/bin/python` (criado do nix store) com `export LD_LIBRARY_PATH=/nix/store/0gnnf8s259nn28s41zs4rhpbfqm148rm-gcc-11.4.0-lib/lib` (numpy). Node headless: `/nix/store/0akvkk9k1a7z5vjp34yz6dr91j776jhv-nodejs-20.11.1/bin/node`. Git: `origin=github.com/cassioviller/lsf-sistemazip`.
 
 ## Decisões de arquitetura TRAVADAS (não reabrir sem motivo forte — detalhes em docs/01 §2)
@@ -47,9 +49,11 @@ CLAUDE.md               ← você está aqui (fonte de verdade)
 PROMPT_INICIAL.md       ← primeira mensagem sugerida p/ a sessão (Fase 1, já executada)
 docs/01..05             ← plano v1, plano validado v2, decisão SINAPI, referências/colheita
 docs/superpowers/       ← specs (brainstorming) e plans (writing-plans) gerados pelas skills
-db/                     ← schema.sql, seed.sql, migrations/ (001 projeto/EAP, 002 BDI), build_db.py
-tests/                  ← 67 testes: spikes (regressão), motor, aceite F1 + fixtures/
-tools/                  ← bridge_autosinapi.py, carregar_orcamento_v7.py (aceite F1, CLI)
+db/                     ← schema.sql, seed.sql, migrations/ (001..005), build_db.py (não-destrutivo)
+app/                    ← casca web FastAPI+Jinja+htmx: rotas/, servicos/, templates/, static/
+run_app.py              ← sobe o app (exige LSF_SECRET; constrói/atualiza o banco no boot)
+tests/                  ← 123 testes: spikes (regressão), motor, aceite F1, app + fixtures/
+tools/                  ← bridge_autosinapi.py, carregar_orcamento_v7.py, criar_usuario.py
 src/lsf/motores/        ← orcamento.py (Fase 1 ✓), cronograma.py, cargas.py (stubs com contratos)
 src/lsf/relatorios.py   ← CSV/HTML analítico com faixas D4
 saida/                  ← relatórios gerados (orcamento_109_1506.html/csv)

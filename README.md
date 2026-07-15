@@ -10,6 +10,18 @@ python3 db/build_db.py              # constrói lsf_base.db do schema+seed
 pytest tests/ -q                    # 6 spikes de regressão devem passar
 ```
 
+## Rodar o aplicativo
+
+```bash
+export LD_LIBRARY_PATH=/nix/store/0gnnf8s259nn28s41zs4rhpbfqm148rm-gcc-11.4.0-lib/lib
+export LSF_SECRET=<segredo longo>          # em produção: Replit Secrets
+.venv/bin/python db/build_db.py            # cria/atualiza (NÃO apaga dados)
+.venv/bin/python tools/criar_usuario.py voce@veks.com "Seu Nome"
+.venv/bin/python run_app.py                # http://localhost:8000
+```
+
+`db/build_db.py --recriar` apaga o banco — use só em dev.
+
 ## Primeira sessão no Claude Code
 Abra esta pasta e use o conteúdo de `PROMPT_INICIAL.md` como primeira mensagem.
 
