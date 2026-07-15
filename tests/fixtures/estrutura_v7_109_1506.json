@@ -1,0 +1,2234 @@
+{
+ "origem": "assets/calc-edificio-109_1506-v7-steel.html — gerarPecas headless (paredes)",
+ "pe_direito_m": 3.1,
+ "niveis": [
+  0.57,
+  4.07,
+  7.07
+ ],
+ "paredes": [
+  {
+   "id": "0/T-E1",
+   "pav": 0,
+   "a": [
+    0,
+    4.2
+   ],
+   "b": [
+    0,
+    18.5
+   ],
+   "externa": 1,
+   "est": 0,
+   "perfil": "Ue90#1.25",
+   "aberturas": [
+    {
+     "tipo": "JANELA",
+     "posicao_m": 5.5,
+     "largura_m": 1.6,
+     "altura_m": 1.2,
+     "peitoril_m": 1
+    }
+   ],
+   "ref": {
+    "pecas_por_tipo": {
+     "guia": 8,
+     "king": 2,
+     "jack": 2,
+     "verga_mont": 2,
+     "verga_guia": 2,
+     "peitoril": 1,
+     "cripple": 8,
+     "diagonal": 5,
+     "montante_ext": 8,
+     "montante": 30,
+     "bloqueador": 4
+    },
+    "ml": 218.3,
+    "kg": 409.85,
+    "alertas": 0,
+    "n_paineis": 4,
+    "juntas": [
+     3.575,
+     7.25,
+     10.725
+    ]
+   }
+  },
+  {
+   "id": "0/T-E2",
+   "pav": 0,
+   "a": [
+    0,
+    18.5
+   ],
+   "b": [
+    15.8,
+    18.5
+   ],
+   "externa": 1,
+   "est": 0,
+   "perfil": "Ue90#1.25",
+   "aberturas": [],
+   "ref": {
+    "pecas_por_tipo": {
+     "guia": 10,
+     "montante_ext": 10,
+     "montante": 39,
+     "bloqueador": 3
+    },
+    "ml": 230.9,
+    "kg": 430.81,
+    "alertas": 0,
+    "n_paineis": 5,
+    "juntas": [
+     3.16,
+     6.32,
+     9.48,
+     12.64
+    ]
+   }
+  },
+  {
+   "id": "0/T-E3",
+   "pav": 0,
+   "a": [
+    15.8,
+    18.5
+   ],
+   "b": [
+    15.8,
+    8.2
+   ],
+   "externa": 1,
+   "est": 0,
+   "perfil": "Ue90#1.25",
+   "aberturas": [
+    {
+     "tipo": "JANELA",
+     "posicao_m": 4,
+     "largura_m": 1.2,
+     "altura_m": 1.2,
+     "peitoril_m": 1
+    }
+   ],
+   "ref": {
+    "pecas_por_tipo": {
+     "guia": 6,
+     "king": 2,
+     "jack": 2,
+     "verga_mont": 2,
+     "verga_guia": 2,
+     "peitoril": 1,
+     "cripple": 4,
+     "diagonal": 3,
+     "montante_ext": 6,
+     "montante": 21,
+     "bloqueador": 4
+    },
+    "ml": 157.73,
+    "kg": 293.54,
+    "alertas": 0,
+    "n_paineis": 3,
+    "juntas": [
+     3.433,
+     6.867
+    ]
+   }
+  },
+  {
+   "id": "0/T-E4",
+   "pav": 0,
+   "a": [
+    15.8,
+    8.2
+   ],
+   "b": [
+    12.9,
+    8.2
+   ],
+   "externa": 1,
+   "est": 1,
+   "perfil": "Ue90#1.25",
+   "aberturas": [],
+   "ref": {
+    "pecas_por_tipo": {
+     "guia": 2,
+     "montante_ext": 2,
+     "montante": 7,
+     "bloqueador": 3
+    },
+    "ml": 42.4,
+    "kg": 79.11,
+    "alertas": 0,
+    "n_paineis": 1,
+    "juntas": []
+   }
+  },
+  {
+   "id": "0/T-E5",
+   "pav": 0,
+   "a": [
+    12.9,
+    8.2
+   ],
+   "b": [
+    12.9,
+    4.6
+   ],
+   "externa": 1,
+   "est": 1,
+   "perfil": "Ue90#1.25",
+   "aberturas": [
+    {
+     "tipo": "PORTA",
+     "posicao_m": 1.5,
+     "largura_m": 0.9,
+     "altura_m": 2.1,
+     "peitoril_m": 0
+    }
+   ],
+   "ref": {
+    "pecas_por_tipo": {
+     "guia": 2,
+     "king": 2,
+     "jack": 2,
+     "verga_mont": 2,
+     "verga_guia": 2,
+     "cripple": 2,
+     "montante_ext": 2,
+     "montante": 5,
+     "bloqueador": 5
+    },
+    "ml": 54.52,
+    "kg": 101.24,
+    "alertas": 1,
+    "n_paineis": 1,
+    "juntas": []
+   }
+  },
+  {
+   "id": "0/T-E6",
+   "pav": 0,
+   "a": [
+    12.9,
+    4.6
+   ],
+   "b": [
+    5,
+    4.6
+   ],
+   "externa": 1,
+   "est": 0,
+   "perfil": "Ue90#1.25",
+   "aberturas": [
+    {
+     "tipo": "PORTA",
+     "posicao_m": 2,
+     "largura_m": 0.9,
+     "altura_m": 2.1,
+     "peitoril_m": 0
+    },
+    {
+     "tipo": "PORTA",
+     "posicao_m": 5.5,
+     "largura_m": 0.9,
+     "altura_m": 2.1,
+     "peitoril_m": 0
+    }
+   ],
+   "ref": {
+    "pecas_por_tipo": {
+     "guia": 6,
+     "king": 4,
+     "jack": 4,
+     "verga_mont": 4,
+     "verga_guia": 4,
+     "cripple": 4,
+     "montante_ext": 6,
+     "montante": 13,
+     "bloqueador": 7
+    },
+    "ml": 128.04,
+    "kg": 238.23,
+    "alertas": 2,
+    "n_paineis": 3,
+    "juntas": [
+     3.05,
+     5.267
+    ]
+   }
+  },
+  {
+   "id": "0/T-E7",
+   "pav": 0,
+   "a": [
+    5,
+    4.6
+   ],
+   "b": [
+    5,
+    6.9
+   ],
+   "externa": 1,
+   "est": 1,
+   "perfil": "Ue90#1.25",
+   "aberturas": [],
+   "ref": {
+    "pecas_por_tipo": {
+     "guia": 2,
+     "montante_ext": 2,
+     "montante": 5,
+     "bloqueador": 3
+    },
+    "ml": 33.2,
+    "kg": 61.93,
+    "alertas": 0,
+    "n_paineis": 1,
+    "juntas": []
+   }
+  },
+  {
+   "id": "0/T-E8",
+   "pav": 0,
+   "a": [
+    5,
+    6.9
+   ],
+   "b": [
+    0,
+    6.9
+   ],
+   "externa": 1,
+   "est": 0,
+   "perfil": "Ue90#1.25",
+   "aberturas": [
+    {
+     "tipo": "PORTA",
+     "posicao_m": 2.2,
+     "largura_m": 3,
+     "altura_m": 2.4,
+     "peitoril_m": 0
+    }
+   ],
+   "ref": {
+    "pecas_por_tipo": {
+     "guia": 4,
+     "king": 4,
+     "jack": 4,
+     "verga_mont": 2,
+     "verga_guia": 2,
+     "cripple": 8,
+     "diagonal": 9,
+     "montante_ext": 3,
+     "montante": 4,
+     "bloqueador": 3
+    },
+    "ml": 80.94,
+    "kg": 195.38,
+    "alertas": 0,
+    "n_paineis": 2,
+    "juntas": [
+     1.75
+    ]
+   }
+  },
+  {
+   "id": "0/T-E9",
+   "pav": 0,
+   "a": [
+    0,
+    6.9
+   ],
+   "b": [
+    0,
+    4.2
+   ],
+   "externa": 1,
+   "est": 0,
+   "perfil": "Ue90#1.25",
+   "aberturas": [
+    {
+     "tipo": "PORTA",
+     "posicao_m": 1,
+     "largura_m": 0.9,
+     "altura_m": 2.1,
+     "peitoril_m": 0
+    }
+   ],
+   "ref": {
+    "pecas_por_tipo": {
+     "guia": 2,
+     "king": 2,
+     "jack": 2,
+     "verga_mont": 2,
+     "verga_guia": 2,
+     "cripple": 2,
+     "montante_ext": 2,
+     "montante": 3,
+     "bloqueador": 5
+    },
+    "ml": 43.82,
+    "kg": 81.36,
+    "alertas": 1,
+    "n_paineis": 1,
+    "juntas": []
+   }
+  },
+  {
+   "id": "0/T-I1",
+   "pav": 0,
+   "a": [
+    9.6,
+    18.5
+   ],
+   "b": [
+    9.6,
+    11.4
+   ],
+   "externa": 0,
+   "est": 0,
+   "perfil": "Ue90#1.25",
+   "aberturas": [],
+   "ref": {
+    "pecas_por_tipo": {
+     "guia": 4,
+     "montante_ext": 4,
+     "montante": 17,
+     "bloqueador": 3
+    },
+    "ml": 100.6,
+    "kg": 187.59,
+    "alertas": 0,
+    "n_paineis": 2,
+    "juntas": [
+     3.55
+    ]
+   }
+  },
+  {
+   "id": "0/T-I2",
+   "pav": 0,
+   "a": [
+    9.6,
+    11.4
+   ],
+   "b": [
+    15.8,
+    11.4
+   ],
+   "externa": 0,
+   "est": 0,
+   "perfil": "Ue90#1.25",
+   "aberturas": [
+    {
+     "tipo": "PORTA",
+     "posicao_m": 1.2,
+     "largura_m": 0.8,
+     "altura_m": 2.1,
+     "peitoril_m": 0
+    },
+    {
+     "tipo": "PORTA",
+     "posicao_m": 4.6,
+     "largura_m": 0.8,
+     "altura_m": 2.1,
+     "peitoril_m": 0
+    }
+   ],
+   "ref": {
+    "pecas_por_tipo": {
+     "guia": 4,
+     "king": 4,
+     "jack": 4,
+     "verga_mont": 4,
+     "verga_guia": 4,
+     "cripple": 3,
+     "montante_ext": 4,
+     "montante": 10,
+     "bloqueador": 7
+    },
+    "ml": 102.73,
+    "kg": 191.09,
+    "alertas": 2,
+    "n_paineis": 2,
+    "juntas": [
+     3.1
+    ]
+   }
+  },
+  {
+   "id": "0/T-I3",
+   "pav": 0,
+   "a": [
+    9.6,
+    11.4
+   ],
+   "b": [
+    9.6,
+    6.9
+   ],
+   "externa": 0,
+   "est": 0,
+   "perfil": "Ue90#1.25",
+   "aberturas": [
+    {
+     "tipo": "PORTA",
+     "posicao_m": 2,
+     "largura_m": 0.8,
+     "altura_m": 2.1,
+     "peitoril_m": 0
+    }
+   ],
+   "ref": {
+    "pecas_por_tipo": {
+     "guia": 4,
+     "king": 2,
+     "jack": 2,
+     "verga_mont": 2,
+     "verga_guia": 2,
+     "cripple": 1,
+     "montante_ext": 4,
+     "montante": 8,
+     "bloqueador": 5
+    },
+    "ml": 73.41,
+    "kg": 136.73,
+    "alertas": 1,
+    "n_paineis": 2,
+    "juntas": [
+     1.85
+    ]
+   }
+  },
+  {
+   "id": "0/T-I4",
+   "pav": 0,
+   "a": [
+    13.3,
+    11.4
+   ],
+   "b": [
+    13.3,
+    8.2
+   ],
+   "externa": 0,
+   "est": 1,
+   "perfil": "Ue90#1.25",
+   "aberturas": [],
+   "ref": {
+    "pecas_por_tipo": {
+     "guia": 2,
+     "montante_ext": 2,
+     "montante": 7,
+     "bloqueador": 3
+    },
+    "ml": 43.9,
+    "kg": 81.81,
+    "alertas": 0,
+    "n_paineis": 1,
+    "juntas": []
+   }
+  },
+  {
+   "id": "0/T-I5",
+   "pav": 0,
+   "a": [
+    10.6,
+    8.9
+   ],
+   "b": [
+    13.3,
+    8.9
+   ],
+   "externa": 0,
+   "est": 0,
+   "perfil": "Ue90#0.95",
+   "aberturas": [
+    {
+     "tipo": "PORTA",
+     "posicao_m": 0.5,
+     "largura_m": 0.7,
+     "altura_m": 2.1,
+     "peitoril_m": 0
+    },
+    {
+     "tipo": "PORTA",
+     "posicao_m": 1.9,
+     "largura_m": 0.7,
+     "altura_m": 2.1,
+     "peitoril_m": 0
+    }
+   ],
+   "ref": {
+    "pecas_por_tipo": {
+     "guia": 2,
+     "king": 4,
+     "jack": 4,
+     "verga_mont": 4,
+     "verga_guia": 4,
+     "cripple": 3,
+     "montante_ext": 1,
+     "montante": 1,
+     "bloqueador": 5
+    },
+    "ml": 47.43,
+    "kg": 66.97,
+    "alertas": 2,
+    "n_paineis": 1,
+    "juntas": []
+   }
+  },
+  {
+   "id": "0/T-I6",
+   "pav": 0,
+   "a": [
+    11.95,
+    8.9
+   ],
+   "b": [
+    11.95,
+    8.2
+   ],
+   "externa": 0,
+   "est": 1,
+   "perfil": "Ue90#0.95",
+   "aberturas": [],
+   "ref": {
+    "pecas_por_tipo": {
+     "guia": 2,
+     "montante_ext": 2,
+     "montante": 1,
+     "bloqueador": 3
+    },
+    "ml": 12.8,
+    "kg": 18.28,
+    "alertas": 0,
+    "n_paineis": 1,
+    "juntas": []
+   }
+  },
+  {
+   "id": "0/T-I7",
+   "pav": 0,
+   "a": [
+    5.9,
+    9.6
+   ],
+   "b": [
+    8.3,
+    9.6
+   ],
+   "externa": 0,
+   "est": 0,
+   "perfil": "Ue90#0.95",
+   "aberturas": [
+    {
+     "tipo": "PORTA",
+     "posicao_m": 0.4,
+     "largura_m": 0.7,
+     "altura_m": 2.1,
+     "peitoril_m": 0
+    }
+   ],
+   "ref": {
+    "pecas_por_tipo": {
+     "guia": 2,
+     "king": 2,
+     "jack": 2,
+     "verga_mont": 2,
+     "verga_guia": 2,
+     "cripple": 1,
+     "montante_ext": 2,
+     "montante": 2,
+     "bloqueador": 5
+    },
+    "ml": 37.91,
+    "kg": 53.65,
+    "alertas": 1,
+    "n_paineis": 1,
+    "juntas": []
+   }
+  },
+  {
+   "id": "0/T-I8",
+   "pav": 0,
+   "a": [
+    8.3,
+    9.6
+   ],
+   "b": [
+    8.3,
+    6.9
+   ],
+   "externa": 0,
+   "est": 0,
+   "perfil": "Ue90#0.95",
+   "aberturas": [
+    {
+     "tipo": "PORTA",
+     "posicao_m": 0.9,
+     "largura_m": 0.8,
+     "altura_m": 2.1,
+     "peitoril_m": 0
+    }
+   ],
+   "ref": {
+    "pecas_por_tipo": {
+     "guia": 2,
+     "king": 2,
+     "jack": 2,
+     "verga_mont": 2,
+     "verga_guia": 2,
+     "cripple": 2,
+     "montante_ext": 2,
+     "montante": 3,
+     "bloqueador": 5
+    },
+    "ml": 43.62,
+    "kg": 61.77,
+    "alertas": 1,
+    "n_paineis": 1,
+    "juntas": []
+   }
+  },
+  {
+   "id": "0/T-I9",
+   "pav": 0,
+   "a": [
+    5.9,
+    9.6
+   ],
+   "b": [
+    5.9,
+    6.9
+   ],
+   "externa": 0,
+   "est": 0,
+   "perfil": "Ue90#1.25",
+   "aberturas": [],
+   "ref": {
+    "pecas_por_tipo": {
+     "guia": 2,
+     "montante_ext": 2,
+     "montante": 6,
+     "bloqueador": 3
+    },
+    "ml": 38.3,
+    "kg": 71.42,
+    "alertas": 0,
+    "n_paineis": 1,
+    "juntas": []
+   }
+  },
+  {
+   "id": "0/T-I10",
+   "pav": 0,
+   "a": [
+    12.9,
+    18.5
+   ],
+   "b": [
+    12.9,
+    15.4
+   ],
+   "externa": 0,
+   "est": 1,
+   "perfil": "Ue90#1.25",
+   "aberturas": [],
+   "ref": {
+    "pecas_por_tipo": {
+     "guia": 2,
+     "montante_ext": 2,
+     "montante": 7,
+     "bloqueador": 3
+    },
+    "ml": 43.4,
+    "kg": 80.91,
+    "alertas": 0,
+    "n_paineis": 1,
+    "juntas": []
+   }
+  },
+  {
+   "id": "1/S-E1",
+   "pav": 1,
+   "a": [
+    2.74,
+    4.6
+   ],
+   "b": [
+    2.74,
+    18.5
+   ],
+   "externa": 1,
+   "est": 0,
+   "perfil": "Ue90#0.95",
+   "aberturas": [
+    {
+     "tipo": "PORTA",
+     "posicao_m": 4,
+     "largura_m": 1.2,
+     "altura_m": 2.1,
+     "peitoril_m": 0
+    },
+    {
+     "tipo": "PORTA",
+     "posicao_m": 10.5,
+     "largura_m": 1.2,
+     "altura_m": 2.1,
+     "peitoril_m": 0
+    }
+   ],
+   "ref": {
+    "pecas_por_tipo": {
+     "guia": 8,
+     "king": 4,
+     "jack": 4,
+     "verga_mont": 4,
+     "verga_guia": 4,
+     "cripple": 5,
+     "diagonal": 7,
+     "montante_ext": 8,
+     "montante": 26,
+     "bloqueador": 7
+    },
+    "ml": 213.49,
+    "kg": 302.89,
+    "alertas": 2,
+    "n_paineis": 4,
+    "juntas": [
+     3.475,
+     6.95,
+     10.35
+    ]
+   }
+  },
+  {
+   "id": "1/S-E2",
+   "pav": 1,
+   "a": [
+    2.74,
+    18.5
+   ],
+   "b": [
+    15.8,
+    18.5
+   ],
+   "externa": 1,
+   "est": 0,
+   "perfil": "Ue90#0.95",
+   "aberturas": [],
+   "ref": {
+    "pecas_por_tipo": {
+     "guia": 8,
+     "montante_ext": 8,
+     "montante": 32,
+     "bloqueador": 3
+    },
+    "ml": 189.3,
+    "kg": 269.26,
+    "alertas": 0,
+    "n_paineis": 4,
+    "juntas": [
+     3.265,
+     6.53,
+     9.795
+    ]
+   }
+  },
+  {
+   "id": "1/S-E3",
+   "pav": 1,
+   "a": [
+    15.8,
+    18.5
+   ],
+   "b": [
+    15.8,
+    4.6
+   ],
+   "externa": 1,
+   "est": 0,
+   "perfil": "Ue90#0.95",
+   "aberturas": [
+    {
+     "tipo": "JANELA",
+     "posicao_m": 3,
+     "largura_m": 1.2,
+     "altura_m": 1.2,
+     "peitoril_m": 1
+    },
+    {
+     "tipo": "JANELA",
+     "posicao_m": 8.5,
+     "largura_m": 1.2,
+     "altura_m": 1.2,
+     "peitoril_m": 1
+    }
+   ],
+   "ref": {
+    "pecas_por_tipo": {
+     "guia": 8,
+     "king": 4,
+     "jack": 4,
+     "verga_mont": 4,
+     "verga_guia": 4,
+     "peitoril": 2,
+     "cripple": 12,
+     "diagonal": 8,
+     "montante_ext": 8,
+     "montante": 27,
+     "bloqueador": 5
+    },
+    "ml": 228.22,
+    "kg": 323.76,
+    "alertas": 0,
+    "n_paineis": 4,
+    "juntas": [
+     2.85,
+     6.95,
+     10.425
+    ]
+   }
+  },
+  {
+   "id": "1/S-E4",
+   "pav": 1,
+   "a": [
+    15.8,
+    4.6
+   ],
+   "b": [
+    2.74,
+    4.6
+   ],
+   "externa": 1,
+   "est": 0,
+   "perfil": "Ue90#0.95",
+   "aberturas": [
+    {
+     "tipo": "JANELA",
+     "posicao_m": 3.5,
+     "largura_m": 1.2,
+     "altura_m": 1.2,
+     "peitoril_m": 1
+    },
+    {
+     "tipo": "JANELA",
+     "posicao_m": 8,
+     "largura_m": 1.2,
+     "altura_m": 1.2,
+     "peitoril_m": 1
+    },
+    {
+     "tipo": "JANELA",
+     "posicao_m": 12.5,
+     "largura_m": 1.2,
+     "altura_m": 1.2,
+     "peitoril_m": 1
+    }
+   ],
+   "ref": {
+    "pecas_por_tipo": {
+     "guia": 8,
+     "king": 6,
+     "jack": 6,
+     "verga_mont": 6,
+     "verga_guia": 6,
+     "peitoril": 3,
+     "cripple": 16,
+     "diagonal": 11,
+     "montante_ext": 7,
+     "montante": 20,
+     "bloqueador": 5
+    },
+    "ml": 221.65,
+    "kg": 313.77,
+    "alertas": 0,
+    "n_paineis": 4,
+    "juntas": [
+     3.265,
+     6.53,
+     9.795
+    ]
+   }
+  },
+  {
+   "id": "1/S-I1",
+   "pav": 1,
+   "a": [
+    7.1,
+    18.5
+   ],
+   "b": [
+    7.1,
+    11.6
+   ],
+   "externa": 0,
+   "est": 0,
+   "perfil": "Ue90#0.95",
+   "aberturas": [],
+   "ref": {
+    "pecas_por_tipo": {
+     "guia": 4,
+     "montante_ext": 4,
+     "montante": 17,
+     "bloqueador": 3
+    },
+    "ml": 99.6,
+    "kg": 141.66,
+    "alertas": 0,
+    "n_paineis": 2,
+    "juntas": [
+     3.45
+    ]
+   }
+  },
+  {
+   "id": "1/S-I2",
+   "pav": 1,
+   "a": [
+    2.74,
+    11.6
+   ],
+   "b": [
+    7.1,
+    11.6
+   ],
+   "externa": 0,
+   "est": 0,
+   "perfil": "Ue90#0.95",
+   "aberturas": [
+    {
+     "tipo": "PORTA",
+     "posicao_m": 3.4,
+     "largura_m": 0.8,
+     "altura_m": 2.1,
+     "peitoril_m": 0
+    }
+   ],
+   "ref": {
+    "pecas_por_tipo": {
+     "guia": 4,
+     "king": 2,
+     "jack": 2,
+     "verga_mont": 2,
+     "verga_guia": 2,
+     "cripple": 2,
+     "montante_ext": 3,
+     "montante": 8,
+     "bloqueador": 5
+    },
+    "ml": 70.52,
+    "kg": 100.11,
+    "alertas": 1,
+    "n_paineis": 2,
+    "juntas": [
+     2.18
+    ]
+   }
+  },
+  {
+   "id": "1/S-I3",
+   "pav": 1,
+   "a": [
+    7.1,
+    11.6
+   ],
+   "b": [
+    7.1,
+    4.6
+   ],
+   "externa": 0,
+   "est": 0,
+   "perfil": "Ue90#0.95",
+   "aberturas": [
+    {
+     "tipo": "PORTA",
+     "posicao_m": 3.2,
+     "largura_m": 0.8,
+     "altura_m": 2.1,
+     "peitoril_m": 0
+    }
+   ],
+   "ref": {
+    "pecas_por_tipo": {
+     "guia": 4,
+     "king": 2,
+     "jack": 2,
+     "verga_mont": 2,
+     "verga_guia": 2,
+     "cripple": 1,
+     "montante_ext": 4,
+     "montante": 14,
+     "bloqueador": 5
+    },
+    "ml": 104.51,
+    "kg": 148.34,
+    "alertas": 1,
+    "n_paineis": 2,
+    "juntas": [
+     3.05
+    ]
+   }
+  },
+  {
+   "id": "1/S-I4",
+   "pav": 1,
+   "a": [
+    7.1,
+    14.9
+   ],
+   "b": [
+    10.4,
+    14.9
+   ],
+   "externa": 0,
+   "est": 0,
+   "perfil": "Ue90#0.95",
+   "aberturas": [
+    {
+     "tipo": "PORTA",
+     "posicao_m": 0.8,
+     "largura_m": 0.8,
+     "altura_m": 2.1,
+     "peitoril_m": 0
+    }
+   ],
+   "ref": {
+    "pecas_por_tipo": {
+     "guia": 2,
+     "king": 2,
+     "jack": 2,
+     "verga_mont": 2,
+     "verga_guia": 2,
+     "cripple": 1,
+     "montante_ext": 2,
+     "montante": 5,
+     "bloqueador": 5
+    },
+    "ml": 51.91,
+    "kg": 73.55,
+    "alertas": 1,
+    "n_paineis": 1,
+    "juntas": []
+   }
+  },
+  {
+   "id": "1/S-I5",
+   "pav": 1,
+   "a": [
+    10.4,
+    18.5
+   ],
+   "b": [
+    10.4,
+    14.9
+   ],
+   "externa": 0,
+   "est": 0,
+   "perfil": "Ue90#0.95",
+   "aberturas": [
+    {
+     "tipo": "PORTA",
+     "posicao_m": 0.6,
+     "largura_m": 0.7,
+     "altura_m": 2.1,
+     "peitoril_m": 0
+    }
+   ],
+   "ref": {
+    "pecas_por_tipo": {
+     "guia": 2,
+     "king": 2,
+     "jack": 2,
+     "verga_mont": 2,
+     "verga_guia": 2,
+     "cripple": 2,
+     "montante_ext": 2,
+     "montante": 6,
+     "bloqueador": 5
+    },
+    "ml": 57.22,
+    "kg": 81.17,
+    "alertas": 1,
+    "n_paineis": 1,
+    "juntas": []
+   }
+  },
+  {
+   "id": "1/S-I6",
+   "pav": 1,
+   "a": [
+    10.4,
+    16.6
+   ],
+   "b": [
+    13.2,
+    16.6
+   ],
+   "externa": 0,
+   "est": 1,
+   "perfil": "Ue90#0.95",
+   "aberturas": [
+    {
+     "tipo": "PORTA",
+     "posicao_m": 0.5,
+     "largura_m": 0.7,
+     "altura_m": 2.1,
+     "peitoril_m": 0
+    },
+    {
+     "tipo": "PORTA",
+     "posicao_m": 1.9,
+     "largura_m": 0.7,
+     "altura_m": 2.1,
+     "peitoril_m": 0
+    }
+   ],
+   "ref": {
+    "pecas_por_tipo": {
+     "guia": 2,
+     "king": 4,
+     "jack": 4,
+     "verga_mont": 4,
+     "verga_guia": 4,
+     "cripple": 3,
+     "montante_ext": 2,
+     "montante": 1,
+     "bloqueador": 7
+    },
+    "ml": 51.23,
+    "kg": 72.44,
+    "alertas": 2,
+    "n_paineis": 1,
+    "juntas": []
+   }
+  },
+  {
+   "id": "1/S-I7",
+   "pav": 1,
+   "a": [
+    7.1,
+    11.6
+   ],
+   "b": [
+    11.6,
+    11.6
+   ],
+   "externa": 0,
+   "est": 0,
+   "perfil": "Ue90#0.95",
+   "aberturas": [
+    {
+     "tipo": "PORTA",
+     "posicao_m": 1.5,
+     "largura_m": 0.8,
+     "altura_m": 2.1,
+     "peitoril_m": 0
+    }
+   ],
+   "ref": {
+    "pecas_por_tipo": {
+     "guia": 4,
+     "king": 2,
+     "jack": 2,
+     "verga_mont": 2,
+     "verga_guia": 2,
+     "cripple": 2,
+     "montante_ext": 4,
+     "montante": 8,
+     "bloqueador": 5
+    },
+    "ml": 74.32,
+    "kg": 105.56,
+    "alertas": 1,
+    "n_paineis": 2,
+    "juntas": [
+     2.45
+    ]
+   }
+  },
+  {
+   "id": "1/S-I8",
+   "pav": 1,
+   "a": [
+    11.6,
+    11.6
+   ],
+   "b": [
+    11.6,
+    8.4
+   ],
+   "externa": 0,
+   "est": 0,
+   "perfil": "Ue90#0.95",
+   "aberturas": [
+    {
+     "tipo": "PORTA",
+     "posicao_m": 1.2,
+     "largura_m": 0.8,
+     "altura_m": 2.1,
+     "peitoril_m": 0
+    }
+   ],
+   "ref": {
+    "pecas_por_tipo": {
+     "guia": 2,
+     "king": 2,
+     "jack": 2,
+     "verga_mont": 2,
+     "verga_guia": 2,
+     "cripple": 1,
+     "montante_ext": 2,
+     "montante": 4,
+     "bloqueador": 5
+    },
+    "ml": 48.31,
+    "kg": 68.37,
+    "alertas": 1,
+    "n_paineis": 1,
+    "juntas": []
+   }
+  },
+  {
+   "id": "1/S-I9",
+   "pav": 1,
+   "a": [
+    7.1,
+    8.4
+   ],
+   "b": [
+    15.8,
+    8.4
+   ],
+   "externa": 0,
+   "est": 0,
+   "perfil": "Ue90#0.95",
+   "aberturas": [
+    {
+     "tipo": "PORTA",
+     "posicao_m": 2,
+     "largura_m": 0.8,
+     "altura_m": 2.1,
+     "peitoril_m": 0
+    },
+    {
+     "tipo": "PORTA",
+     "posicao_m": 6.2,
+     "largura_m": 0.8,
+     "altura_m": 2.1,
+     "peitoril_m": 0
+    }
+   ],
+   "ref": {
+    "pecas_por_tipo": {
+     "guia": 6,
+     "king": 4,
+     "jack": 4,
+     "verga_mont": 4,
+     "verga_guia": 4,
+     "cripple": 3,
+     "montante_ext": 6,
+     "montante": 16,
+     "bloqueador": 7
+    },
+    "ml": 140.03,
+    "kg": 198.76,
+    "alertas": 2,
+    "n_paineis": 3,
+    "juntas": [
+     2.9,
+     5.8
+    ]
+   }
+  },
+  {
+   "id": "1/S-I10",
+   "pav": 1,
+   "a": [
+    11.6,
+    8.4
+   ],
+   "b": [
+    11.6,
+    4.6
+   ],
+   "externa": 0,
+   "est": 0,
+   "perfil": "Ue90#0.95",
+   "aberturas": [],
+   "ref": {
+    "pecas_por_tipo": {
+     "guia": 4,
+     "montante_ext": 4,
+     "montante": 9,
+     "bloqueador": 3
+    },
+    "ml": 59.3,
+    "kg": 84.47,
+    "alertas": 0,
+    "n_paineis": 2,
+    "juntas": [
+     1.9
+    ]
+   }
+  },
+  {
+   "id": "1/S-I11",
+   "pav": 1,
+   "a": [
+    8.9,
+    8.4
+   ],
+   "b": [
+    8.9,
+    6.2
+   ],
+   "externa": 0,
+   "est": 1,
+   "perfil": "Ue90#0.95",
+   "aberturas": [
+    {
+     "tipo": "PORTA",
+     "posicao_m": 0.6,
+     "largura_m": 0.7,
+     "altura_m": 2.1,
+     "peitoril_m": 0
+    }
+   ],
+   "ref": {
+    "pecas_por_tipo": {
+     "guia": 2,
+     "king": 2,
+     "jack": 2,
+     "verga_mont": 2,
+     "verga_guia": 2,
+     "cripple": 2,
+     "montante_ext": 2,
+     "montante": 3,
+     "bloqueador": 5
+    },
+    "ml": 40.92,
+    "kg": 58.09,
+    "alertas": 1,
+    "n_paineis": 1,
+    "juntas": []
+   }
+  },
+  {
+   "id": "1/S-I12",
+   "pav": 1,
+   "a": [
+    4.4,
+    6.6
+   ],
+   "b": [
+    6,
+    6.6
+   ],
+   "externa": 0,
+   "est": 1,
+   "perfil": "Ue90#0.95",
+   "aberturas": [
+    {
+     "tipo": "PORTA",
+     "posicao_m": 0.3,
+     "largura_m": 0.7,
+     "altura_m": 2.1,
+     "peitoril_m": 0
+    }
+   ],
+   "ref": {
+    "pecas_por_tipo": {
+     "guia": 2,
+     "king": 2,
+     "jack": 2,
+     "verga_mont": 2,
+     "verga_guia": 2,
+     "cripple": 2,
+     "montante_ext": 2,
+     "montante": 1,
+     "bloqueador": 5
+    },
+    "ml": 31.72,
+    "kg": 44.99,
+    "alertas": 1,
+    "n_paineis": 1,
+    "juntas": []
+   }
+  },
+  {
+   "id": "1/S-I13",
+   "pav": 1,
+   "a": [
+    12.9,
+    18.5
+   ],
+   "b": [
+    12.9,
+    15.6
+   ],
+   "externa": 0,
+   "est": 1,
+   "perfil": "Ue90#0.95",
+   "aberturas": [],
+   "ref": {
+    "pecas_por_tipo": {
+     "guia": 2,
+     "montante_ext": 2,
+     "montante": 7,
+     "bloqueador": 3
+    },
+    "ml": 42.4,
+    "kg": 60.32,
+    "alertas": 0,
+    "n_paineis": 1,
+    "juntas": []
+   }
+  },
+  {
+   "id": "2/S-E1",
+   "pav": 2,
+   "a": [
+    2.74,
+    4.6
+   ],
+   "b": [
+    2.74,
+    18.5
+   ],
+   "externa": 1,
+   "est": 0,
+   "perfil": "Ue90#0.95",
+   "aberturas": [
+    {
+     "tipo": "PORTA",
+     "posicao_m": 4,
+     "largura_m": 1.2,
+     "altura_m": 2.1,
+     "peitoril_m": 0
+    },
+    {
+     "tipo": "PORTA",
+     "posicao_m": 10.5,
+     "largura_m": 1.2,
+     "altura_m": 2.1,
+     "peitoril_m": 0
+    }
+   ],
+   "ref": {
+    "pecas_por_tipo": {
+     "guia": 8,
+     "king": 4,
+     "jack": 4,
+     "verga_mont": 4,
+     "verga_guia": 4,
+     "cripple": 5,
+     "diagonal": 7,
+     "montante_ext": 8,
+     "montante": 26,
+     "bloqueador": 7
+    },
+    "ml": 213.49,
+    "kg": 302.89,
+    "alertas": 2,
+    "n_paineis": 4,
+    "juntas": [
+     3.475,
+     6.95,
+     10.35
+    ]
+   }
+  },
+  {
+   "id": "2/S-E2",
+   "pav": 2,
+   "a": [
+    2.74,
+    18.5
+   ],
+   "b": [
+    15.8,
+    18.5
+   ],
+   "externa": 1,
+   "est": 0,
+   "perfil": "Ue90#0.95",
+   "aberturas": [],
+   "ref": {
+    "pecas_por_tipo": {
+     "guia": 8,
+     "montante_ext": 8,
+     "montante": 32,
+     "bloqueador": 3
+    },
+    "ml": 189.3,
+    "kg": 269.26,
+    "alertas": 0,
+    "n_paineis": 4,
+    "juntas": [
+     3.265,
+     6.53,
+     9.795
+    ]
+   }
+  },
+  {
+   "id": "2/S-E3",
+   "pav": 2,
+   "a": [
+    15.8,
+    18.5
+   ],
+   "b": [
+    15.8,
+    4.6
+   ],
+   "externa": 1,
+   "est": 0,
+   "perfil": "Ue90#0.95",
+   "aberturas": [
+    {
+     "tipo": "JANELA",
+     "posicao_m": 3,
+     "largura_m": 1.2,
+     "altura_m": 1.2,
+     "peitoril_m": 1
+    },
+    {
+     "tipo": "JANELA",
+     "posicao_m": 8.5,
+     "largura_m": 1.2,
+     "altura_m": 1.2,
+     "peitoril_m": 1
+    }
+   ],
+   "ref": {
+    "pecas_por_tipo": {
+     "guia": 8,
+     "king": 4,
+     "jack": 4,
+     "verga_mont": 4,
+     "verga_guia": 4,
+     "peitoril": 2,
+     "cripple": 12,
+     "diagonal": 8,
+     "montante_ext": 8,
+     "montante": 27,
+     "bloqueador": 5
+    },
+    "ml": 228.22,
+    "kg": 323.76,
+    "alertas": 0,
+    "n_paineis": 4,
+    "juntas": [
+     2.85,
+     6.95,
+     10.425
+    ]
+   }
+  },
+  {
+   "id": "2/S-E4",
+   "pav": 2,
+   "a": [
+    15.8,
+    4.6
+   ],
+   "b": [
+    2.74,
+    4.6
+   ],
+   "externa": 1,
+   "est": 0,
+   "perfil": "Ue90#0.95",
+   "aberturas": [
+    {
+     "tipo": "JANELA",
+     "posicao_m": 3.5,
+     "largura_m": 1.2,
+     "altura_m": 1.2,
+     "peitoril_m": 1
+    },
+    {
+     "tipo": "JANELA",
+     "posicao_m": 8,
+     "largura_m": 1.2,
+     "altura_m": 1.2,
+     "peitoril_m": 1
+    },
+    {
+     "tipo": "JANELA",
+     "posicao_m": 12.5,
+     "largura_m": 1.2,
+     "altura_m": 1.2,
+     "peitoril_m": 1
+    }
+   ],
+   "ref": {
+    "pecas_por_tipo": {
+     "guia": 8,
+     "king": 6,
+     "jack": 6,
+     "verga_mont": 6,
+     "verga_guia": 6,
+     "peitoril": 3,
+     "cripple": 16,
+     "diagonal": 11,
+     "montante_ext": 7,
+     "montante": 20,
+     "bloqueador": 5
+    },
+    "ml": 221.65,
+    "kg": 313.77,
+    "alertas": 0,
+    "n_paineis": 4,
+    "juntas": [
+     3.265,
+     6.53,
+     9.795
+    ]
+   }
+  },
+  {
+   "id": "2/S-I1",
+   "pav": 2,
+   "a": [
+    7.1,
+    18.5
+   ],
+   "b": [
+    7.1,
+    11.6
+   ],
+   "externa": 0,
+   "est": 0,
+   "perfil": "Ue90#0.95",
+   "aberturas": [],
+   "ref": {
+    "pecas_por_tipo": {
+     "guia": 4,
+     "montante_ext": 4,
+     "montante": 17,
+     "bloqueador": 3
+    },
+    "ml": 99.6,
+    "kg": 141.66,
+    "alertas": 0,
+    "n_paineis": 2,
+    "juntas": [
+     3.45
+    ]
+   }
+  },
+  {
+   "id": "2/S-I2",
+   "pav": 2,
+   "a": [
+    2.74,
+    11.6
+   ],
+   "b": [
+    7.1,
+    11.6
+   ],
+   "externa": 0,
+   "est": 0,
+   "perfil": "Ue90#0.95",
+   "aberturas": [
+    {
+     "tipo": "PORTA",
+     "posicao_m": 3.4,
+     "largura_m": 0.8,
+     "altura_m": 2.1,
+     "peitoril_m": 0
+    }
+   ],
+   "ref": {
+    "pecas_por_tipo": {
+     "guia": 4,
+     "king": 2,
+     "jack": 2,
+     "verga_mont": 2,
+     "verga_guia": 2,
+     "cripple": 2,
+     "montante_ext": 3,
+     "montante": 8,
+     "bloqueador": 5
+    },
+    "ml": 70.52,
+    "kg": 100.11,
+    "alertas": 1,
+    "n_paineis": 2,
+    "juntas": [
+     2.18
+    ]
+   }
+  },
+  {
+   "id": "2/S-I3",
+   "pav": 2,
+   "a": [
+    7.1,
+    11.6
+   ],
+   "b": [
+    7.1,
+    4.6
+   ],
+   "externa": 0,
+   "est": 0,
+   "perfil": "Ue90#0.95",
+   "aberturas": [
+    {
+     "tipo": "PORTA",
+     "posicao_m": 3.2,
+     "largura_m": 0.8,
+     "altura_m": 2.1,
+     "peitoril_m": 0
+    }
+   ],
+   "ref": {
+    "pecas_por_tipo": {
+     "guia": 4,
+     "king": 2,
+     "jack": 2,
+     "verga_mont": 2,
+     "verga_guia": 2,
+     "cripple": 1,
+     "montante_ext": 4,
+     "montante": 14,
+     "bloqueador": 5
+    },
+    "ml": 104.51,
+    "kg": 148.34,
+    "alertas": 1,
+    "n_paineis": 2,
+    "juntas": [
+     3.05
+    ]
+   }
+  },
+  {
+   "id": "2/S-I4",
+   "pav": 2,
+   "a": [
+    7.1,
+    14.9
+   ],
+   "b": [
+    10.4,
+    14.9
+   ],
+   "externa": 0,
+   "est": 0,
+   "perfil": "Ue90#0.95",
+   "aberturas": [
+    {
+     "tipo": "PORTA",
+     "posicao_m": 0.8,
+     "largura_m": 0.8,
+     "altura_m": 2.1,
+     "peitoril_m": 0
+    }
+   ],
+   "ref": {
+    "pecas_por_tipo": {
+     "guia": 2,
+     "king": 2,
+     "jack": 2,
+     "verga_mont": 2,
+     "verga_guia": 2,
+     "cripple": 1,
+     "montante_ext": 2,
+     "montante": 5,
+     "bloqueador": 5
+    },
+    "ml": 51.91,
+    "kg": 73.55,
+    "alertas": 1,
+    "n_paineis": 1,
+    "juntas": []
+   }
+  },
+  {
+   "id": "2/S-I5",
+   "pav": 2,
+   "a": [
+    10.4,
+    18.5
+   ],
+   "b": [
+    10.4,
+    14.9
+   ],
+   "externa": 0,
+   "est": 0,
+   "perfil": "Ue90#0.95",
+   "aberturas": [
+    {
+     "tipo": "PORTA",
+     "posicao_m": 0.6,
+     "largura_m": 0.7,
+     "altura_m": 2.1,
+     "peitoril_m": 0
+    }
+   ],
+   "ref": {
+    "pecas_por_tipo": {
+     "guia": 2,
+     "king": 2,
+     "jack": 2,
+     "verga_mont": 2,
+     "verga_guia": 2,
+     "cripple": 2,
+     "montante_ext": 2,
+     "montante": 6,
+     "bloqueador": 5
+    },
+    "ml": 57.22,
+    "kg": 81.17,
+    "alertas": 1,
+    "n_paineis": 1,
+    "juntas": []
+   }
+  },
+  {
+   "id": "2/S-I6",
+   "pav": 2,
+   "a": [
+    10.4,
+    16.6
+   ],
+   "b": [
+    13.2,
+    16.6
+   ],
+   "externa": 0,
+   "est": 1,
+   "perfil": "Ue90#0.95",
+   "aberturas": [
+    {
+     "tipo": "PORTA",
+     "posicao_m": 0.5,
+     "largura_m": 0.7,
+     "altura_m": 2.1,
+     "peitoril_m": 0
+    },
+    {
+     "tipo": "PORTA",
+     "posicao_m": 1.9,
+     "largura_m": 0.7,
+     "altura_m": 2.1,
+     "peitoril_m": 0
+    }
+   ],
+   "ref": {
+    "pecas_por_tipo": {
+     "guia": 2,
+     "king": 4,
+     "jack": 4,
+     "verga_mont": 4,
+     "verga_guia": 4,
+     "cripple": 3,
+     "montante_ext": 2,
+     "montante": 1,
+     "bloqueador": 7
+    },
+    "ml": 51.23,
+    "kg": 72.44,
+    "alertas": 2,
+    "n_paineis": 1,
+    "juntas": []
+   }
+  },
+  {
+   "id": "2/S-I7",
+   "pav": 2,
+   "a": [
+    7.1,
+    11.6
+   ],
+   "b": [
+    11.6,
+    11.6
+   ],
+   "externa": 0,
+   "est": 0,
+   "perfil": "Ue90#0.95",
+   "aberturas": [
+    {
+     "tipo": "PORTA",
+     "posicao_m": 1.5,
+     "largura_m": 0.8,
+     "altura_m": 2.1,
+     "peitoril_m": 0
+    }
+   ],
+   "ref": {
+    "pecas_por_tipo": {
+     "guia": 4,
+     "king": 2,
+     "jack": 2,
+     "verga_mont": 2,
+     "verga_guia": 2,
+     "cripple": 2,
+     "montante_ext": 4,
+     "montante": 8,
+     "bloqueador": 5
+    },
+    "ml": 74.32,
+    "kg": 105.56,
+    "alertas": 1,
+    "n_paineis": 2,
+    "juntas": [
+     2.45
+    ]
+   }
+  },
+  {
+   "id": "2/S-I8",
+   "pav": 2,
+   "a": [
+    11.6,
+    11.6
+   ],
+   "b": [
+    11.6,
+    8.4
+   ],
+   "externa": 0,
+   "est": 0,
+   "perfil": "Ue90#0.95",
+   "aberturas": [
+    {
+     "tipo": "PORTA",
+     "posicao_m": 1.2,
+     "largura_m": 0.8,
+     "altura_m": 2.1,
+     "peitoril_m": 0
+    }
+   ],
+   "ref": {
+    "pecas_por_tipo": {
+     "guia": 2,
+     "king": 2,
+     "jack": 2,
+     "verga_mont": 2,
+     "verga_guia": 2,
+     "cripple": 1,
+     "montante_ext": 2,
+     "montante": 4,
+     "bloqueador": 5
+    },
+    "ml": 48.31,
+    "kg": 68.37,
+    "alertas": 1,
+    "n_paineis": 1,
+    "juntas": []
+   }
+  },
+  {
+   "id": "2/S-I9",
+   "pav": 2,
+   "a": [
+    7.1,
+    8.4
+   ],
+   "b": [
+    15.8,
+    8.4
+   ],
+   "externa": 0,
+   "est": 0,
+   "perfil": "Ue90#0.95",
+   "aberturas": [
+    {
+     "tipo": "PORTA",
+     "posicao_m": 2,
+     "largura_m": 0.8,
+     "altura_m": 2.1,
+     "peitoril_m": 0
+    },
+    {
+     "tipo": "PORTA",
+     "posicao_m": 6.2,
+     "largura_m": 0.8,
+     "altura_m": 2.1,
+     "peitoril_m": 0
+    }
+   ],
+   "ref": {
+    "pecas_por_tipo": {
+     "guia": 6,
+     "king": 4,
+     "jack": 4,
+     "verga_mont": 4,
+     "verga_guia": 4,
+     "cripple": 3,
+     "montante_ext": 6,
+     "montante": 16,
+     "bloqueador": 7
+    },
+    "ml": 140.03,
+    "kg": 198.76,
+    "alertas": 2,
+    "n_paineis": 3,
+    "juntas": [
+     2.9,
+     5.8
+    ]
+   }
+  },
+  {
+   "id": "2/S-I10",
+   "pav": 2,
+   "a": [
+    11.6,
+    8.4
+   ],
+   "b": [
+    11.6,
+    4.6
+   ],
+   "externa": 0,
+   "est": 0,
+   "perfil": "Ue90#0.95",
+   "aberturas": [],
+   "ref": {
+    "pecas_por_tipo": {
+     "guia": 4,
+     "montante_ext": 4,
+     "montante": 9,
+     "bloqueador": 3
+    },
+    "ml": 59.3,
+    "kg": 84.47,
+    "alertas": 0,
+    "n_paineis": 2,
+    "juntas": [
+     1.9
+    ]
+   }
+  },
+  {
+   "id": "2/S-I11",
+   "pav": 2,
+   "a": [
+    8.9,
+    8.4
+   ],
+   "b": [
+    8.9,
+    6.2
+   ],
+   "externa": 0,
+   "est": 1,
+   "perfil": "Ue90#0.95",
+   "aberturas": [
+    {
+     "tipo": "PORTA",
+     "posicao_m": 0.6,
+     "largura_m": 0.7,
+     "altura_m": 2.1,
+     "peitoril_m": 0
+    }
+   ],
+   "ref": {
+    "pecas_por_tipo": {
+     "guia": 2,
+     "king": 2,
+     "jack": 2,
+     "verga_mont": 2,
+     "verga_guia": 2,
+     "cripple": 2,
+     "montante_ext": 2,
+     "montante": 3,
+     "bloqueador": 5
+    },
+    "ml": 40.92,
+    "kg": 58.09,
+    "alertas": 1,
+    "n_paineis": 1,
+    "juntas": []
+   }
+  },
+  {
+   "id": "2/S-I12",
+   "pav": 2,
+   "a": [
+    4.4,
+    6.6
+   ],
+   "b": [
+    6,
+    6.6
+   ],
+   "externa": 0,
+   "est": 1,
+   "perfil": "Ue90#0.95",
+   "aberturas": [
+    {
+     "tipo": "PORTA",
+     "posicao_m": 0.3,
+     "largura_m": 0.7,
+     "altura_m": 2.1,
+     "peitoril_m": 0
+    }
+   ],
+   "ref": {
+    "pecas_por_tipo": {
+     "guia": 2,
+     "king": 2,
+     "jack": 2,
+     "verga_mont": 2,
+     "verga_guia": 2,
+     "cripple": 2,
+     "montante_ext": 2,
+     "montante": 1,
+     "bloqueador": 5
+    },
+    "ml": 31.72,
+    "kg": 44.99,
+    "alertas": 1,
+    "n_paineis": 1,
+    "juntas": []
+   }
+  },
+  {
+   "id": "2/S-I13",
+   "pav": 2,
+   "a": [
+    12.9,
+    18.5
+   ],
+   "b": [
+    12.9,
+    15.6
+   ],
+   "externa": 0,
+   "est": 1,
+   "perfil": "Ue90#0.95",
+   "aberturas": [],
+   "ref": {
+    "pecas_por_tipo": {
+     "guia": 2,
+     "montante_ext": 2,
+     "montante": 7,
+     "bloqueador": 3
+    },
+    "ml": 42.4,
+    "kg": 60.32,
+    "alertas": 0,
+    "n_paineis": 1,
+    "juntas": []
+   }
+  }
+ ],
+ "total_paredes": {
+  "kg_liquido": 7737,
+  "kg_comprado": 11135
+ }
+}
