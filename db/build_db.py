@@ -87,20 +87,37 @@ def _aplicar(con, caminho: pathlib.Path) -> None:
     """Aplica um script estrutural (schema.sql ou uma migração) e registra no ledger,
     tudo numa ÚNICA transação: ou os dois efeitos acontecem, ou nenhum. Ver docstring
     do módulo para o porquê de não usar `executescript` aqui.
+
+    `PRAGMA foreign_keys` é NO-OP dentro de uma transação já aberta — por isso liga/
+    desliga aqui FORA do `BEGIN`/`COMMIT`, nunca dentro dele. Isso é o que permite uma
+    migração reconstruir (DROP/RENAME, o único jeito de alterar CHECK no SQLite) uma
+    tabela referenciada por FK de outra (ex.: `parede.perfil_codigo -> perfil_lsf`) sem
+    que o `DROP` explodido com "FOREIGN KEY constraint failed" quando já existe dado de
+    instância referenciando-a. Depois do commit, `PRAGMA foreign_key_check` varre o
+    banco inteiro; qualquer violação real (a migração corrompeu uma referência, não
+    apenas a suspendeu temporariamente) vira exceção — nunca passa silenciosa.
     """
     statements = _dividir_statements(caminho.read_text())
+    con.execute("PRAGMA foreign_keys = OFF")
     con.execute("BEGIN")
     try:
         for statement in statements:
             con.execute(statement)
     except sqlite3.OperationalError as exc:
         con.rollback()
+        con.execute("PRAGMA foreign_keys = ON")
         if _mensagem_indica_estrutura_existente(exc):
             raise EstruturaJaExiste(str(exc)) from exc
         raise
     else:
         con.execute("INSERT INTO schema_migrations (arquivo) VALUES (?)", (caminho.name,))
         con.commit()
+        violacoes = con.execute("PRAGMA foreign_key_check").fetchall()
+        con.execute("PRAGMA foreign_keys = ON")
+        if violacoes:
+            raise sqlite3.IntegrityError(
+                f"{caminho.name} aplicada, mas corrompeu integridade referencial: {violacoes}"
+            )
 
 
 def _aplicar_ou_adotar(con, caminho: pathlib.Path) -> str:

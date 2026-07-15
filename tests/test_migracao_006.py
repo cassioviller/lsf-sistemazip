@@ -1,4 +1,7 @@
 """Migração 006: conhecimento do gerador de estrutura (perfis pós-override do v7)."""
+import sqlite3
+
+import pytest
 
 
 def test_perfis_corrigidos_pos_override(con):
@@ -50,3 +53,14 @@ def test_regras_do_gerador_presentes(con):
     valores = dict(con.execute("SELECT chave, valor FROM regra_lsf"))
     assert valores["modulacao_lsf_m"] == 0.40
     assert valores["barra_m"] == 6.0
+
+
+def test_verga_escalonamento_rejeita_perfil_inexistente(con):
+    """Importante (revisão): `perfil_montante`/`perfil_guia` tinham que referenciar
+    `perfil_lsf(codigo)` — sem a constraint, um código de perfil digitado errado
+    (ou removido depois) entra silencioso e só quebra na hora de gerar a estrutura."""
+    with pytest.raises(sqlite3.IntegrityError):
+        con.execute(
+            "INSERT INTO verga_escalonamento (faixa_ate_m, perfil_montante,"
+            " perfil_guia, origem) VALUES (99, 'PERFIL-INEXISTENTE#0.00', NULL, 'teste')"
+        )

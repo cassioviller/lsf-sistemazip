@@ -257,6 +257,73 @@ def test_seed_reaplicado_nao_fabrica_preco_fantasma(tmp_path):
     con.close()
 
 
+def test_migracao_com_rebuild_de_tabela_referenciada_preserva_fk(tmp_path):
+    """Crítico 1 (revisão da migração 006): `PRAGMA foreign_keys = OFF/ON` dentro do
+    script de migração é NO-OP porque `_aplicar` já roda o script numa transação
+    (`BEGIN` explícito) — e PRAGMA não tem efeito com transação aberta. Uma migração
+    que reconstrói (DROP/RENAME) uma tabela referenciada por FK, como `perfil_lsf`
+    (referenciada por `parede.perfil_codigo` desde a migração 004), tinha que falhar
+    com "FOREIGN KEY constraint failed" assim que existisse dado de instância
+    apontando para ela. `_aplicar` agora liga/desliga o PRAGMA FORA da transação."""
+    db = tmp_path / "lsf.db"
+    construir(db)
+
+    con = sqlite3.connect(db)
+    con.execute("PRAGMA foreign_keys = ON")
+    con.execute(
+        "INSERT INTO projeto (codigo, nome, referencia, uf, desonerado)"
+        " VALUES ('109.1506', 'Edifício', '2026-06', 'SP', 0)"
+    )
+    projeto_id = con.execute("SELECT id FROM projeto WHERE codigo='109.1506'").fetchone()[0]
+    con.execute(
+        "INSERT INTO nivel (projeto_id, indice, nome, pe_direito_m)"
+        " VALUES (?, 0, 'Térreo', 2.80)", (projeto_id,)
+    )
+    nivel_id = con.execute("SELECT id FROM nivel WHERE projeto_id=?", (projeto_id,)).fetchone()[0]
+    con.execute("INSERT INTO no_planta (nivel_id, x, y) VALUES (?, 0, 0)", (nivel_id,))
+    con.execute("INSERT INTO no_planta (nivel_id, x, y) VALUES (?, 5, 0)", (nivel_id,))
+    no_a, no_b = (r[0] for r in con.execute(
+        "SELECT id FROM no_planta WHERE nivel_id=? ORDER BY id", (nivel_id,)
+    ))
+    con.execute(
+        "INSERT INTO parede (nivel_id, no_a, no_b, espessura_m, perfil_codigo, origem)"
+        " VALUES (?, ?, ?, 0.10, 'Ue90#0.95', 'MANUAL')",
+        (nivel_id, no_a, no_b),
+    )
+    con.commit()
+    con.close()
+
+    con = sqlite3.connect(db)
+    con.execute("PRAGMA foreign_keys = ON")
+    # Mesmo padrão de rebuild da migração 006 (CREATE/INSERT..SELECT/DROP/RENAME),
+    # passado pelo mesmo helper que build_db usa para aplicar um script estrutural —
+    # sem o PRAGMA foreign_keys = OFF/ON dentro do próprio script (esse é o ponto).
+    caminho_script = tmp_path / "999_rebuild_teste.sql"
+    caminho_script.write_text(
+        "CREATE TABLE perfil_lsf_novo (\n"
+        "  codigo TEXT PRIMARY KEY,\n"
+        "  familia TEXT NOT NULL,\n"
+        "  tipo TEXT NOT NULL CHECK (tipo IN ('montante','guia','laminado')),\n"
+        "  drywall INTEGER NOT NULL DEFAULT 0,\n"
+        "  alma_mm REAL NOT NULL, aba_mm REAL NOT NULL,\n"
+        "  enrijecedor_mm REAL, espessura_mm REAL NOT NULL,\n"
+        "  massa_kg_m REAL NOT NULL,\n"
+        "  fonte TEXT NOT NULL DEFAULT 'LSF_DB v7 (obra ref. 484125)'\n"
+        ");\n"
+        "INSERT INTO perfil_lsf_novo SELECT * FROM perfil_lsf;\n"
+        "DROP TABLE perfil_lsf;\n"
+        "ALTER TABLE perfil_lsf_novo RENAME TO perfil_lsf;\n"
+    )
+    build_db._aplicar(con, caminho_script)  # não pode levantar FOREIGN KEY constraint failed
+
+    linha = con.execute(
+        "SELECT perfil_codigo FROM parede WHERE nivel_id=?", (nivel_id,)
+    ).fetchone()
+    assert linha is not None, "parede sumiu no rebuild"
+    assert linha[0] == "Ue90#0.95", "FK da parede não sobreviveu ao rebuild de perfil_lsf"
+    con.close()
+
+
 def test_folhas_eap_saem_com_composicao_preenchida(tmp_path):
     """Regressão silenciosa caçada à mão na Task 1: as 5 folhas da EAP com composição
     (03.01, 04.01, 04.02, 04.03, 06.01) precisam sair de um `construir()` do zero já

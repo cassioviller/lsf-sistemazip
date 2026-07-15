@@ -3,9 +3,9 @@
 -- Spec: docs/superpowers/specs/2026-07-15-gerador-estrutura-paredes-design.md
 -- perfil_lsf ganha tipo 'laminado' (W310/HSS de laje/cobertura, do
 -- Object.assign linha 645 do v7). SQLite não altera CHECK: rebuild.
+-- `db/build_db.py` liga/desliga PRAGMA foreign_keys FORA da transação de
+-- migração (PRAGMA é no-op dentro de transação aberta) — não repetir aqui.
 -- ============================================================
-PRAGMA foreign_keys = OFF;
-
 CREATE TABLE perfil_lsf_novo (
   codigo TEXT PRIMARY KEY,
   familia TEXT NOT NULL,
@@ -20,8 +20,6 @@ INSERT INTO perfil_lsf_novo SELECT * FROM perfil_lsf;
 DROP TABLE perfil_lsf;
 ALTER TABLE perfil_lsf_novo RENAME TO perfil_lsf;
 
-PRAGMA foreign_keys = ON;
-
 -- Correspondência montante→guia (DB.guiaDe do v7, linha 163)
 CREATE TABLE guia_de (
   familia_montante TEXT PRIMARY KEY,
@@ -32,7 +30,7 @@ CREATE TABLE guia_de (
 -- NULL = mesmo perfil da parede (faixa leve)
 CREATE TABLE verga_escalonamento (
   faixa_ate_m REAL PRIMARY KEY,
-  perfil_montante TEXT,
-  perfil_guia TEXT,
+  perfil_montante TEXT REFERENCES perfil_lsf(codigo),
+  perfil_guia TEXT REFERENCES perfil_lsf(codigo),
   origem TEXT NOT NULL
 );
