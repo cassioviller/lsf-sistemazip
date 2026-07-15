@@ -415,3 +415,83 @@ def _contraventamento_e_ancoragem(contrav, externa, vaos_contrav, ops, juntas,
     acess.append(Acessorio('Chumbador Parabolt 5/16"x4-1/4"', n_anc, "un"))
     acess.append(Acessorio("Parafuso sextavado 4,8x19 (ancoradores)", n_anc * 8, "un"))
     return acess
+
+
+@dataclass(frozen=True)
+class PlanoCortePerfil:
+    perfil: str
+    n_pecas: int
+    ml: float
+    kg: float
+    barras: int
+    perda_pct: float
+
+
+@dataclass(frozen=True)
+class EstruturaProjeto:
+    projeto_id: int
+    paredes: list[EstruturaParede]
+    plano_corte: list[PlanoCortePerfil]
+    kg_liquido: float
+    kg_comprado: float
+    confianca: str
+    alertas: list[str]
+
+
+def plano_de_corte(con, pecas: list[Peca], barra_m: float) -> list[PlanoCortePerfil]:
+    """Porta do nestingCorte do v7: first-fit decrescente por perfil; peça maior
+    que a barra vira emendas de até barra_m."""
+    por_perfil: dict[str, list[Peca]] = {}
+    for p in pecas:
+        por_perfil.setdefault(p.perfil, []).append(p)
+    plano = []
+    for perfil, lista in sorted(por_perfil.items()):
+        massa = _perfil(con, perfil)["massa_kg_m"]
+        ml = sum(p.comp for p in lista)
+        sobras: list[float] = []
+
+        def alocar(c):
+            for i, s in enumerate(sobras):
+                if s >= c - 1e-9:
+                    sobras[i] = _round_js(s - c, 4)
+                    return
+            sobras.append(_round_js(barra_m - c, 4))
+
+        for p in sorted(lista, key=lambda p: -p.comp):
+            if p.comp > barra_m + 1e-6:
+                rest = p.comp
+                while rest > 1e-6:
+                    c = min(rest, barra_m)
+                    alocar(c)
+                    rest -= c
+            else:
+                alocar(p.comp)
+        sobra_total = sum(sobras)
+        plano.append(PlanoCortePerfil(
+            perfil, len(lista), _round_js(ml, 2), _round_js(ml * massa, 1),
+            len(sobras),
+            _round_js(100 * sobra_total / (len(sobras) * barra_m), 1) if sobras else 0.0))
+    return plano
+
+
+def gerar_estrutura(con, projeto_id: int) -> EstruturaProjeto:
+    ids = [r[0] for r in con.execute(
+        "SELECT p.id FROM parede p JOIN nivel n ON n.id = p.nivel_id"
+        " WHERE n.projeto_id = ? ORDER BY p.id", (projeto_id,))]
+    if not ids:
+        raise DadoIndisponivel(
+            f"projeto {projeto_id} sem paredes na planta_normalizada")
+    paredes = [gerar_parede(con, i) for i in ids]
+    todas = [p for ep in paredes for p in ep.pecas]
+    barra = _regra(_regras(con), "barra_m")
+    plano = plano_de_corte(con, todas, barra)
+    kg_liquido = sum(pl.kg for pl in plano)
+    kg_comprado = sum(
+        pl.barras * barra * _perfil(con, pl.perfil)["massa_kg_m"] for pl in plano)
+    # coeficientes das regras são `estimado` (sem calibração de obra): o resultado
+    # nunca é melhor que estimado, por pior que seja a geometria (D4)
+    confianca = pior_confianca(*(ep.confianca for ep in paredes), "estimado")
+    alertas = [a for ep in paredes for a in ep.alertas]
+    return EstruturaProjeto(projeto_id, paredes, plano,
+                            _round_js(kg_liquido), _round_js(kg_comprado),
+                            confianca, alertas)

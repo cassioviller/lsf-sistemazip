@@ -213,3 +213,55 @@ def test_parafusos_de_conexao_entre_paineis(con, planta):
     r = gerar_parede(con, planta(comp=7.0))            # 1 junta
     pf = next(a for a in r.acessorios if "conexão entre painéis" in a.item)
     assert pf.qtd == 16                                # 1 junta × ceil(3.10/0.20)
+
+
+def test_plano_de_corte_first_fit_com_emenda(con):
+    from lsf.geradores.estrutura import Peca, plano_de_corte
+
+    def peca(comp):
+        return Peca("X1", "guia", "U92#0.95", 0, 0, comp, 0, comp)
+
+    plano = plano_de_corte(con, [peca(4.0), peca(4.0), peca(2.0), peca(1.9)], 6.0)
+    assert len(plano) == 1
+    p = plano[0]
+    # FFD: [4.0]+[2.0]→b1, [4.0]+[1.9]→b2 = 2 barras
+    assert p.barras == 2
+    assert p.ml == pytest.approx(11.9)
+    assert p.kg == pytest.approx(14.9)      # 11.9 × 1.25 kg/m (U92#0.95), _round_js(·,1)
+
+
+def test_peca_maior_que_a_barra_vira_emendas(con):
+    from lsf.geradores.estrutura import Peca, plano_de_corte
+
+    plano = plano_de_corte(
+        con, [Peca("X1", "guia", "U92#0.95", 0, 0, 8.5, 0, 8.5)], 6.0)
+    assert plano[0].barras == 2                              # 6.0 + 2.5
+
+
+def test_gerar_estrutura_agrega_e_propaga_pior_confianca(con, planta):
+    from lsf.geradores.estrutura import gerar_estrutura
+
+    planta(comp=4.0, confianca="real")
+    planta(comp=3.0, confianca="parametrico")
+    est = gerar_estrutura(con, planta.projeto_id)
+    assert len(est.paredes) == 2
+    assert est.kg_liquido > 0
+    assert est.kg_comprado > est.kg_liquido                  # sobras de barra
+    assert est.confianca == "parametrico"                    # pior dos inputs
+
+
+def test_gerar_estrutura_com_geometria_real_nao_melhora_estimado(con, planta):
+    """Coeficientes das regras são `estimado` (sem calibração de obra): o resultado
+    nunca é melhor que estimado, mesmo com geometria `real`."""
+    from lsf.geradores.estrutura import gerar_estrutura
+
+    planta(comp=4.0, confianca="real")
+    assert gerar_estrutura(con, planta.projeto_id).confianca == "estimado"
+
+
+def test_projeto_sem_parede_e_erro(con, planta):
+    from lsf.geradores.estrutura import DadoIndisponivel, gerar_estrutura
+    import pytest as _pytest
+
+    with _pytest.raises(DadoIndisponivel):
+        gerar_estrutura(con, 999999)
