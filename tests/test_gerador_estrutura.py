@@ -118,6 +118,77 @@ def test_janela_tem_peitoril_e_cripples_dos_dois_lados(con, planta):
     assert t["diagonal"] == 4                          # 3 cripples → 4 segmentos
 
 
+def test_janela_sem_peitoril_usa_o_padrao_da_regra(con, planta):
+    """peitoril_m NULL = "não informado" → regra peitoril_padrao_m (1,0 m), como
+    o v7 (`a.peitoril ?? R.peitorilPadrao`). Janela sem peitoril NÃO é porta."""
+    from lsf.geradores.estrutura import gerar_parede
+
+    pid = planta(comp=4.0, vaos=[{"tipo": "JANELA", "posicao_m": 1.2,
+                                  "largura_m": 1.6, "altura_m": 1.2,
+                                  "peitoril_m": None}])
+    r = gerar_parede(con, pid)
+    peit = [p for p in r.pecas if p.tipo == "peitoril"]
+    assert len(peit) == 1
+    assert peit[0].y0 == pytest.approx(1.0)               # regra, não 0
+    # cripples inferiores (sob o peitoril): modulação 0.40 em [1.2, 2.8] → 3
+    baixos = [p for p in r.pecas if p.tipo == "cripple" and p.y0 == 0]
+    assert len(baixos) == 3
+    assert all(p.y1 == pytest.approx(1.0) for p in baixos)
+
+
+def test_janela_sem_peitoril_pesa_mais_que_sill_zero(con, planta):
+    """O bug custava kg: janela "sem peitoril" virava porta (sill=0) e perdia
+    jacks mais longos + cripples inferiores. Vão ESTREITO (<diag_sobre_verga_min
+    1,0 m) de propósito: em vão largo as diagonais sobre a verga do caso sill=0
+    dominam o peso e invertem a comparação — o que se testa aqui é o efeito do
+    peitoril, não o das diagonais."""
+    from lsf.geradores.estrutura import gerar_parede
+
+    vao = {"tipo": "JANELA", "posicao_m": 1.2, "largura_m": 0.9, "altura_m": 1.2}
+    kg_null = sum(gerar_parede(
+        con, planta(comp=4.0, vaos=[{**vao, "peitoril_m": None}])).kg_por_perfil.values())
+    kg_zero = sum(gerar_parede(
+        con, planta(comp=4.0, vaos=[{**vao, "peitoril_m": 0}])).kg_por_perfil.values())
+    assert kg_null > kg_zero
+
+
+def test_janela_com_peitoril_zero_explicito_fica_no_chao(con, planta):
+    """0 explícito é dado (porta-janela), não ausência — semântica nullish do v7."""
+    from lsf.geradores.estrutura import gerar_parede
+
+    pid = planta(comp=4.0, vaos=[{"tipo": "JANELA", "posicao_m": 1.2,
+                                  "largura_m": 1.6, "altura_m": 1.2,
+                                  "peitoril_m": 0}])
+    r = gerar_parede(con, pid)
+    peit = [p for p in r.pecas if p.tipo == "peitoril"]
+    assert len(peit) == 1 and peit[0].y0 == 0
+    assert not [p for p in r.pecas if p.tipo == "cripple" and p.y0 == 0]
+
+
+def test_janela_sem_peitoril_sem_regra_no_banco_e_erro(con, planta):
+    """Regra ausente é DadoIndisponivel (D4.1) — nunca default silencioso em código."""
+    from lsf.geradores.estrutura import DadoIndisponivel, gerar_parede
+
+    con.execute("DELETE FROM regra_lsf WHERE chave = 'peitoril_padrao_m'")
+    pid = planta(comp=4.0, vaos=[{"tipo": "JANELA", "posicao_m": 1.2,
+                                  "largura_m": 1.6, "altura_m": 1.2,
+                                  "peitoril_m": None}])
+    with pytest.raises(DadoIndisponivel):
+        gerar_parede(con, pid)
+
+
+def test_porta_sem_peitoril_nao_exige_a_regra(con, planta):
+    """PORTA tem sill=0 por definição: peitoril NULL numa porta não pode
+    derrubar o gerador por regra ausente."""
+    from lsf.geradores.estrutura import gerar_parede
+
+    con.execute("DELETE FROM regra_lsf WHERE chave = 'peitoril_padrao_m'")
+    pid = planta(comp=4.0, vaos=[{"tipo": "PORTA", "posicao_m": 1.5,
+                                  "largura_m": 0.9, "altura_m": 2.1,
+                                  "peitoril_m": None}])
+    assert "peitoril" not in _tipos(gerar_parede(con, pid))
+
+
 def test_vao_pequeno_nao_ganha_diagonal_sobre_verga(con, planta):
     from lsf.geradores.estrutura import gerar_parede
 
@@ -282,6 +353,7 @@ def test_derivar_quantitativos_grava_parametrico_na_folha_03_01(con, planta):
     est = gerar_estrutura(con, planta.projeto_id)
     assert linha[0] == pytest.approx(est.kg_comprado)
     assert resultado["kg_comprado"] == pytest.approx(est.kg_comprado)
+    assert resultado["gravado"] is True
 
 
 def test_derivar_de_novo_substitui_a_linha_em_vez_de_duplicar(con, planta):
@@ -295,3 +367,43 @@ def test_derivar_de_novo_substitui_a_linha_em_vez_de_duplicar(con, planta):
         "SELECT COUNT(*) FROM quantitativo WHERE projeto_id = ?",
         (planta.projeto_id,)).fetchone()[0]
     assert linhas == 1                                  # D2: uma linha ativa por item
+
+
+def _folha_03_01(con):
+    return con.execute("SELECT id FROM eap_item WHERE codigo = '03.01'").fetchone()[0]
+
+
+@pytest.mark.parametrize("origem,confianca", [("MANUAL", "real"), ("TAKEOFF", "real")])
+def test_derivar_nao_sobrescreve_manual_nem_takeoff(con, planta, origem, confianca):
+    """Linha MANUAL/TAKEOFF (dado melhor) NUNCA é sobrescrita por derivação
+    PARAMETRICO/'estimado': preserva e sinaliza — o chamador decide alertar."""
+    from lsf.geradores.estrutura import derivar_quantitativos
+
+    planta(comp=4.0)
+    con.execute(
+        "INSERT INTO quantitativo (projeto_id, eap_item_id, quantidade, origem,"
+        " confianca) VALUES (?,?,31345,?,?)",
+        (planta.projeto_id, _folha_03_01(con), origem, confianca))
+    resultado = derivar_quantitativos(con, planta.projeto_id)
+    assert resultado["gravado"] is False
+    assert resultado["preservado"] == origem
+    assert resultado["kg_comprado"] > 0            # o cálculo aconteceu; só a escrita parou
+    linha = con.execute(
+        "SELECT quantidade, origem, confianca FROM quantitativo WHERE projeto_id = ?",
+        (planta.projeto_id,)).fetchone()
+    assert tuple(linha) == (31345.0, origem, confianca)
+
+
+def test_derivar_substitui_linha_parametrica_e_sinaliza_gravado(con, planta):
+    from lsf.geradores.estrutura import derivar_quantitativos
+
+    planta(comp=4.0)
+    primeiro = derivar_quantitativos(con, planta.projeto_id)
+    planta(comp=3.0)
+    segundo = derivar_quantitativos(con, planta.projeto_id)
+    assert primeiro["gravado"] is True and segundo["gravado"] is True
+    quantidade = con.execute(
+        "SELECT quantidade FROM quantitativo WHERE projeto_id = ?",
+        (planta.projeto_id,)).fetchone()[0]
+    assert quantidade == pytest.approx(segundo["kg_comprado"])
+    assert segundo["kg_comprado"] > primeiro["kg_comprado"]   # a planta cresceu

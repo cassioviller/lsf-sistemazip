@@ -213,6 +213,12 @@ def _aberturas(con, parede_id, comp, pd, R, alertas, conf):
     ).fetchall():
         conf = pior_confianca(conf, conf_vao)
         janela = tipo == "JANELA"
+        if janela and peitoril is None:
+            # v7 linha 248: `a.peitoril ?? R.peitorilPadrao` (nullish) — NULL é
+            # "não informado" e usa a regra; 0 explícito é dado (porta-janela).
+            # Regra ausente no banco = DadoIndisponivel (D4.1), nunca default
+            # silencioso em código.
+            peitoril = _regra(R, "peitoril_padrao_m")
         sill = min(peitoril, max(0.0, pd - alt - 0.05)) if janela else 0.0
         head = min(sill + alt, pd - 0.05)
         if larg > comp - 2 * margem:
@@ -499,19 +505,31 @@ def gerar_estrutura(con, projeto_id: int) -> EstruturaProjeto:
 
 def derivar_quantitativos(con, projeto_id: int) -> dict:
     """Escreve o kg comprado do gerador na folha 03.01 da EAP como quantitativo
-    PARAMETRICO (D2: re-derivar substitui a linha; a UNIQUE garante)."""
+    PARAMETRICO (D2: re-derivar substitui a linha; a UNIQUE garante).
+
+    Guarda: derivação paramétrica NUNCA sobrescreve linha MANUAL/TAKEOFF (dado
+    melhor que 'estimado' de regra). Nesse caso preserva a linha e devolve
+    `gravado=False` + `preservado=<origem existente>` — o chamador decide alertar."""
     est = gerar_estrutura(con, projeto_id)
     folha = con.execute(
         "SELECT id FROM eap_item WHERE codigo = '03.01'").fetchone()
     if folha is None:
         raise DadoIndisponivel("EAP sem a folha 03.01 (estrutura LSF, kg)")
-    con.execute(
+    cur = con.execute(
         "INSERT INTO quantitativo (projeto_id, eap_item_id, quantidade, origem,"
         " confianca, origem_regra) VALUES (?,?,?,'PARAMETRICO',?,?)"
         " ON CONFLICT (projeto_id, eap_item_id) DO UPDATE SET"
         "   quantidade=excluded.quantidade, origem=excluded.origem,"
-        "   confianca=excluded.confianca, origem_regra=excluded.origem_regra",
+        "   confianca=excluded.confianca, origem_regra=excluded.origem_regra"
+        " WHERE quantitativo.origem = 'PARAMETRICO'",
         (projeto_id, folha[0], est.kg_comprado, est.confianca,
          "gerador de estrutura F2.1 (porta fiel v7) — kg comprado em barras 6m"))
+    resultado = {"kg_comprado": est.kg_comprado, "confianca": est.confianca}
+    if cur.rowcount == 0:  # conflito com linha não-PARAMETRICO: nada escrito
+        origem = con.execute(
+            "SELECT origem FROM quantitativo WHERE projeto_id = ? AND eap_item_id = ?",
+            (projeto_id, folha[0])).fetchone()[0]
+        con.commit()
+        return {**resultado, "gravado": False, "preservado": origem}
     con.commit()
-    return {"kg_comprado": est.kg_comprado, "confianca": est.confianca}
+    return {**resultado, "gravado": True}
