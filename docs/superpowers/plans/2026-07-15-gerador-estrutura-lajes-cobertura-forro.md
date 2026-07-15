@@ -89,6 +89,10 @@ def test_cortar_span_vao_cobre_tudo():
 
 def test_cortar_span_sem_vaos_mantem():
     assert cortar_span(1.0, 3.0, []) == [(1.0, 3.0)]
+
+def test_cortar_span_descarta_fragmento_menor_que_0_1():
+    # v7:797 filtra segmentos <0,1m — o toco de 0,05m à esquerda do vão some
+    assert cortar_span(0.0, 4.0, [(0.05, 2.0)]) == [(2.0, 4.0)]
 ```
 
 - [ ] **Step 2: Rodar e confirmar que falha**
@@ -109,8 +113,9 @@ from __future__ import annotations
 
 import math
 
-_EPS_NO = 0.02   # tolerância de coincidência de nós (v7: 0.02)
-_EPS_IV = 0.05   # intervalo mínimo internamente válido (v7: 0.05)
+_EPS_NO = 0.02    # tolerância de coincidência de nós (v7: 0.02)
+_EPS_IV = 0.05    # intervalo mínimo internamente válido em scan (v7: 0.05)
+_EPS_SPAN = 0.1   # fragmento mínimo em cortar_span (v7:797)
 
 
 def encadear_contorno(segmentos):
@@ -179,7 +184,8 @@ def scan(poligono, valor, eixo):
 
 
 def cortar_span(a, b, vaos):
-    """Recorta o intervalo [a,b] pelos vãos (aberturas). Porta de v7:788."""
+    """Recorta o intervalo [a,b] pelos vãos (aberturas). Porta de v7:788-798 —
+    inclui o filtro final que descarta fragmentos < 0,1 m (v7:797)."""
     segs = [[a, b]]
     for va, vb in vaos:
         for i in range(len(segs) - 1, -1, -1):
@@ -192,7 +198,7 @@ def cortar_span(a, b, vaos):
                 segs[i] = [s, va]
             elif s < vb < e:
                 segs[i] = [vb, e]
-    return [(s, e) for s, e in segs]
+    return [(s, e) for s, e in segs if e - s > _EPS_SPAN]  # v7:797 descarta <0,1m
 
 
 def bbox(poligono):
@@ -468,17 +474,20 @@ INSERT INTO regra_lsf (chave,valor,unidade,referencia) VALUES
 ON CONFLICT (chave) DO UPDATE SET
   valor=excluded.valor, unidade=excluded.unidade, referencia=excluded.referencia;
 
--- ============ Cargas e seção p/ dimensionar_viga (v7:635-642) — NBR ============
+-- ============ Cargas e seção p/ dimensionar_viga (v7:633-642) — NBR ============
+-- Valores e unidades EXATOS do v7 (CARGAS v7:633, SEC_Ue250 v7:634). A aritmética
+-- de dimensionar_viga (Task 4) reproduz o v7 com os fatores de conversão (1e6/1e9/1e12),
+-- então o seed guarda os números na unidade v7 — NÃO converter aqui.
 INSERT INTO regra_lsf (chave,valor,unidade,referencia) VALUES
-  ('carga_sc',4.0,'kN/m²','NBR 6120: sobrecarga de loja'),
-  ('carga_g',1.5,'kN/m²','NBR 6120: peso próprio permanente (v7 CARGAS.g)'),
-  ('aco_fy',230000,'kPa','NBR 14762: ZAR230 fy'),
-  ('aco_E',200000000,'kPa','NBR 14762: módulo E do aço'),
-  ('coef_gm',1.1,'-','NBR 14762: γM'),
-  ('flecha_lim',350,'-','NBR 14762: L/350'),
-  ('sec_ue250_a',0.000?,'m²','SEC_Ue250.A (conferir valor exato no v7)'),
-  ('sec_ue250_wx',0.000?,'m³','SEC_Ue250.Wx (conferir valor exato no v7)'),
-  ('sec_ue250_ix',0.000?,'m⁴','SEC_Ue250.Ix (conferir valor exato no v7)')
+  ('carga_sc',4.0,'kN/m²','NBR 6120: sobrecarga (v7 CARGAS.sc=4.0)'),
+  ('carga_g',1.3,'kN/m²','NBR 6120: permanente (v7 CARGAS.g=1.3)'),
+  ('aco_fy',230,'MPa','NBR 14762: ZAR230 fy (v7 CARGAS.fy=230)'),
+  ('aco_E',200000,'MPa','NBR 14762: módulo E (v7 CARGAS.E=2.0e5)'),
+  ('coef_gm',1.10,'-','NBR 14762: γM (v7 CARGAS.gM=1.10)'),
+  ('flecha_lim',350,'-','NBR 14762: L/350 (v7 CARGAS.flecha=350)'),
+  ('sec_ue250_a',708,'mm²','SEC_Ue250.A (v7:634)'),
+  ('sec_ue250_wx',46300,'mm³','SEC_Ue250.Wx=46.3e3 (v7:634)'),
+  ('sec_ue250_ix',5780000,'mm⁴','SEC_Ue250.Ix=5.78e6 (v7:634)')
 ON CONFLICT (chave) DO UPDATE SET
   valor=excluded.valor, unidade=excluded.unidade, referencia=excluded.referencia;
 
@@ -532,10 +541,12 @@ git commit -m "feat(db): seed de regras/cargas NBR e perfis de laje/escada/cober
 import pytest
 from lsf.geradores.estrutura import dimensionar_viga, DadoIndisponivel
 
-# Os vãos-limite exatos que separam simples/dupla/laminada saem do v7 —
-# o implementador roda o v7 headless (Task 5 já expõe dimensionaViga) OU calcula
-# à mão de v7:635-642 e fixa os 3 pontos. Placeholders <A>/<B> abaixo: substituir
-# pelos vãos reais de virada de modo antes de fechar o teste.
+# Limiares JÁ VERIFICADOS reproduzindo a aritmética exata de v7:636-642 com as
+# constantes do seed (SEC_Ue250 A=708/Wx=46300/Ix=5.78e6; CARGAS sc=4.0/g=1.3/
+# fy=230/gM=1.10/E=2.0e5/flecha=350) a trib=0,40 m:
+#   simples até 4,88 m · dupla 4,89–6,15 m · laminada ≥ 6,16 m.
+# Por isso vao 2.0 → simples, 5.0 → dupla, 8.0 → laminada. Se a implementação
+# der outro modo nesses vãos, a aritmética/unidade do port divergiu do v7.
 
 def test_vao_curto_viga_simples(con):
     r = dimensionar_viga(con, vao_m=2.0, trib_m=0.40)
@@ -543,12 +554,10 @@ def test_vao_curto_viga_simples(con):
     assert r["M"] <= r["MRd"] and r["delta"] <= r["dLim"]
 
 def test_vao_medio_exige_viga_dupla(con):
-    # <A>: menor vão que reprova simples mas passa dupla (ler do v7)
     r = dimensionar_viga(con, vao_m=5.0, trib_m=0.40)
     assert r["modo"] == "dupla"
 
 def test_vao_grande_exige_laminada(con):
-    # <B>: vão que reprova até dupla (ler do v7)
     r = dimensionar_viga(con, vao_m=8.0, trib_m=0.40)
     assert r["modo"] == "laminada"
 
@@ -598,7 +607,7 @@ def dimensionar_viga(con, vao_m: float, trib_m: float) -> dict:
             "V": _round_js(V, 1), "VRd": _round_js(VRd, 1)}
 ```
 
-> **Fidelidade das unidades**: v7 mistura N/mm/MPa e converte com `1e6`/`1e12`/`1e9`. Reproduza a MESMA sequência; se preferir SI puro no seed, ajuste os fatores para dar o mesmo número. Os 3 testes de modo são o juiz — rode o v7 headless (grep `dimensionaViga` no extrator da Task 5) para ler os vãos-limite `<A>`/`<B>` reais e substituí-los no teste do Step 1 antes de fechar.
+> **Fidelidade das unidades**: o seed (Task 3) guarda os valores nas unidades do v7 (A/Wx/Ix em mm; fy/E em MPa; sc/g em kN/m²). Reproduza a sequência EXATA de v7:636-642 com os mesmos fatores (`1e6`, `1e12`, e `7850e-9` no peso próprio) — não "arrume" para SI. Os limiares já verificados (simples até 4,88 m · dupla até 6,15 m · laminada ≥6,16 m a trib 0,40) são o juiz; se os vãos 2.0/5.0/8.0 não caírem em simples/dupla/laminada, a unidade divergiu. `VRd = 0.905*E*5.34*2.0³/250/gM/1000` usa `E` em MPa direto.
 
 - [ ] **Step 4: Rodar e confirmar verde**
 
