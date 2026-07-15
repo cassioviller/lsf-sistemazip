@@ -265,3 +265,33 @@ def test_projeto_sem_parede_e_erro(con, planta):
 
     with _pytest.raises(DadoIndisponivel):
         gerar_estrutura(con, 999999)
+
+
+def test_derivar_quantitativos_grava_parametrico_na_folha_03_01(con, planta):
+    from lsf.geradores.estrutura import derivar_quantitativos, gerar_estrutura
+
+    planta(comp=4.0)
+    resultado = derivar_quantitativos(con, planta.projeto_id)
+    linha = con.execute(
+        "SELECT q.quantidade, q.origem, q.confianca, e.codigo"
+        "  FROM quantitativo q JOIN eap_item e ON e.id = q.eap_item_id"
+        " WHERE q.projeto_id = ?", (planta.projeto_id,)).fetchone()
+    assert linha[3] == "03.01"
+    assert linha[1] == "PARAMETRICO"
+    assert linha[2] == "estimado"
+    est = gerar_estrutura(con, planta.projeto_id)
+    assert linha[0] == pytest.approx(est.kg_comprado)
+    assert resultado["kg_comprado"] == pytest.approx(est.kg_comprado)
+
+
+def test_derivar_de_novo_substitui_a_linha_em_vez_de_duplicar(con, planta):
+    from lsf.geradores.estrutura import derivar_quantitativos
+
+    planta(comp=4.0)
+    derivar_quantitativos(con, planta.projeto_id)
+    planta(comp=3.0)                                    # a planta cresceu
+    derivar_quantitativos(con, planta.projeto_id)
+    linhas = con.execute(
+        "SELECT COUNT(*) FROM quantitativo WHERE projeto_id = ?",
+        (planta.projeto_id,)).fetchone()[0]
+    assert linhas == 1                                  # D2: uma linha ativa por item

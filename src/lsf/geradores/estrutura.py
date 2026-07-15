@@ -495,3 +495,23 @@ def gerar_estrutura(con, projeto_id: int) -> EstruturaProjeto:
     return EstruturaProjeto(projeto_id, paredes, plano,
                             _round_js(kg_liquido), _round_js(kg_comprado),
                             confianca, alertas)
+
+
+def derivar_quantitativos(con, projeto_id: int) -> dict:
+    """Escreve o kg comprado do gerador na folha 03.01 da EAP como quantitativo
+    PARAMETRICO (D2: re-derivar substitui a linha; a UNIQUE garante)."""
+    est = gerar_estrutura(con, projeto_id)
+    folha = con.execute(
+        "SELECT id FROM eap_item WHERE codigo = '03.01'").fetchone()
+    if folha is None:
+        raise DadoIndisponivel("EAP sem a folha 03.01 (estrutura LSF, kg)")
+    con.execute(
+        "INSERT INTO quantitativo (projeto_id, eap_item_id, quantidade, origem,"
+        " confianca, origem_regra) VALUES (?,?,?,'PARAMETRICO',?,?)"
+        " ON CONFLICT (projeto_id, eap_item_id) DO UPDATE SET"
+        "   quantidade=excluded.quantidade, origem=excluded.origem,"
+        "   confianca=excluded.confianca, origem_regra=excluded.origem_regra",
+        (projeto_id, folha[0], est.kg_comprado, est.confianca,
+         "gerador de estrutura F2.1 (porta fiel v7) — kg comprado em barras 6m"))
+    con.commit()
+    return {"kg_comprado": est.kg_comprado, "confianca": est.confianca}
