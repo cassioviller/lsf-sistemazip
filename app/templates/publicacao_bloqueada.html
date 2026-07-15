@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block titulo %}Publicação bloqueada{% endblock %}
+{% block conteudo %}
+<h1>Publicação bloqueada — {{ projeto.codigo }}</h1>
+<p class="alerta" role="alert">
+  A proposta <strong>não foi publicada</strong>. Um orçamento turn-key com escopo
+  incompleto ou custo parcial vira prejuízo em preço fechado.
+</p>
+<h2>Gates abertos</h2>
+<ul>{% for m in motivos %}<li>{{ m }}</li>{% endfor %}</ul>
+<a class="botao" href="/projetos/{{ projeto.id }}/quantitativos">Completar quantitativos</a>
+{% endblock %}

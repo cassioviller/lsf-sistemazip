@@ -111,3 +111,48 @@ def logado(cliente, usuario):
     )
     assert resposta.status_code == 303, resposta.text
     return cliente
+
+
+@pytest.fixture
+def projeto_completo(logado, con_app):
+    """Projeto com quantitativo em TODAS as 8 macroetapas — único jeito de passar no R7.
+
+    A EAP de fábrica tem 5 folhas em 3 macroetapas. Para exercitar o caminho feliz,
+    criamos folhas nas macroetapas restantes apontando para uma composição existente.
+    Isto é ARRANJO DE TESTE, não uso do app: a base de conhecimento continua vindo
+    de seed/migração (spec §10). Devolve o id do projeto.
+    """
+    logado.post(
+        "/projetos",
+        data={
+            "codigo": "109.1506", "nome": "Edifício", "referencia": "2026-06",
+            "uf": "SP", "desonerado": "0", "sondagem_pendente": "0",
+        },
+    )
+    pid = con_app.execute("SELECT id FROM projeto").fetchone()["id"]
+    composicao = con_app.execute(
+        "SELECT composicao_id FROM eap_item WHERE codigo = '03.01'"
+    ).fetchone()["composicao_id"]
+
+    macros = con_app.execute(
+        "SELECT id, codigo, grupo_eap FROM eap_item WHERE pai_id IS NULL ORDER BY codigo"
+    ).fetchall()
+    for macro in macros:
+        # Sempre uma folha .99 com a composição da 03.01 (a única garantidamente
+        # completa no seed): folhas de fábrica como a 06.01 apontam para composição
+        # SINAPI sem analítica e derrubariam o caminho feliz por D4.1 — que é
+        # exatamente o comportamento certo do motor, mas não o arranjo deste teste.
+        cur = con_app.execute(
+            "INSERT INTO eap_item (codigo, pai_id, descricao, unidade, grupo_eap,"
+            " composicao_id) VALUES (?,?,?,?,?,?)",
+            (f"{macro['codigo']}.99", macro["id"], "Item de teste", "kg",
+             macro["grupo_eap"], composicao),
+        )
+        folha_id = cur.lastrowid
+        con_app.execute(
+            "INSERT INTO quantitativo (projeto_id, eap_item_id, quantidade, origem, confianca)"
+            " VALUES (?,?,100,'MANUAL','real')",
+            (pid, folha_id),
+        )
+    con_app.commit()
+    return pid

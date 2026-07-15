@@ -15,6 +15,7 @@ from app.auth import NaoAutenticado, redirecionar_ao_login
 from app.rotas import auth as rotas_auth
 from app.rotas import projetos as rotas_projetos
 from app.rotas import orcamento as rotas_orcamento
+from app.rotas import proposta as rotas_proposta
 from app.rotas import quantitativos as rotas_quantitativos
 
 AQUI = pathlib.Path(__file__).parent
@@ -53,4 +54,5 @@ def criar_app(db_path=None, secret: str | None = None) -> FastAPI:
     app.include_router(rotas_projetos.router)
     app.include_router(rotas_quantitativos.router)
     app.include_router(rotas_orcamento.router)
+    app.include_router(rotas_proposta.router)
     return app
