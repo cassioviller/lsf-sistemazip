@@ -307,3 +307,41 @@ INSERT INTO regra_lsf (chave,valor,unidade,referencia) VALUES
  ('ancor_esp_padrao_m',1.20,'m','OBRA "por modulação", pendente')
 ON CONFLICT (chave) DO UPDATE SET
   valor=excluded.valor, unidade=excluded.unidade, referencia=excluded.referencia;
+
+-- ============ Estrutura: regras de laje/escada/cobertura (v7:656-681) ============
+INSERT INTO regra_lsf (chave,valor,unidade,referencia) VALUES
+  ('laje_esp_m',0.40,'m','v7 REGRAS_SIS.laje.esp'),
+  ('laje_bloqueador_max_m',2.40,'m','A4 [p.27 LAJE-005] bloqueador por vão'),
+  ('laje_vao_ue200',4.0,'m','v7: vão ef >4m → Ue250'),
+  ('laje_enrij_c_f200',0.176,'m','REGRA LAJE-009: C=176mm (laje 200) [p.27-38]'),
+  ('laje_enrij_c_f250',0.226,'m','REGRA LAJE-010: C=226mm (laje 250) [p.39]'),
+  ('laje_fix_mesa_paraf',4,'un','DP-01A: 2 paraf/ligação × 2 extremidades'),
+  ('laje_fix_alma_paraf',5,'un','REGRA LAJE-007 [DL-01 p.21-39]'),
+  ('escada_espelho_max',0.175,'m','v7 REGRAS_SIS.escada.espelhoMax'),
+  ('escada_piso_min',0.28,'m','v7 REGRAS_SIS.escada.pisoMin'),
+  ('escada_fix_lateral_mm',150,'mm','1ES1: reforço 140 @150mm'),
+  ('cobertura_esp_tesoura',1.20,'m','v7 REGRAS_SIS.cobertura.espTesoura'),
+  ('cobertura_passo_mont',0.40,'m','1TS41-46: ~10 montantes/3,77m [p.44-49]'),
+  ('cobertura_beiral_m',0.30,'m','v7 PROJECT.cobertura.beiral'),
+  ('cobertura_gusset_paraf',4,'un','1TS41/42: gusset por nó'),
+  ('cobertura_box_paraf_mm',200,'mm','DX-09: box @200mm'),
+  ('cobertura_cb_passo',0.60,'m','1CB p.56-77: travessas 140#0.80 @0,60')
+ON CONFLICT (chave) DO UPDATE SET
+  valor=excluded.valor, unidade=excluded.unidade, referencia=excluded.referencia;
+
+-- ============ Cargas e seção p/ dimensionar_viga (v7:633-642) — NBR ============
+-- Valores e unidades EXATOS do v7 (CARGAS v7:633, SEC_Ue250 v7:634). A aritmética
+-- de dimensionar_viga (Task 4) reproduz o v7 com os fatores de conversão (1e6/1e9/1e12),
+-- então o seed guarda os números na unidade v7 — NÃO converter aqui.
+INSERT INTO regra_lsf (chave,valor,unidade,referencia) VALUES
+  ('carga_sc',4.0,'kN/m²','NBR 6120: sobrecarga (v7 CARGAS.sc=4.0)'),
+  ('carga_g',1.3,'kN/m²','NBR 6120: permanente (v7 CARGAS.g=1.3)'),
+  ('aco_fy',230,'MPa','NBR 14762: ZAR230 fy (v7 CARGAS.fy=230)'),
+  ('aco_E',200000,'MPa','NBR 14762: módulo E (v7 CARGAS.E=2.0e5)'),
+  ('coef_gm',1.10,'-','NBR 14762: γM (v7 CARGAS.gM=1.10)'),
+  ('flecha_lim',350,'-','NBR 14762: L/350 (v7 CARGAS.flecha=350)'),
+  ('sec_ue250_a',708,'mm²','SEC_Ue250.A (v7:634)'),
+  ('sec_ue250_wx',46300,'mm³','SEC_Ue250.Wx=46.3e3 (v7:634)'),
+  ('sec_ue250_ix',5780000,'mm⁴','SEC_Ue250.Ix=5.78e6 (v7:634)')
+ON CONFLICT (chave) DO UPDATE SET
+  valor=excluded.valor, unidade=excluded.unidade, referencia=excluded.referencia;
