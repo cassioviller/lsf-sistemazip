@@ -16,11 +16,15 @@ nenhum ledger inconsistente, e a retentativa (depois de corrigir o SQL) começa 
 Banco legado (sem `schema_migrations`, criado por versão anterior deste script): o
 ledger vazio faria o build reaplicar schema.sql/migrações incondicionalmente, o que
 explode com "table X already exists" — e o operador não tem, além do `--recriar`
-destrutivo, nenhuma saída. Em vez disso, quando um script estrutural falha
-especificamente porque a estrutura JÁ EXISTE (mensagem "already exists" ou
-"duplicate column name"), o build ADOTA: registra o arquivo como aplicado sem
-reexecutá-lo, e segue. Qualquer outra falha (erro de sintaxe genuíno) propaga
-normalmente, com rollback total (ver acima).
+destrutivo, nenhuma saída. Em vez disso, a tolerância é POR STATEMENT: um statement
+que falha especificamente porque o que ele criaria JÁ EXISTE — estrutura ("already
+exists", "duplicate column name") ou linha declarativa embutida em migração ("UNIQUE
+constraint failed") — é PULADO e os demais EXECUTAM — assim um banco legado
+PARCIAL (só uma tabela de um script multi-objeto) ganha os objetos restantes em vez
+de ficar permanentemente quebrado. "Adotar" significa: todo statement do script ou
+aplicou ou já existia; só então o arquivo entra no ledger. Qualquer outra falha
+(erro de sintaxe genuíno) propaga normalmente, com rollback total e NADA no ledger
+(ver acima) — um script revertido pela metade nunca é ledgerado.
 
 Uso:
     python3 db/build_db.py                 # cria ou atualiza db/lsf_base.db
@@ -42,10 +46,6 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
   aplicada_em TEXT NOT NULL DEFAULT (datetime('now'))
 );
 """
-
-
-class EstruturaJaExiste(Exception):
-    """Um script estrutural falhou porque o que ele cria já existe (banco legado)."""
 
 
 def _ja_aplicadas(con) -> set[str]:
@@ -78,15 +78,32 @@ def _dividir_statements(sql_texto: str) -> list[str]:
     return statements
 
 
-def _mensagem_indica_estrutura_existente(exc: sqlite3.OperationalError) -> bool:
+def _falha_indica_ja_existente(exc: sqlite3.DatabaseError) -> bool:
+    """O statement falhou porque o que ele criaria JÁ EXISTE no banco (legado)?
+
+    Estrutura: "already exists" (tabela/índice/trigger/view) e "duplicate column
+    name" (ALTER TABLE ADD COLUMN repetido). Dado declarativo embutido em migração
+    (ex.: raízes da EAP na 001, parâmetros de BDI na 002): reinserir a mesma linha
+    num banco legado dá "UNIQUE constraint failed" — a linha já está lá, mesmo caso.
+    FK, CHECK e NOT NULL violados NÃO são "já existia" e propagam normalmente.
+    """
     msg = str(exc).lower()
-    return "already exists" in msg or "duplicate column name" in msg
+    if isinstance(exc, sqlite3.OperationalError):
+        return "already exists" in msg or "duplicate column name" in msg
+    if isinstance(exc, sqlite3.IntegrityError):
+        return "unique constraint failed" in msg
+    return False
 
 
-def _aplicar(con, caminho: pathlib.Path) -> None:
+def _aplicar(con, caminho: pathlib.Path) -> dict:
     """Aplica um script estrutural (schema.sql ou uma migração) e registra no ledger,
     tudo numa ÚNICA transação: ou os dois efeitos acontecem, ou nenhum. Ver docstring
     do módulo para o porquê de não usar `executescript` aqui.
+
+    Tolerância POR STATEMENT (banco legado, possivelmente parcial): statement que
+    falha porque a estrutura JÁ EXISTE é pulado; os demais executam. Qualquer outro
+    erro reverte o script INTEIRO (inclusive statements já executados nesta chamada)
+    e nada entra no ledger. Retorna {"executados": n, "pulados": m}.
 
     `PRAGMA foreign_keys` é NO-OP dentro de uma transação já aberta — por isso liga/
     desliga aqui FORA do `BEGIN`/`COMMIT`, nunca dentro dele. Isso é o que permite uma
@@ -98,42 +115,45 @@ def _aplicar(con, caminho: pathlib.Path) -> None:
     registrada no ledger.
     """
     statements = _dividir_statements(caminho.read_text())
+    executados = 0
+    pulados = 0
     con.execute("PRAGMA foreign_keys = OFF")
     try:
         con.execute("BEGIN")
         try:
             for statement in statements:
-                con.execute(statement)
-        except sqlite3.DatabaseError as exc:
-            con.rollback()
-            if _mensagem_indica_estrutura_existente(exc):
-                raise EstruturaJaExiste(str(exc)) from exc
-            raise
-        else:
+                try:
+                    con.execute(statement)
+                    executados += 1
+                except (sqlite3.OperationalError, sqlite3.IntegrityError) as exc:
+                    if _falha_indica_ja_existente(exc):
+                        pulados += 1  # legado: este objeto/linha já existe, os demais seguem
+                    else:
+                        raise
             # Verificar integridade referencial PRÉ-COMMIT, ainda dentro da transação
             violacoes = con.execute("PRAGMA foreign_key_check").fetchall()
             if violacoes:
-                con.rollback()
                 raise sqlite3.IntegrityError(
                     f"{caminho.name} corromperia integridade referencial: {violacoes}"
                 )
-            con.execute("INSERT INTO schema_migrations (arquivo) VALUES (?)", (caminho.name,))
-            con.commit()
+        except BaseException:
+            con.rollback()  # rollback total: nem tabela parcial, nem ledger
+            raise
+        con.execute("INSERT INTO schema_migrations (arquivo) VALUES (?)", (caminho.name,))
+        con.commit()
     finally:
         con.execute("PRAGMA foreign_keys = ON")
+    return {"executados": executados, "pulados": pulados}
 
 
 def _aplicar_ou_adotar(con, caminho: pathlib.Path) -> str:
-    """Aplica normalmente; se a estrutura já existir (banco legado sem ledger),
-    adota (registra como aplicada sem reexecutar) em vez de propagar o erro."""
-    try:
-        _aplicar(con, caminho)
-        return "aplicada"
-    except EstruturaJaExiste:
-        con.execute("BEGIN")
-        con.execute("INSERT INTO schema_migrations (arquivo) VALUES (?)", (caminho.name,))
-        con.commit()
+    """Aplica com tolerância por statement (ver `_aplicar`). "adotada" = todos os
+    statements já existiam (banco legado completo); "aplicada" = ao menos um statement
+    executou de fato (script novo ou legado parcial completado agora)."""
+    resultado = _aplicar(con, caminho)
+    if resultado["executados"] == 0 and resultado["pulados"] > 0:
         return "adotada"
+    return "aplicada"
 
 
 def _aplicar_seed(con, caminho: pathlib.Path) -> None:

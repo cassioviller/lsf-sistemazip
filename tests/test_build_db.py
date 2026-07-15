@@ -415,6 +415,118 @@ def test_migracao_corruptora_faz_rollback_e_nao_registra_no_ledger(tmp_path, mon
     con.close()
 
 
+# ---------------------------------------------------------------------------
+# Adoção POR STATEMENT (correção do review F2, Task 4): um script estrutural
+# parcialmente existente não pode ser ledgerado com a metade restante revertida.
+# ---------------------------------------------------------------------------
+
+
+def test_adocao_parcial_executa_statements_restantes_e_ledgera(tmp_path, monkeypatch):
+    """Banco legado que já tem UMA tabela de um script multi-objeto: o build precisa
+    PULAR o statement 'already exists', EXECUTAR os demais e ledgerar o script. A
+    semântica antiga (rollback do script inteiro + ledger mesmo assim) deixava o
+    banco permanentemente sem as tabelas restantes — só --recriar salvava."""
+    area = _area_temporaria(tmp_path)
+    monkeypatch.setattr(build_db, "AQUI", area)
+
+    db = tmp_path / "lsf.db"
+    construir(db)
+
+    # simula o legado parcial: a primeira tabela do script novo JÁ existe
+    con = sqlite3.connect(db)
+    con.execute("CREATE TABLE adocao_a (id INTEGER PRIMARY KEY)")
+    con.commit()
+    con.close()
+
+    (area / "migrations" / "900_multi_objeto.sql").write_text(
+        "CREATE TABLE adocao_a (id INTEGER PRIMARY KEY);\n"
+        "CREATE TABLE adocao_b (id INTEGER PRIMARY KEY, valor TEXT);\n"
+        "CREATE INDEX idx_adocao_b_valor ON adocao_b (valor);\n"
+    )
+
+    resultado = construir(db)
+    assert "900_multi_objeto.sql" in resultado["migracoes_aplicadas"]
+
+    con = sqlite3.connect(db)
+    tabelas = {
+        r[0] for r in con.execute("SELECT name FROM sqlite_master WHERE type='table'")
+    }
+    assert "adocao_b" in tabelas, "statement restante do script parcial não executou"
+    indices = {
+        r[0] for r in con.execute("SELECT name FROM sqlite_master WHERE type='index'")
+    }
+    assert "idx_adocao_b_valor" in indices
+    aplicadas = {r[0] for r in con.execute("SELECT arquivo FROM schema_migrations")}
+    assert "900_multi_objeto.sql" in aplicadas
+    con.close()
+
+
+def test_erro_genuino_apos_statement_pulado_faz_rollback_e_nao_ledgera(tmp_path, monkeypatch):
+    """Erro que NÃO é 'already exists' no meio do script (mesmo depois de um statement
+    pulado por já existir): rollback COMPLETO, nada no ledger, exceção propaga. A
+    semântica antiga ADOTAVA o script no primeiro 'already exists' e nunca via o
+    erro genuíno — ledger mentiroso sobre um script quebrado."""
+    area = _area_temporaria(tmp_path)
+    monkeypatch.setattr(build_db, "AQUI", area)
+
+    db = tmp_path / "lsf.db"
+    construir(db)
+
+    con = sqlite3.connect(db)
+    con.execute("CREATE TABLE adocao_a (id INTEGER PRIMARY KEY)")
+    con.commit()
+    con.close()
+
+    (area / "migrations" / "901_meio_quebrado.sql").write_text(
+        "CREATE TABLE adocao_a (id INTEGER PRIMARY KEY);\n"   # pulado (já existe)
+        "CREATE TABLE adocao_nova (id INTEGER PRIMARY KEY);\n"  # executa...
+        "ISTO NAO E SQL VALIDO;\n"                              # ...mas isto reverte tudo
+    )
+
+    with pytest.raises(sqlite3.OperationalError):
+        construir(db)
+
+    con = sqlite3.connect(db)
+    tabelas = {
+        r[0] for r in con.execute("SELECT name FROM sqlite_master WHERE type='table'")
+    }
+    assert "adocao_nova" not in tabelas, "rollback incompleto: tabela parcial sobrou"
+    aplicadas = {r[0] for r in con.execute("SELECT arquivo FROM schema_migrations")}
+    assert "901_meio_quebrado.sql" not in aplicadas, "script quebrado foi ledgerado!"
+    con.close()
+
+
+def test_adocao_parcial_rodar_duas_vezes_continua_ok(tmp_path, monkeypatch):
+    """Idempotência: depois de uma adoção parcial, um segundo build não tem nada a
+    fazer e não explode."""
+    area = _area_temporaria(tmp_path)
+    monkeypatch.setattr(build_db, "AQUI", area)
+
+    db = tmp_path / "lsf.db"
+    construir(db)
+
+    con = sqlite3.connect(db)
+    con.execute("CREATE TABLE adocao_a (id INTEGER PRIMARY KEY)")
+    con.commit()
+    con.close()
+
+    (area / "migrations" / "900_multi_objeto.sql").write_text(
+        "CREATE TABLE adocao_a (id INTEGER PRIMARY KEY);\n"
+        "CREATE TABLE adocao_b (id INTEGER PRIMARY KEY);\n"
+    )
+
+    construir(db)
+    resultado2 = construir(db)
+    assert resultado2["migracoes_aplicadas"] == []
+
+    con = sqlite3.connect(db)
+    tabelas = {
+        r[0] for r in con.execute("SELECT name FROM sqlite_master WHERE type='table'")
+    }
+    assert "adocao_b" in tabelas
+    con.close()
+
+
 def test_folhas_eap_saem_com_composicao_preenchida(tmp_path):
     """Regressão silenciosa caçada à mão na Task 1: as 5 folhas da EAP com composição
     (03.01, 04.01, 04.02, 04.03, 06.01) precisam sair de um `construir()` do zero já
