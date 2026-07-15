@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block titulo %}Quantitativos — {{ projeto.codigo }}{% endblock %}
+{% block conteudo %}
+<h1>Quantitativos — {{ projeto.codigo }}</h1>
+<p><a href="/projetos/{{ projeto.id }}">← voltar ao projeto</a></p>
+{% for macro in macroetapas %}
+<section class="macroetapa">
+  <h2>{{ macro.codigo }} — {{ macro.descricao }}</h2>
+  {% if not macro.folhas %}
+    <p class="alerta">Nenhum item cadastrado nesta macroetapa (gate R7 vai bloquear a publicação).</p>
+  {% else %}
+  <table>
+    <thead><tr><th>EAP</th><th>Descrição</th><th>Un.</th><th>Quantidade</th><th>Origem</th></tr></thead>
+    <tbody>
+      {% for item in macro.folhas %}
+        {% include "_linha_quantitativo.html" %}
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</section>
+{% endfor %}
+<p><a class="botao" href="/projetos/{{ projeto.id }}/orcamento">Ver orçamento</a></p>
+{% endblock %}

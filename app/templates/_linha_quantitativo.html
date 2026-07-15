@@ -1,0 +1,14 @@
+<tr id="item-{{ item.id }}">
+  <td>{{ item.codigo }}</td>
+  <td>{{ item.descricao }}</td>
+  <td>{{ item.unidade or "—" }}</td>
+  <td>
+    <form hx-post="/projetos/{{ projeto.id }}/quantitativos"
+          hx-target="#item-{{ item.id }}" hx-swap="outerHTML">
+      <input type="hidden" name="eap_item_id" value="{{ item.id }}">
+      <input name="quantidade" value="{{ item.quantidade or '' }}" inputmode="decimal">
+      <button type="submit">Salvar</button>
+    </form>
+  </td>
+  <td>{{ item.origem or "—" }}</td>
+</tr>
