@@ -127,15 +127,23 @@ def tabela_desvio(venda, fixture):
     return linhas, (venda.preco_total, total_v7, desvio_total)
 
 
+def montar_banco() -> sqlite3.Connection:
+    """Banco em memória na MESMA ordem de db/build_db.py e do fixture `con` dos testes:
+    estrutura primeiro (schema + migrações ordenadas), seed por último — o seed depende
+    das migrações (perfil 'laminado' exige o CHECK relaxado da 006; ON CONFLICT da 003)."""
+    con = sqlite3.connect(":memory:")
+    con.executescript((RAIZ / "db" / "schema.sql").read_text())
+    for m in sorted((RAIZ / "db" / "migrations").glob("*.sql")):
+        con.executescript(m.read_text())
+    con.executescript((RAIZ / "db" / "seed.sql").read_text())
+    con.execute("PRAGMA foreign_keys = ON")
+    return con
+
+
 def main():
     from lsf.relatorios import relatorio_csv, relatorio_html
 
-    con = sqlite3.connect(":memory:")
-    con.executescript((RAIZ / "db" / "schema.sql").read_text())
-    con.executescript((RAIZ / "db" / "seed.sql").read_text())
-    for m in sorted((RAIZ / "db" / "migrations").glob("*.sql")):
-        con.executescript(m.read_text())
-    con.execute("PRAGMA foreign_keys = ON")
+    con = montar_banco()
 
     fixture = carregar_fixture()
     pid = carregar(con, fixture)
