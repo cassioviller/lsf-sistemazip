@@ -340,8 +340,8 @@ INSERT INTO regra_lsf (chave,valor,unidade,referencia) VALUES
   ('aco_E',200000,'MPa','NBR 14762: módulo E (v7 CARGAS.E=2.0e5)'),
   ('coef_gm',1.10,'-','NBR 14762: γM (v7 CARGAS.gM=1.10)'),
   ('flecha_lim',350,'-','NBR 14762: L/350 (v7 CARGAS.flecha=350)'),
-  ('sec_ue250_a',708,'mm²','SEC_Ue250.A (v7:634)'),
-  ('sec_ue250_wx',46300,'mm³','SEC_Ue250.Wx=46.3e3 (v7:634)'),
-  ('sec_ue250_ix',5780000,'mm⁴','SEC_Ue250.Ix=5.78e6 (v7:634)')
+  ('sec_ue250_a',708,'mm²','NBR 14762 (entrada) · SEC_Ue250.A (v7:634)'),
+  ('sec_ue250_wx',46300,'mm³','NBR 14762 (entrada) · SEC_Ue250.Wx=46.3e3 (v7:634)'),
+  ('sec_ue250_ix',5780000,'mm⁴','NBR 14762 (entrada) · SEC_Ue250.Ix=5.78e6 (v7:634)')
 ON CONFLICT (chave) DO UPDATE SET
   valor=excluded.valor, unidade=excluded.unidade, referencia=excluded.referencia;
