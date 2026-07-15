@@ -503,6 +503,49 @@ def gerar_estrutura(con, projeto_id: int) -> EstruturaProjeto:
                             confianca, alertas)
 
 
+def _cargas(con) -> dict:
+    chaves = ("carga_sc", "carga_g", "aco_fy", "aco_E", "coef_gm", "flecha_lim",
+              "sec_ue250_a", "sec_ue250_wx", "sec_ue250_ix")
+    regras = _regras(con)
+    faltando = [c for c in chaves if c not in regras]
+    if faltando:
+        raise DadoIndisponivel(f"regra_lsf sem cargas/seção: {faltando}")
+    return {c: regras[c] for c in chaves}
+
+
+def dimensionar_viga(con, vao_m: float, trib_m: float) -> dict:
+    """Verifica viga de laje (perfil Ue250, porta fiel de v7:635-642): ELS
+    (flecha <= L/flecha_lim) e ELU (M<=MRd, V<=VRd) em modo simples; se falhar,
+    tenta dupla (2 perfis); senão exige viga laminada.
+
+    origem_regra: NBR 6120 (ações — SC=carga_sc sobrecarga, G=carga_g permanente)
+    + NBR 14762 (dimensionamento de perfis formados a frio — M/MRd/Wx, δ=L/flecha_lim,
+    V/VRd por flambagem de alma h/t do perfil Ue250)."""
+    C = _cargas(con)
+    sc, g = C["carga_sc"], C["carga_g"]
+    fy, E, gM, flecha = C["aco_fy"], C["aco_E"], C["coef_gm"], C["flecha_lim"]
+    A, Wx, Ix = C["sec_ue250_a"], C["sec_ue250_wx"], C["sec_ue250_ix"]
+    L = vao_m
+    trib = trib_m
+
+    pp = A * 7850e-9 * 9.81
+    wS = (sc + g) * trib + pp
+    wU = 1.4 * g * trib + 1.5 * sc * trib + 1.4 * pp
+    M = wU * L * L / 8 * 1e6
+    MRd = Wx * fy / gM
+    delta = 5 * wS * L ** 4 * 1e12 / (384 * E * Ix)
+    dLim = L * 1000 / flecha
+    V = wU * L / 2
+    VRd = 0.905 * E * 5.34 * (2.0 ** 3) / 250 / gM / 1000
+    okS = M <= MRd and delta <= dLim and V <= VRd
+    okD = M <= 2 * MRd and delta / 2 <= dLim and V <= 2 * VRd
+    modo = "simples" if okS else ("dupla" if okD else "laminada")
+
+    return {"modo": modo, "M": _round_js(M, 1), "MRd": _round_js(MRd, 1),
+            "delta": _round_js(delta, 1), "dLim": _round_js(dLim, 0),
+            "V": _round_js(V, 1), "VRd": _round_js(VRd, 1)}
+
+
 def derivar_quantitativos(con, projeto_id: int) -> dict:
     """Escreve o kg comprado do gerador na folha 03.01 da EAP como quantitativo
     PARAMETRICO (D2: re-derivar substitui a linha; a UNIQUE garante).
