@@ -43,3 +43,7 @@ def test_cortar_span_vao_cobre_tudo():
 
 def test_cortar_span_sem_vaos_mantem():
     assert cortar_span(1.0, 3.0, []) == [(1.0, 3.0)]
+
+def test_cortar_span_descarta_fragmento_menor_que_0_1():
+    # v7:797 filtra segmentos <0,1m — o toco de 0,05m à esquerda do vão some
+    assert cortar_span(0.0, 4.0, [(0.05, 2.0)]) == [(2.0, 4.0)]

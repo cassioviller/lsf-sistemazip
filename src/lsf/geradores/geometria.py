@@ -8,6 +8,7 @@ import math
 
 _EPS_NO = 0.02   # tolerância de coincidência de nós (v7: 0.02)
 _EPS_IV = 0.05   # intervalo mínimo internamente válido (v7: 0.05)
+_EPS_SPAN = 0.1   # fragmento mínimo em cortar_span (v7:797)
 
 
 def encadear_contorno(segmentos):
@@ -76,7 +77,7 @@ def scan(poligono, valor, eixo):
 
 
 def cortar_span(a, b, vaos):
-    """Recorta o intervalo [a,b] pelos vãos (aberturas). Porta de v7:788."""
+    """Recorta o intervalo [a,b] pelos vãos (aberturas). Porta de v7:788-798."""
     segs = [[a, b]]
     for va, vb in vaos:
         for i in range(len(segs) - 1, -1, -1):
@@ -89,7 +90,7 @@ def cortar_span(a, b, vaos):
                 segs[i] = [s, va]
             elif s < vb < e:
                 segs[i] = [vb, e]
-    return [(s, e) for s, e in segs]
+    return [(s, e) for s, e in segs if e - s > _EPS_SPAN]  # v7:797 descarta <0,1m
 
 
 def bbox(poligono):
