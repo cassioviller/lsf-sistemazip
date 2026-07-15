@@ -93,31 +93,34 @@ def _aplicar(con, caminho: pathlib.Path) -> None:
     migração reconstruir (DROP/RENAME, o único jeito de alterar CHECK no SQLite) uma
     tabela referenciada por FK de outra (ex.: `parede.perfil_codigo -> perfil_lsf`) sem
     que o `DROP` explodido com "FOREIGN KEY constraint failed" quando já existe dado de
-    instância referenciando-a. Depois do commit, `PRAGMA foreign_key_check` varre o
-    banco inteiro; qualquer violação real (a migração corrompeu uma referência, não
-    apenas a suspendeu temporariamente) vira exceção — nunca passa silenciosa.
+    instância referenciando-a. Verificação de integridade referencial ocorre PRÉ-COMMIT,
+    dentro da transação, de forma que violações fazem rollback limpo — nenhuma corrupção
+    registrada no ledger.
     """
     statements = _dividir_statements(caminho.read_text())
     con.execute("PRAGMA foreign_keys = OFF")
-    con.execute("BEGIN")
     try:
-        for statement in statements:
-            con.execute(statement)
-    except sqlite3.OperationalError as exc:
-        con.rollback()
+        con.execute("BEGIN")
+        try:
+            for statement in statements:
+                con.execute(statement)
+        except sqlite3.DatabaseError as exc:
+            con.rollback()
+            if _mensagem_indica_estrutura_existente(exc):
+                raise EstruturaJaExiste(str(exc)) from exc
+            raise
+        else:
+            # Verificar integridade referencial PRÉ-COMMIT, ainda dentro da transação
+            violacoes = con.execute("PRAGMA foreign_key_check").fetchall()
+            if violacoes:
+                con.rollback()
+                raise sqlite3.IntegrityError(
+                    f"{caminho.name} corromperia integridade referencial: {violacoes}"
+                )
+            con.execute("INSERT INTO schema_migrations (arquivo) VALUES (?)", (caminho.name,))
+            con.commit()
+    finally:
         con.execute("PRAGMA foreign_keys = ON")
-        if _mensagem_indica_estrutura_existente(exc):
-            raise EstruturaJaExiste(str(exc)) from exc
-        raise
-    else:
-        con.execute("INSERT INTO schema_migrations (arquivo) VALUES (?)", (caminho.name,))
-        con.commit()
-        violacoes = con.execute("PRAGMA foreign_key_check").fetchall()
-        con.execute("PRAGMA foreign_keys = ON")
-        if violacoes:
-            raise sqlite3.IntegrityError(
-                f"{caminho.name} aplicada, mas corrompeu integridade referencial: {violacoes}"
-            )
 
 
 def _aplicar_ou_adotar(con, caminho: pathlib.Path) -> str:
