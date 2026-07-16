@@ -802,6 +802,189 @@ def gerar_escada(con, escada_id: int, com_info: bool = False):
     return pecas, acess, alertas
 
 
+# ---------- cobertura (porta fiel de gerarPecasCobertura, v7:949-1041) ----------
+
+_O_COBERTURA = ("484125 1TS41/42: gusset por nó, box @200mm · 1CB p.56-77:"
+                " painéis 140#0.80 (perímetro+travessas+diagonais [COB-003/005])")
+
+
+def gerar_cobertura(con, cobertura_id: int) -> tuple[list[Peca], list[Acessorio], list[str]]:
+    """Telhado de duas águas ao longo de x, sobre o footprint do último pavimento.
+
+    Porta fiel de v7:949-1041. O telhado cobre só a área COBERTA: a faixa de
+    varanda descoberta recua o beiral a oeste e o pátio abre vão na água. As
+    tesouras saem no grupo `grupo_tesouras` (1TS) e os painéis no `grupo` (1CB).
+    """
+    linha = con.execute(
+        "SELECT projeto_id, id_cobertura, grupo, grupo_tesouras, nivel_base, beiral_m,"
+        "       inclinacao, banzo_perfil, guia_banzo_perfil, alma_perfil, telha_tipo,"
+        "       telha_perda_pct, painel_cb_perfil, painel_cb_perfil_per, confianca"
+        "  FROM cobertura WHERE id = ?", (cobertura_id,)).fetchone()
+    if linha is None:
+        raise DadoIndisponivel(f"cobertura {cobertura_id} não existe")
+    (projeto_id, id_cob, grupo, grupo_ts, yB, beiral, incl, p_banzo, p_guia, p_alma,
+     telha_tipo, telha_perda, p_cb, p_cb_per, conf_cob) = tuple(linha)
+
+    R = _regras(con)
+    esp_tesoura = _regra(R, "cobertura_esp_tesoura")
+    passo_mont = _regra(R, "cobertura_passo_mont")
+    gusset_paraf = _regra(R, "cobertura_gusset_paraf")
+    box_paraf_mm = _regra(R, "cobertura_box_paraf_mm")
+    cb_passo = _regra(R, "cobertura_cb_passo")
+
+    conf = pior_confianca(conf_cob, "estimado")
+    pecas: list[Peca] = []
+    acess: list[Acessorio] = []
+    alertas: list[str] = []
+    seq: dict[str, int] = {}
+
+    def mk(grupo_p, tipo, perfil, x0, y0, z0, x1, y1, z1, origem, confianca=None):
+        pfx = "".join(c for c in tipo if c.isalpha())[:3].upper()
+        chave = grupo_p + pfx
+        seq[chave] = seq.get(chave, 0) + 1
+        comp = math.hypot(x1 - x0, y1 - y0, z1 - z0)
+        pecas.append(Peca(f"{grupo_p}-{pfx}{seq[chave]}", tipo, perfil, x0, y0, x1, y1,
+                          _round_js(comp, 4), origem, "cobertura", grupo_p, z0, z1,
+                          confianca or conf))
+
+    def mk_ac(grupo_a, item, qtd, un, origem, confianca):
+        acess.append(Acessorio(item, _round_js(qtd, 1), un, "cobertura", grupo_a,
+                               origem, confianca))
+
+    # o telhado assenta no último pavimento (v7: BUILDING.footprint[2])
+    ultimo = con.execute(
+        "SELECT MAX(indice) FROM nivel WHERE projeto_id = ?", (projeto_id,)).fetchone()[0]
+    if ultimo is None:
+        raise DadoIndisponivel(f"projeto {projeto_id} sem níveis")
+    fp = contorno_pavimento(con, projeto_id, ultimo)
+    if not fp:
+        alertas.append(f"{id_cob}: footprint vazio — verificar as paredes externas.")
+        return pecas, acess, alertas
+    bb0 = bbox(fp)
+
+    descobertas = [dict(zip(("nome", "x", "z", "w", "d", "tipo"), r)) for r in con.execute(
+        "SELECT nome, x, z, w, d, tipo FROM area_descoberta WHERE projeto_id = ?"
+        " ORDER BY id", (projeto_id,)).fetchall()]
+    faixa = next((d for d in descobertas if d["tipo"] == "faixa"), None)
+    patio = next((d for d in descobertas if d["tipo"] == "patio"), None)
+    # telhado cobre só a área COBERTA: a faixa de varanda recua o telhado a oeste
+    bb = dict(bb0)
+    if faixa:
+        bb["x0"] = max(bb0["x0"], faixa["x"] + faixa["w"])
+        alertas.append(
+            f"Telhado recuado {faixa['x'] + faixa['w']:.2f}m a oeste: varanda do 3º pav"
+            " fica descoberta (laje 2LJ é o teto da varanda do 2º). Prever"
+            " impermeabilização e guarda-corpo na laje exposta.")
+    if patio:
+        alertas.append(
+            f"Área descoberta {patio['w'] * patio['d']:.1f}m² dentro do telhado (pátio"
+            " do 3º pav): abertura na cobertura. Reforço de borda das tesouras no"
+            " executivo + rufos no perímetro do vão.")
+
+    n_t = max(2, int(_round_js((bb["x1"] - bb["x0"]) / esp_tesoura)) + 1)
+    n_gusset = 0
+    area_telha = 0.0
+    zc = (bb["z0"] + bb["z1"]) / 2      # cumeeira no meio do bbox (duas águas em x)
+    prev_w = None
+
+    for i in range(n_t):
+        xT = bb["x0"] + (bb["x1"] - bb["x0"]) * i / (n_t - 1)
+        # largura real do prédio nesta posição
+        iv = scan(fp, min(max(xT, bb["x0"] + 0.02), bb["x1"] - 0.02), "x")
+        if iv:
+            za, zb = iv[0][0] - beiral, iv[-1][1] + beiral
+        else:
+            za, zb = bb["z0"] - beiral, bb["z1"] + beiral
+        meia_e, meia_d = zc - za, zb - zc
+        h_cume = max(meia_e, meia_d) * incl
+
+        mk(grupo_ts, "banzo_inferior", p_banzo, xT, yB, za, xT, yB, zb, _O_COBERTURA)
+        mk(grupo_ts, "guia_banzo", p_guia, xT, yB, za, xT, yB, zb, "box banzo [DX-09]")
+        mk(grupo_ts, "banzo_superior", p_banzo, xT, yB, za, xT, yB + h_cume, zc,
+           _O_COBERTURA)
+        mk(grupo_ts, "banzo_superior", p_banzo, xT, yB + h_cume, zc, xT, yB, zb,
+           _O_COBERTURA)
+
+        # montantes @passo + diagonais Pratt, altura seguindo o telhado
+        zs_m = []
+        z = za + passo_mont
+        while z < zb - passo_mont / 2:
+            hz = ((z - za) / (zc - za) * h_cume if z <= zc
+                  else (zb - z) / (zb - zc) * h_cume)
+            if hz >= 0.12:      # v7: montante mais baixo que 12cm não se justifica
+                mk(grupo_ts, "montante_tesoura", p_alma, xT, yB, z, xT, yB + hz, z,
+                   "montante @0,60 [1TS]")
+                zs_m.append((z, hz))
+            z += passo_mont
+        for m in range(len(zs_m) - 1):
+            (z1, h1), (z2, h2) = zs_m[m], zs_m[m + 1]
+            sobe = m % 2 == 0
+            mk(grupo_ts, "diagonal_tesoura", p_alma,
+               xT, yB + (0 if sobe else h1), z1, xT, yB + (h2 if sobe else 0), z2,
+               "diagonal Pratt [1TS]")
+
+        # nós com gusset: 2 apoios + cume + 2 por montante (base/topo)
+        n_gusset += 3 + 2 * len(zs_m)
+        # área de telha por trapézio entre tesouras (largura real × fator inclinação)
+        w_here = zb - za
+        if prev_w is not None:
+            dx = (bb["x1"] - bb["x0"]) / (n_t - 1)
+            area_telha += dx * (w_here + prev_w) / 2 * math.hypot(1, incl)
+        prev_w = w_here
+
+    # A8 [p.57, COB-005]: diagonais de canto a 45° — 4 por água
+    for lado in (-1, 1):
+        z_edge = bb["z0"] - beiral if lado < 0 else bb["z1"] + beiral
+        for x_edge in (bb["x0"], bb["x1"] - 1.2):
+            y_diag = yB + ((bb["z1"] - bb["z0"]) / 2 * incl) * 0.85
+            mk(grupo, "diagonal_canto", p_alma,
+               x_edge, y_diag, zc + lado * 0.6, x_edge + 1.2, y_diag, zc + lado * 1.8,
+               "A8: diagonal de canto (extremo da cumeeira) [p.57, COB-005]")
+            mk(grupo, "diagonal_canto", p_alma,
+               x_edge, yB, z_edge, x_edge + 1.2, yB, z_edge - lado * 1.2,
+               "A8: diagonal de canto do painel 1CB [p.57, COB-005]")
+
+    # painéis 1CB no plano inclinado (carimbo 1CB-140#0.80 + COB-003/005)
+    for lado in (-1, 1):
+        z_base = bb["z0"] - beiral if lado < 0 else bb["z1"] + beiral
+        h_c = ((bb["z1"] - bb["z0"]) / 2) * incl
+        # perímetro da água: beiral + cumeeira
+        mk(grupo, "per_1CB", p_cb_per, bb["x0"] - beiral, yB, z_base,
+           bb["x1"] + beiral, yB, z_base, "perímetro painel 1CB")
+        mk(grupo, "per_1CB", p_cb_per, bb["x0"] - beiral, yB + h_c, zc,
+           bb["x1"] + beiral, yB + h_c, zc, "perímetro painel 1CB (cumeeira)")
+        # travessas ao longo da inclinação @passo
+        x = bb["x0"] - beiral
+        while x <= bb["x1"] + beiral + 0.01:
+            mk(grupo, "travessa_1CB", p_cb, x, yB, z_base, x, yB + h_c, zc,
+               f"travessa painel 1CB @{cb_passo}m [COB-004]")
+            x += cb_passo
+        # diagonais de canto (2 por extremidade da água) [COB-005]
+        for xe in (bb["x0"] - beiral, bb["x1"] + beiral):
+            direcao = 1 if xe < bb["x0"] else -1
+            mk(grupo, "diag_canto_1CB", p_cb, xe, yB, z_base,
+               xe + direcao * 1.2, yB + h_c * 0.35, z_base + (zc - z_base) * 0.35,
+               "diagonal de canto [COB-005]", "estimado")
+
+    mk_ac(grupo_ts, "Chapa Gousset 150×150 #1,25 (nós de tesoura)", n_gusset, "un",
+          "gusset por nó [1TS41: 62/painel]", conf)
+    mk_ac(grupo_ts, "Parafuso flangeado — gusset (4/perfil, 2 lados)",
+          n_gusset * gusset_paraf * 2, "un", "DX-01B", "parametrico")
+    mk_ac(grupo_ts, "Parafuso flangeado — box banzo @200mm",
+          math.ceil(n_t * (bb["z1"] - bb["z0"] + 2 * beiral) / (box_paraf_mm / 1000)),
+          "un", "DX-09", "parametrico")
+
+    if patio:      # pátio descoberto não leva telha
+        area_telha -= patio["w"] * patio["d"] * math.hypot(1, incl)
+    perda = 1 + telha_perda / 100
+    mk_ac(grupo, f"{telha_tipo} (m²)", area_telha * perda, "m²",
+          "trapezoidal × √(1+i²) × perda", "estimado")
+    mk_ac(grupo, "Cumeeira (m)", bb["x1"] - bb["x0"], "m", "comprimento", "estimado")
+    mk_ac(grupo, "Calha (m)", 2 * (bb["x1"] - bb["x0"]), "m", "2 águas", "estimado")
+
+    return pecas, acess, alertas
+
+
 @dataclass(frozen=True)
 class PlanoCortePerfil:
     perfil: str
