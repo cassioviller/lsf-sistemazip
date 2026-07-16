@@ -1628,6 +1628,17 @@ def derivar_quantitativos(con, projeto_id: int) -> dict:
         "   confianca=excluded.confianca, origem_regra=excluded.origem_regra"
         " WHERE quantitativo.origem = 'PARAMETRICO'",
         (projeto_id, folha[0], est.kg_comprado, est.confianca, origem_regra))
+    # As pendências vão para tabela, não só para o retorno: quem precisa delas é o
+    # gate de publicação, que roda noutra requisição. Re-derivar TROCA as linhas
+    # deste motor (D2) — pendência resolvida some, senão o gate trava para sempre e
+    # alguém aprende a ignorá-lo.
+    con.execute("DELETE FROM pendencia WHERE projeto_id = ? AND motor = 'estrutura'",
+                (projeto_id,))
+    for msg in pendencias:
+        con.execute(
+            "INSERT OR IGNORE INTO pendencia (projeto_id, motor, mensagem)"
+            " VALUES (?, 'estrutura', ?)", (projeto_id, msg))
+
     resultado = {"kg_comprado": est.kg_comprado, "confianca": est.confianca,
                  "alertas": est.alertas, "pendencias_estruturais": pendencias}
     if cur.rowcount == 0:  # conflito com linha não-PARAMETRICO: nada escrito

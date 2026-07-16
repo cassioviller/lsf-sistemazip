@@ -3,7 +3,16 @@
 Gates (spec §8) BLOQUEIAM, não avisam:
   - pendência de custo (total None) → recusa. Nunca publica custo parcial (D4.1).
   - macroetapa zerada → recusa. Escopo vazado em preço fechado é prejuízo (R7).
+  - pendência ESTRUTURAL (tabela `pendencia`, motor=estrutura) → recusa. O motor
+    disse que a solução por trás do kg não fecha: vão que reprova na verificação,
+    furo em viga, peça fora do envelope. O preço existe, a estrutura não.
+    Por que recusa em vez de carimbar: a 109 é a prova do custo do erro — o
+    gerador exige viga laminada 1VG + pilares 1AL nas duas lajes, a obra foi
+    construída com eles, e o orçamento de referência não tem linha para nenhum
+    dos dois. Vender isso fechado é o "escopo vazado = prejuízo" acontecendo.
   - sondagem pendente → NÃO bloqueia; carimba a proposta e aparece como gate aberto.
+    (A diferença: sondagem rebaixa a CONFIANÇA de um número que existe; a pendência
+    estrutural diz que falta escopo no preço.)
 
 Congelamento (D5): a proposta guarda o JSON do OrcamentoVenda e o HTML renderizado.
 A rota pública serve o HTML gravado — nunca recalcula.
@@ -37,6 +46,11 @@ def motivos_de_bloqueio(con, projeto_id: int) -> list[str]:
             s for s in visao.venda.orcamento.subtotais if s.eap_codigo == codigo
         )
         motivos.append(f"Macroetapa {codigo} ({subtotal.descricao}) sem quantitativo (R7)")
+    for motor, mensagem in con.execute(
+        "SELECT motor, mensagem FROM pendencia WHERE projeto_id = ? ORDER BY id",
+        (projeto_id,),
+    ):
+        motivos.append(f"Pendência estrutural ({motor}): {mensagem}")
     if visao.venda.preco_total is None and not motivos:
         motivos.append("O orçamento não fecha um preço total")
     return motivos
