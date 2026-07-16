@@ -116,14 +116,40 @@ def test_diagonal_de_canto_aponta_para_dentro_mesmo_sem_beiral(projeto_109_estru
             f"diagonal de canto saiu da água: x0={d.x0} → x1={d.x1}")
 
 
+def test_patio_fora_da_agua_nao_desconta_telha_duas_vezes(projeto_109_estrutura):
+    """O recuo da faixa já tirou a varanda de `area_telha`. Um pátio DENTRO desse
+    recuo nunca esteve coberto: descontá-lo de novo tirava m² duas vezes."""
+    from lsf.geradores.estrutura import gerar_cobertura
+
+    con, pid = projeto_109_estrutura
+    cid = con.execute("SELECT id FROM cobertura WHERE projeto_id = ?",
+                      (pid,)).fetchone()[0]
+
+    def m2_telha():
+        _, acess, _ = gerar_cobertura(con, cid)
+        return next(a.qtd for a in acess if a.un == "m²")
+
+    # pátio jogado inteiramente para fora da água (x negativo, antes do recuo oeste)
+    con.execute("UPDATE area_descoberta SET x = -50, z = -50 WHERE tipo = 'patio'")
+    fora = m2_telha()
+    con.execute("DELETE FROM area_descoberta WHERE tipo = 'patio'")
+    sem_patio = m2_telha()
+
+    assert fora == pytest.approx(sem_patio), (
+        "pátio fora da área coberta descontou telha que nunca esteve lá")
+
+
 def test_area_de_telha_nao_negativa_vira_pendencia(projeto_109_estrutura):
-    """D4.1: pátio maior que a água não pode virar m² negativo de telha."""
+    """D4.1: pátio cobrindo toda a água não pode virar m² negativo/zero de telha.
+    (O recorte contra a água limita o desconto, mas não impede o caso-limite de um
+    pátio que engole o telhado inteiro — que é justamente o que a guarda pega.)"""
     from lsf.geradores.estrutura import DadoIndisponivel, gerar_cobertura
 
     con, pid = projeto_109_estrutura
     cid = con.execute("SELECT id FROM cobertura WHERE projeto_id = ?",
                       (pid,)).fetchone()[0]
-    con.execute("UPDATE area_descoberta SET w = 500, d = 500 WHERE tipo = 'patio'")
+    con.execute("UPDATE area_descoberta SET x = -1000, z = -1000, w = 2000, d = 2000"
+                " WHERE tipo = 'patio'")
 
     with pytest.raises(DadoIndisponivel, match="telha"):
         gerar_cobertura(con, cid)

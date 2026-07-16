@@ -593,6 +593,21 @@ def gerar_laje(con, laje_id: int) -> tuple[list[Peca], list[Acessorio], list[str
             " pilares [OBRA p.3-9]. O kg gerado é PROVISÃO de orçamento, não"
             " dimensionamento: reduzir vão com apoio intermediário no executivo.")
 
+    # origem da 2ª viga do par (só existe fora do modo 'simples'). Em 'laminada' nem
+    # a dupla passa: a peça é provisão de orçamento e NÃO pode citar NBR 14762 como
+    # se estivesse verificada — quem gateia é a pendência que sobe até a EAP.
+    if chk["modo"] == "dupla":
+        _origem_2a_viga = (
+            f"viga DUPLA (box): ELU M={chk['M']}>{chk['MRd']} kNm e/ou"
+            f" δ={chk['delta']}>{chk['dLim']}mm no vão {_round_js(vao_ef, 1)}m"
+            f" em {perf_v} [NBR 14762]")
+    else:
+        _origem_2a_viga = (
+            f"PROVISÃO de orçamento, NÃO verificada: no vão {_round_js(vao_ef, 1)}m"
+            f" nem a dupla em {perf_v} passa (M={chk['M']}>2×{chk['MRd']} kNm e/ou"
+            f" δ={chk['delta']}>{chk['dLim']}mm) — exige viga laminada 1VG +"
+            " pilares. Ver a pendência estrutural da laje.")
+
     # bordas = perímetro real do polígono
     for i in range(len(fp)):
         a, b = fp[i], fp[(i + 1) % len(fp)]
@@ -612,21 +627,8 @@ def gerar_laje(con, laje_id: int) -> tuple[list[Peca], list[Acessorio], list[str
                    f"{_O_LAJE} · {origem_par} · vão ef {_round_js(vao_ef, 1)}m→{perf_v}",
                    conf)
                 if chk["modo"] != "simples":
-                    # modo 'laminada': a dupla NÃO passa na verificação. Mantemos a
-                    # peça (fidelidade ao v7 e ao kg do aceite), mas ela não pode
-                    # citar NBR 14762 como se estivesse verificada — o texto diz que
-                    # é provisão de orçamento, e o alerta acima é o gate.
                     mk("viga_laje", perf_v, s, y, z + 0.05, e, y, z + 0.05,
-                       (f"viga DUPLA (box): ELU M={chk['M']}>{chk['MRd']} kNm e/ou"
-                        f" δ={chk['delta']}>{chk['dLim']}mm no vão"
-                        f" {_round_js(vao_ef, 1)}m [NBR 14762]")
-                       if chk["modo"] == "dupla" else
-                       (f"PROVISÃO de orçamento, NÃO verificada: no vão"
-                        f" {_round_js(vao_ef, 1)}m nem a dupla passa"
-                        f" (M={chk['M']}>2×{chk['MRd']} kNm e/ou"
-                        f" δ={chk['delta']}>{chk['dLim']}mm) — exige viga laminada"
-                        f" 1VG + pilares. Ver alerta da laje."),
-                       "parametrico")
+                       _origem_2a_viga, "parametrico")
         z += esp
 
     # bloqueadores em linhas x, passo <= bloqueador_max_m, cortados pelo polígono e vãos
@@ -1007,8 +1009,16 @@ def gerar_cobertura(con, cobertura_id: int) -> tuple[list[Peca], list[Acessorio]
           math.ceil(n_t * (bb["z1"] - bb["z0"] + 2 * beiral) / (box_paraf_mm / 1000)),
           "un", "DX-09", "parametrico")
 
-    if patio:      # pátio descoberto não leva telha
-        area_telha -= patio["w"] * patio["d"] * math.hypot(1, incl)
+    if patio:
+        # Pátio descoberto não leva telha — mas só desconta a parte que estava
+        # COBERTA: `bb` já recuou o telhado pela faixa de varanda, então um pátio
+        # dentro desse recuo nunca entrou em `area_telha` e descontá-lo inteiro
+        # tiraria m² duas vezes. Recorta o retângulo do pátio contra a água.
+        ov_x = max(0.0, min(patio["x"] + patio["w"], bb["x1"] + beiral)
+                        - max(patio["x"], bb["x0"] - beiral))
+        ov_z = max(0.0, min(patio["z"] + patio["d"], bb["z1"] + beiral)
+                        - max(patio["z"], bb["z0"] - beiral))
+        area_telha -= ov_x * ov_z * math.hypot(1, incl)
     if area_telha <= 0:
         # pátio maior que a água (ou telhado recuado demais pela faixa): m² negativo
         # de telha é dado incoerente, não zero (D4.1)
