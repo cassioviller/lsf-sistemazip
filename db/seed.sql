@@ -313,7 +313,13 @@ INSERT INTO regra_lsf (chave,valor,unidade,referencia) VALUES
  ('margem_abertura_m',0.10,'m','v7 gerarPecas: folga mínima da abertura à borda'),
  ('folga_entre_aberturas_m',0.15,'m','v7 gerarPecas: folga mínima entre aberturas'),
  ('passo_conex_painel_m',0.20,'m','OBRA DP-07: parafusos entre painéis, ziguezague'),
- ('ancor_esp_padrao_m',1.20,'m','OBRA "por modulação", pendente')
+ ('ancor_esp_padrao_m',1.20,'m','OBRA "por modulação", pendente'),
+ -- acessórios de nível de EDIFÍCIO (v7 montarProjeto), não da peça
+ ('verga_paraf_passo_m',0.20,'m','A5/VERGA-002-003 [DX-11 p.40]: parafuso de verga @200mm'),
+ ('laje_chapa_l_passo_m',3.00,'m','DX-06 [OBRA p.6/8]: 1 Chapa L de 3 m por 3 m de perímetro'),
+ ('laje_cantoneira_por_viga',0.80,'un/viga','painel 1L8 p.28: 13 cantoneiras / 16 vigas'),
+ ('adbx_frac_kg',0.02,'-','OBRA p.7-24: AD10/11/13/14/17, BX1/BX3 por prancha (±2% adotado)'),
+ ('impermeab_folga',1.10,'-','área descoberta [folha 102] + 10%')
 ON CONFLICT (chave) DO UPDATE SET
   valor=excluded.valor, unidade=excluded.unidade, referencia=excluded.referencia;
 

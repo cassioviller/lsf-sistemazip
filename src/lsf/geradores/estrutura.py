@@ -11,7 +11,8 @@ import math
 import sqlite3
 from dataclasses import dataclass, replace
 
-from lsf.geradores.geometria import bbox, cortar_span, encadear_contorno, poly_area, scan
+from lsf.geradores.geometria import (bbox, cortar_span, encadear_contorno, poly_area,
+                                     poly_perim, scan)
 from lsf.motores.orcamento import pior_confianca
 
 
@@ -507,12 +508,17 @@ _O_LAJE = ("REGRA LAJE-003/006/007/009/010 [mont. p.21-39: DL-01 5 paraf. alma;"
            " C=176(L200)/226(L250)]")
 
 
-def gerar_laje(con, laje_id: int) -> tuple[list[Peca], list[Acessorio], list[str]]:
+def gerar_laje(con, laje_id: int, com_info: bool = False):
     """Laje de piso sobre um pavimento: bordas no contorno real, vigas na direção x
     recortadas pelo polígono e pelos vãos de escada, bloqueadores por baia em
     modulação alternada, enrijecedores, reforço de abertura e chapa de piso.
 
     Porta fiel de v7:801-889 — a ordem das operações e os epsilons são contrato.
+
+    `com_info=True` acrescenta o dict de geometria que o v7 pendurava na laje
+    (`L._nVigas`, `L._perfilUsado`, `L._chk`) e que o `montarProjeto` consome depois
+    — hoje só a DX-06 precisa, para contar as vigas PRIMÁRIAS: as peças `viga_laje`
+    incluem as duplas e as vigas de varanda, e contá-las erraria a cantoneira em 2,4x.
     """
     linha = con.execute(
         "SELECT projeto_id, id_laje, grupo, pav_base, nivel, esp_m, perfil_viga,"
@@ -536,6 +542,9 @@ def gerar_laje(con, laje_id: int) -> tuple[list[Peca], list[Acessorio], list[str
         alertas.append(
             f"{id_laje}: footprint vazio — verificar as paredes externas do"
             f" pavimento {pav_base}.")
+        if com_info:
+            return pecas, acess, alertas, {"n_vigas": 0, "perimetro_m": 0.0,
+                                           "grupo": grupo, "confianca": conf}
         return pecas, acess, alertas
 
     R = _regras(con)
@@ -684,6 +693,7 @@ def gerar_laje(con, laje_id: int) -> tuple[list[Peca], list[Acessorio], list[str
           n_enr * _regra(R, "laje_fix_alma_paraf"), "un",
           "REGRA LAJE-007: 5 parafusos [DL-01 p.21-39]", "parametrico")
 
+
     # extensões retangulares (ex.: faixa de varanda) — bordas no perímetro exposto + vigas
     for ex in extensoes:
         mk("borda_laje", perf_b, ex["x"], y, ex["z"], ex["x"], y, ex["z"] + ex["d"],
@@ -712,6 +722,11 @@ def gerar_laje(con, laje_id: int) -> tuple[list[Peca], list[Acessorio], list[str
         mk_ac(f"{chapa_tipo} (piso {id_laje})", n_ch, "chapa",
               "área do polígono + 10%", conf)
 
+    if com_info:
+        return pecas, acess, alertas, {
+            "n_vigas": n_vigas, "perimetro_m": _round_js(poly_perim(fp), 2),
+            "grupo": grupo, "confianca": conf, "modo_viga": chk["modo"],
+            "perfil_viga": perf_v}
     return pecas, acess, alertas
 
 
@@ -1208,6 +1223,85 @@ def plano_de_corte(con, pecas: list[Peca], barra_m: float) -> list[PlanoCortePer
     return plano
 
 
+def _acessorios_dx06(con, info: dict) -> list[Acessorio]:
+    """DX-06 [OBRA p.6/8]: chapa L de elevação no perímetro da laje + cantoneira de
+    ligação viga-borda. O v7 monta isto no nível do edifício lendo `L._nVigas`, que
+    `gerarPecasLaje` pendurou na laje; aqui vem pelo `info` do gerador, pelo mesmo
+    motivo: são as vigas PRIMÁRIAS, não as peças `viga_laje` (que incluem as duplas
+    e as vigas de varanda — contá-las erraria a cantoneira em 2,4x)."""
+    R = _regras(con)
+    if not info["n_vigas"]:
+        return []
+    return [
+        Acessorio("Chapa L #1,25 35×190×3000 (elevação de laje)",
+                  math.ceil(info["perimetro_m"] / _regra(R, "laje_chapa_l_passo_m")),
+                  "un", "laje", info["grupo"], "DX-06 [OBRA p.6/8]",
+                  info["confianca"]),
+        Acessorio("Cantoneira #1,25 89×89×89 (ligação viga-borda)",
+                  math.ceil(info["n_vigas"] * _regra(R, "laje_cantoneira_por_viga")),
+                  "un", "laje", info["grupo"],
+                  "painel 1L8 p.28: 13 cant/16 vigas (0,8/viga)", info["confianca"]),
+    ]
+
+
+def _acessorios_de_edificio(con, projeto_id: int, todas: list[Peca]) -> list[Acessorio]:
+    """Acessórios que só existem no nível do EDIFÍCIO — dependem do conjunto das
+    peças ou do projeto inteiro, não de uma parede/laje isolada. Porta dos blocos
+    finais de `montarProjeto` (v7).
+
+    A DX-06 (chapa L / cantoneira) NÃO está aqui apesar de o v7 a montar neste
+    nível: ela depende das vigas primárias da laje, então mora em `gerar_laje`.
+
+    Ficam de fora, de propósito:
+      * instalações (furo de serviço, tubo-luva GLP): exigem pontos hidro/gás/
+        elétrica, que não existem no schema — é migração, não porte;
+      * hold-down de vento: o v7 chumba as dimensões da 109 (`CARGAS.vento*10,5*15,8`)
+        e a quantidade (24 un). Não generaliza, e o CLAUDE.md põe a fórmula de vento
+        atrás de revisão de engenheiro estrutural (Fase 3).
+    """
+    R = _regras(con)
+    acess: list[Acessorio] = []
+
+    # A5 [DX-11 p.40]: parafusos de verga @200mm — sextavado nos montantes-I,
+    # flangeado nas guias (duas linhas, mesma quantidade)
+    ml_verga = sum(p.comp for p in todas
+                   if p.sistema == "parede" and "verga" in p.tipo)
+    if ml_verga > 0:
+        n = math.ceil(ml_verga / _regra(R, "verga_paraf_passo_m"))
+        acess.append(Acessorio(
+            "Parafuso sext. 4,8×19 — verga DX-11 (montantes-I, @200mm)", n, "un",
+            "parede", "GERAL", "A5/VERGA-002 [DX-11 p.40]", "parametrico"))
+        acess.append(Acessorio(
+            "Parafuso flang. 4,8×19 — verga DX-11 (guias, @200mm)", n, "un",
+            "parede", "GERAL", "A5/VERGA-003 [DX-11 p.40]", "parametrico"))
+
+    # AD/BX [OBRA p.7-24]: barras avulsas do kit, ~2% do aço. É AÇO (un=kg), não
+    # ferragem: somem com isso e o orçamento perde 2% do material.
+    kg = sum(p.comp * _perfil(con, p.perfil)["massa_kg_m"] for p in todas)
+    if kg > 0:
+        acess.append(Acessorio(
+            "Perfis adicionais AD/BX (barras avulsas — ver pranchas)",
+            _round_js(kg * _regra(R, "adbx_frac_kg")), "kg", "acessorio", "GERAL",
+            "OBRA p.7-24: AD10/11/13/14/17, BX1/BX3 por prancha (±2% adotado)",
+            "estimado"))
+
+    # Laje exposta ao tempo (varanda/pátio descobertos): impermeabilização + guarda-corpo
+    folga = _regra(R, "impermeab_folga")
+    for nome, w, d, tipo, conf in con.execute(
+            "SELECT nome, w, d, tipo, confianca FROM area_descoberta"
+            " WHERE projeto_id = ? ORDER BY id", (projeto_id,)):
+        acess.append(Acessorio(
+            f"Impermeabilização laje exposta — {nome}", _round_js(w * d * folga, 1),
+            "m²", "laje", "2LJ", "área descoberta [folha 102] + 10%", conf))
+        # faixa é aberta numa ponta (encosta no prédio); pátio fecha o perímetro
+        borda = d + 2 * w if tipo == "faixa" else 2 * (w + d)
+        acess.append(Acessorio(
+            f"Guarda-corpo — {nome}", _round_js(borda, 1), "m", "laje", "2LJ",
+            "borda exposta [NBR 14718]", "estimado"))
+
+    return acess
+
+
 def gerar_estrutura(con, projeto_id: int) -> EstruturaProjeto:
     ids = [r[0] for r in con.execute(
         "SELECT p.id FROM parede p JOIN nivel n ON n.id = p.nivel_id"
@@ -1232,7 +1326,11 @@ def gerar_estrutura(con, projeto_id: int) -> EstruturaProjeto:
         if not ids_sis:
             alertas.append(f"projeto sem {tabela}: kg do edifício não a inclui")
         for sid in ids_sis:
-            p, a, al = gerador(con, sid)
+            if tabela == "laje":
+                p, a, al, info = gerar_laje(con, sid, com_info=True)
+                a = a + _acessorios_dx06(con, info)
+            else:
+                p, a, al = gerador(con, sid)
             todas += p
             acess += a
             alertas += al
@@ -1244,6 +1342,8 @@ def gerar_estrutura(con, projeto_id: int) -> EstruturaProjeto:
         todas += p
         acess += a
         alertas += al
+
+    acess += _acessorios_de_edificio(con, projeto_id, todas)
 
     # REGRA BOX-003 antes do corte: peça acima de 6 m não existe — vira n partes
     # iguais com emenda. É o que o v7 faz em montarProjeto antes do resumoPorSistema,
