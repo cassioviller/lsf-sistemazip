@@ -1223,6 +1223,40 @@ def plano_de_corte(con, pecas: list[Peca], barra_m: float) -> list[PlanoCortePer
     return plano
 
 
+def rodar_gates_envelope(con, projeto_id: int, pecas: list[Peca]) -> list[str]:
+    """Porta de `rodarGates` (v7): peça de sistema horizontal fora do envelope do
+    prédio (bbox do térreo + 0,5 m de margem + beiral) é BUG do gerador.
+
+    Paredes ficam de fora do teste porque são elas que definem o envelope — medir
+    a parede contra o contorno que ela mesma gerou seria circular.
+
+    O v7 marca sev='alta'; aqui vira pendência estrutural: kg de peça que caiu
+    fora do prédio já entrou no orçamento, então tem que viajar marcado.
+    """
+    fp = contorno_pavimento(con, projeto_id, 0)
+    if not fp:
+        return []
+    bb = bbox(fp)
+    beiral = con.execute(
+        "SELECT MAX(beiral_m) FROM cobertura WHERE projeto_id = ?",
+        (projeto_id,)).fetchone()[0]
+    margem = 0.5 + (beiral if beiral is not None else 0.3)
+
+    fora = 0
+    for p in pecas:
+        if p.sistema == "parede":
+            continue
+        if (min(p.x0, p.x1) < bb["x0"] - margem or max(p.x0, p.x1) > bb["x1"] + margem
+                or min(p.z0, p.z1) < bb["z0"] - margem
+                or max(p.z0, p.z1) > bb["z1"] + margem):
+            fora += 1
+    if not fora:
+        return []
+    return [f"{MARCA_PENDENCIA} {fora} peça(s) fora do envelope do prédio"
+            f" (bbox do térreo + {margem:.2f}m). Verificar o gerador correspondente"
+            " — o kg dessas peças já está no orçamento."]
+
+
 def gerar_acessorios_instalacoes(con, projeto_id: int) -> tuple[list[Acessorio], list[str]]:
     """Porta de `gerarAcessoriosInstalacoes` (v7): furo de serviço + chapa de
     reforço por ponto de instalação, tubo-luva nos pontos de GLP, e o furo crítico
@@ -1414,6 +1448,8 @@ def gerar_estrutura(con, projeto_id: int) -> EstruturaProjeto:
     acess += a_inst
     alertas += al_inst
     acess += _acessorios_de_edificio(con, projeto_id, todas)
+    # gate de sanidade dos geradores, antes da BOX-003 (que só reparte as peças)
+    alertas += rodar_gates_envelope(con, projeto_id, todas)
 
     # REGRA BOX-003 antes do corte: peça acima de 6 m não existe — vira n partes
     # iguais com emenda. É o que o v7 faz em montarProjeto antes do resumoPorSistema,
