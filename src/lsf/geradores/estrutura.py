@@ -585,10 +585,21 @@ def gerar_laje(con, laje_id: int) -> tuple[list[Peca], list[Acessorio], list[str
                    f"{_O_LAJE} · {origem_par} · vão ef {_round_js(vao_ef, 1)}m→{perf_v}",
                    conf)
                 if chk["modo"] != "simples":
+                    # modo 'laminada': a dupla NÃO passa na verificação. Mantemos a
+                    # peça (fidelidade ao v7 e ao kg do aceite), mas ela não pode
+                    # citar NBR 14762 como se estivesse verificada — o texto diz que
+                    # é provisão de orçamento, e o alerta acima é o gate.
                     mk("viga_laje", perf_v, s, y, z + 0.05, e, y, z + 0.05,
-                       f"viga DUPLA (box): ELU M={chk['M']}>{chk['MRd']} kNm e/ou"
-                       f" δ={chk['delta']}>{chk['dLim']}mm no vão"
-                       f" {_round_js(vao_ef, 1)}m [NBR 14762]", "parametrico")
+                       (f"viga DUPLA (box): ELU M={chk['M']}>{chk['MRd']} kNm e/ou"
+                        f" δ={chk['delta']}>{chk['dLim']}mm no vão"
+                        f" {_round_js(vao_ef, 1)}m [NBR 14762]")
+                       if chk["modo"] == "dupla" else
+                       (f"PROVISÃO de orçamento, NÃO verificada: no vão"
+                        f" {_round_js(vao_ef, 1)}m nem a dupla passa"
+                        f" (M={chk['M']}>2×{chk['MRd']} kNm e/ou"
+                        f" δ={chk['delta']}>{chk['dLim']}mm) — exige viga laminada"
+                        f" 1VG + pilares. Ver alerta da laje."),
+                       "parametrico")
         z += esp
 
     # bloqueadores em linhas x, passo <= bloqueador_max_m, cortados pelo polígono e vãos
@@ -615,8 +626,7 @@ def gerar_laje(con, laje_id: int) -> tuple[list[Peca], list[Acessorio], list[str
                        "A4: bloq. por vão alternado [p.27, LAJE-005] · 2 paraf/ligação"
                        " [DP-01A]", conf)
                     n_bloc += 1
-                n_cross = max(1, int(_round_js((e - s) / esp)))
-                for c in range(n_cross):
+                for c in range(n_bay):   # um enrijecedor por baia, no eixo da linha
                     n_enr += 1
                     mk("enrijecedor_laje", perfil_enrij, x, y, s + c * esp,
                        x, y - c_enrij, s + c * esp, origem_enrij, "parametrico")
@@ -631,15 +641,15 @@ def gerar_laje(con, laje_id: int) -> tuple[list[Peca], list[Acessorio], list[str
     # extensões retangulares (ex.: faixa de varanda) — bordas no perímetro exposto + vigas
     for ex in extensoes:
         mk("borda_laje", perf_b, ex["x"], y, ex["z"], ex["x"], y, ex["z"] + ex["d"],
-           "borda de varanda", "estimado")
+           "borda de varanda", conf)
         mk("borda_laje", perf_b, ex["x"], y, ex["z"], ex["x"] + ex["w"], y, ex["z"],
-           "borda de varanda", "estimado")
+           "borda de varanda", conf)
         mk("borda_laje", perf_b, ex["x"], y, ex["z"] + ex["d"], ex["x"] + ex["w"], y,
-           ex["z"] + ex["d"], "borda de varanda", "estimado")
+           ex["z"] + ex["d"], "borda de varanda", conf)
         z = ex["z"] + esp
         while z < ex["z"] + ex["d"] - 0.05:
             mk("viga_laje", perf_v, ex["x"], y, z, ex["x"] + ex["w"], y, z,
-               "viga da faixa de varanda", "estimado")
+               "viga da faixa de varanda", conf)
             z += esp
 
     # reforço nas aberturas (vão de escada)
@@ -657,9 +667,15 @@ def gerar_laje(con, laje_id: int) -> tuple[list[Peca], list[Acessorio], list[str
             area -= ab["w"] * ab["d"]
         for ex in extensoes:
             area += ex["w"] * ex["d"]
+        if area <= 0:
+            # aberturas maiores que o próprio pavimento: quantidade negativa de
+            # chapa é dado incoerente, não zero nem número seco (D4.1)
+            raise DadoIndisponivel(
+                f"{id_laje}: área de piso {area:.2f} m² <= 0 — as aberturas somam"
+                " mais que o footprint; revisar laje_abertura")
         n_ch = math.ceil(area * 1.10 / ((chapa_larg or 1.2) * (chapa_alt or 2.4)))
         mk_ac(f"{chapa_tipo} (piso {id_laje})", n_ch, "chapa",
-              "área do polígono + 10%", "estimado")
+              "área do polígono + 10%", conf)
 
     return pecas, acess, alertas
 
@@ -960,11 +976,12 @@ def gerar_cobertura(con, cobertura_id: int) -> tuple[list[Peca], list[Acessorio]
                f"travessa painel 1CB @{cb_passo}m [COB-004]")
             x += cb_passo
         # diagonais de canto (2 por extremidade da água) [COB-005]
-        for xe in (bb["x0"] - beiral, bb["x1"] + beiral):
-            direcao = 1 if xe < bb["x0"] else -1
+        # a diagonal sempre aponta para DENTRO da água: +1 na ponta esquerda, -1 na
+        # direita. Derivar isso de `xe < bb["x0"]` invertia a esquerda com beiral=0.
+        for xe, direcao in ((bb["x0"] - beiral, 1), (bb["x1"] + beiral, -1)):
             mk(grupo, "diag_canto_1CB", p_cb, xe, yB, z_base,
                xe + direcao * 1.2, yB + h_c * 0.35, z_base + (zc - z_base) * 0.35,
-               "diagonal de canto [COB-005]", "estimado")
+               "diagonal de canto [COB-005]", conf)
 
     mk_ac(grupo_ts, "Chapa Gousset 150×150 #1,25 (nós de tesoura)", n_gusset, "un",
           "gusset por nó [1TS41: 62/painel]", conf)
@@ -976,11 +993,17 @@ def gerar_cobertura(con, cobertura_id: int) -> tuple[list[Peca], list[Acessorio]
 
     if patio:      # pátio descoberto não leva telha
         area_telha -= patio["w"] * patio["d"] * math.hypot(1, incl)
+    if area_telha <= 0:
+        # pátio maior que a água (ou telhado recuado demais pela faixa): m² negativo
+        # de telha é dado incoerente, não zero (D4.1)
+        raise DadoIndisponivel(
+            f"{id_cob}: área de telha {area_telha:.2f} m² <= 0 — as áreas"
+            " descobertas somam mais que o telhado; revisar area_descoberta")
     perda = 1 + telha_perda / 100
     mk_ac(grupo, f"{telha_tipo} (m²)", area_telha * perda, "m²",
-          "trapezoidal × √(1+i²) × perda", "estimado")
-    mk_ac(grupo, "Cumeeira (m)", bb["x1"] - bb["x0"], "m", "comprimento", "estimado")
-    mk_ac(grupo, "Calha (m)", 2 * (bb["x1"] - bb["x0"]), "m", "2 águas", "estimado")
+          "trapezoidal × √(1+i²) × perda", conf)
+    mk_ac(grupo, "Cumeeira (m)", bb["x1"] - bb["x0"], "m", "comprimento", conf)
+    mk_ac(grupo, "Calha (m)", 2 * (bb["x1"] - bb["x0"]), "m", "2 águas", conf)
 
     return pecas, acess, alertas
 

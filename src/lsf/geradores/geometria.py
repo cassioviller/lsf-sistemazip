@@ -19,9 +19,11 @@ def encadear_contorno(segmentos):
     pts = [segs[0]["a"], segs[0]["b"]]
     segs.pop(0)
     eq = lambda p, q: math.hypot(p[0] - q[0], p[1] - q[1]) < _EPS_NO
-    guard = 0
-    while segs and guard < 200:
-        guard += 1
+    # sem guard de iterações: cada volta ou consome um segmento (pop) ou sai pelo
+    # break, então o laço já termina em <= len(segs). O guard fixo do v7 (200)
+    # truncava o contorno em silêncio num pavimento com mais de 200 paredes
+    # externas — footprint menor, kg menor, nenhum aviso.
+    while segs:
         tail = pts[-1]
         i = next((k for k, s in enumerate(segs)
                   if eq(s["a"], tail) or eq(s["b"], tail)), -1)
