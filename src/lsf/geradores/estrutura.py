@@ -95,6 +95,24 @@ def _regra(regras: dict, chave: str) -> float:
     return regras[chave]
 
 
+def _indice_do_radier(con, projeto_id: int | None = None,
+                      parede_id: int | None = None) -> int:
+    """Menor `nivel.indice` do projeto — o pavimento que apoia no radier.
+
+    O schema documenta "0 = térreo", mas nada obriga o 0 a existir: um projeto com
+    subsolo (-1) ou numerado a partir de 1 faria toda regra escrita como
+    `indice == 0` (ancoragem DP-04, envelope) sumir sem avisar."""
+    if projeto_id is None:
+        projeto_id = con.execute(
+            "SELECT n.projeto_id FROM parede p JOIN nivel n ON n.id = p.nivel_id"
+            " WHERE p.id = ?", (parede_id,)).fetchone()[0]
+    linha = con.execute("SELECT MIN(indice) FROM nivel WHERE projeto_id = ?",
+                        (projeto_id,)).fetchone()
+    if linha is None or linha[0] is None:
+        raise DadoIndisponivel(f"projeto {projeto_id} sem níveis")
+    return linha[0]
+
+
 def _perfil(con, codigo: str) -> dict:
     linha = con.execute(
         "SELECT alma_mm, massa_kg_m, aba_mm, enrijecedor_mm, espessura_mm"
@@ -159,11 +177,14 @@ def gerar_parede(con, parede_id: int, contrav: str | None = None,
     if linha is None:
         raise DadoIndisponivel(f"parede {parede_id} não existe")
     externa, perfil_m, conf, ax, ay, bx, by, pd, nivel_indice = tuple(linha)
-    # REGRA DP-04: só o térreo ancora no radier; painel de pavimento superior
+    # REGRA DP-04: só quem apoia no radier ancora; painel de pavimento superior
     # aparafusa no painel de baixo [OBRA p.8-9]. O v7 filtra por nome do acessório
     # em montarProjeto (/Parabolt|Ancorador/i); aqui a parede simplesmente não gera
     # o que não existe — sem isso, a 109 orçaria 3,06x a ancoragem real.
-    no_radier = nivel_indice == 0
+    # O radier é o MENOR nível do projeto, não o índice 0 chumbado: um projeto com
+    # subsolo (-1) ou numerado a partir de 1 perderia a ancoragem inteira em
+    # silêncio — o mesmo erro, de sinal trocado.
+    no_radier = nivel_indice == _indice_do_radier(con, parede_id=parede_id)
     comp = math.hypot(bx - ax, by - ay)
     if comp <= 0 or pd <= 0:
         raise DadoIndisponivel(f"parede {parede_id} degenerada (comp={comp}, pd={pd})")
@@ -1233,7 +1254,7 @@ def rodar_gates_envelope(con, projeto_id: int, pecas: list[Peca]) -> list[str]:
     O v7 marca sev='alta'; aqui vira pendência estrutural: kg de peça que caiu
     fora do prédio já entrou no orçamento, então tem que viajar marcado.
     """
-    fp = contorno_pavimento(con, projeto_id, 0)
+    fp = contorno_pavimento(con, projeto_id, _indice_do_radier(con, projeto_id))
     if not fp:
         return []
     bb = bbox(fp)
@@ -1376,16 +1397,6 @@ def _acessorios_de_edificio(con, projeto_id: int, todas: list[Peca]) -> list[Ace
             "Parafuso flang. 4,8×19 — verga DX-11 (guias, @200mm)", n, "un",
             "parede", "GERAL", "A5/VERGA-003 [DX-11 p.40]", "parametrico"))
 
-    # AD/BX [OBRA p.7-24]: barras avulsas do kit, ~2% do aço. É AÇO (un=kg), não
-    # ferragem: somem com isso e o orçamento perde 2% do material.
-    kg = sum(p.comp * _perfil(con, p.perfil)["massa_kg_m"] for p in todas)
-    if kg > 0:
-        acess.append(Acessorio(
-            "Perfis adicionais AD/BX (barras avulsas — ver pranchas)",
-            _round_js(kg * _regra(R, "adbx_frac_kg")), "kg", "acessorio", "GERAL",
-            "OBRA p.7-24: AD10/11/13/14/17, BX1/BX3 por prancha (±2% adotado)",
-            "estimado"))
-
     # Laje exposta ao tempo (varanda/pátio descobertos): impermeabilização + guarda-corpo
     folga = _regra(R, "impermeab_folga")
     for nome, w, d, tipo, conf in con.execute(
@@ -1479,6 +1490,19 @@ def gerar_estrutura(con, projeto_id: int) -> EstruturaProjeto:
     kg_liquido = sum(pl.kg for pl in plano)
     kg_comprado = sum(
         pl.barras * barra * _perfil(con, pl.perfil)["massa_kg_m"] for pl in plano)
+
+    # AD/BX [OBRA p.7-24]: barras avulsas do kit, ~2% do aço. É AÇO (un=kg), não
+    # ferragem: somem com isso e o orçamento perde 2% do material. Sai do
+    # `kg_liquido` já agregado pelo plano — computá-lo peça a peça custaria uma
+    # consulta de perfil por peça (~2.900) para chegar no mesmo número, já que a
+    # BOX-003 reparte as peças sem mudar o comprimento total.
+    if kg_liquido > 0:
+        acess.append(Acessorio(
+            "Perfis adicionais AD/BX (barras avulsas — ver pranchas)",
+            _round_js(kg_liquido * _regra(_regras(con), "adbx_frac_kg")), "kg",
+            "acessorio", "GERAL",
+            "OBRA p.7-24: AD10/11/13/14/17, BX1/BX3 por prancha (±2% adotado)",
+            "estimado"))
     # coeficientes das regras são `estimado` (sem calibração de obra): o resultado
     # nunca é melhor que estimado, por pior que seja a geometria (D4)
     # dedup antes de passar: o domínio tem 3 valores, não ~2.900 (uma por peça)
