@@ -319,7 +319,17 @@ INSERT INTO regra_lsf (chave,valor,unidade,referencia) VALUES
  ('laje_chapa_l_passo_m',3.00,'m','DX-06 [OBRA p.6/8]: 1 Chapa L de 3 m por 3 m de perímetro'),
  ('laje_cantoneira_por_viga',0.80,'un/viga','painel 1L8 p.28: 13 cantoneiras / 16 vigas'),
  ('adbx_frac_kg',0.02,'-','OBRA p.7-24: AD10/11/13/14/17, BX1/BX3 por prancha (±2% adotado)'),
- ('impermeab_folga',1.10,'-','área descoberta [folha 102] + 10%')
+ ('impermeab_folga',1.10,'-','área descoberta [folha 102] + 10%'),
+ -- instalações [HID R02 p.1-7 · CRI gás p.1]
+ ('instal_furos_por_ponto',2,'un','DP-08: 2 furos de serviço por ponto'),
+ ('instal_paraf_chapa_reforco',8,'un','DP-08: 8 parafusos por chapa de reforço'),
+ ('instal_luva_gas_m',2.50,'m','CRI gás: tubo-luva PVC por ponto de GLP'),
+ ('instal_furo_max_cm',12,'cm','HID-FURO-001: furo máx. 12cm na zona de tração'),
+ ('instal_furo_max_h_frac',3,'-','HID-FURO-001: furo máx. h/3 da altura da viga'),
+ ('instal_furo_espac_min_h',2,'-','HID R02: espaçamento entre furos >= 2h'),
+ ('instal_furo_vert_max_mm',50,'mm','HID R02: furo vertical Ø <= 50mm'),
+ ('instal_gas_afast_eletrica_cm',30,'cm','CRI gás p.1: GLP >= 30cm da elétrica'),
+ ('instal_gas_ponto_alt_min_cm',60,'cm','CRI gás p.1: ponto de GLP >= 60cm do piso')
 ON CONFLICT (chave) DO UPDATE SET
   valor=excluded.valor, unidade=excluded.unidade, referencia=excluded.referencia;
 

@@ -173,7 +173,7 @@ const projeto = JSON.parse(JSON.stringify({
   footprint: globalThis.BUILDING.footprint,
   lajes: PROJECT.lajes, escadas: PROJECT.escadas,
   cobertura: PROJECT.cobertura, descobertas: PROJECT.descobertas,
-  forro: PROJECT.forro,
+  forro: PROJECT.forro, instalacoes: PROJECT.instalacoes,
 }));
 
 // kg comprado por sistema: nesting isolado do sistema (v7 resumoPorSistema),

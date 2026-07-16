@@ -83,10 +83,11 @@ def test_projeto_sem_pendencia_nao_marca_a_eap(projeto_109_estrutura):
     from lsf.geradores.estrutura import MARCA_PENDENCIA, derivar_quantitativos
 
     con, pid = projeto_109_estrutura
-    # sem laje não há verificação de viga → não há pendência estrutural
+    # as duas fontes de pendência hoje: viga que reprova (laje) e furo em viga
     con.execute("DELETE FROM laje_abertura")
     con.execute("DELETE FROM laje_extensao")
     con.execute("DELETE FROM laje WHERE projeto_id = ?", (pid,))
+    con.execute("DELETE FROM furo_critico WHERE projeto_id = ?", (pid,))
 
     r = derivar_quantitativos(con, pid)
     assert r["pendencias_estruturais"] == []

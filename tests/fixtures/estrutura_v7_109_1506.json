@@ -2492,6 +2492,18 @@
    "grupo": "1FR",
    "origem": "derivado bloco 1FR p.16-20: Ue70#0.80 + U72#0.80",
    "confianca": "estimado"
+  },
+  "instalacoes": {
+   "pontosHidro": 14,
+   "pontosGas": 2,
+   "pontosEle": 0,
+   "furosCriticos": [
+    {
+     "ondeSistema": "laje",
+     "grupo": "1LJ",
+     "h": 0.25
+    }
+   ]
   }
  },
  "sistemas": {

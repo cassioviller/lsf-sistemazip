@@ -336,5 +336,18 @@ def projeto_109_estrutura(con, oraculo, projeto_109):
         " VALUES (?,?,?,?,?,?)",
         (pid, f["perfil"], f["perfilBorda"], f["esp"], f["grupo"], f["confianca"]))
 
+    # instalações: o v7 não carrega confiança nesse bloco (é contagem de pontos do
+    # projeto, não medida) — a fixture assume `estimado`, como os demais inputs.
+    inst = P["instalacoes"]
+    con.execute(
+        "INSERT INTO instalacao (projeto_id, pontos_hidro, pontos_gas, pontos_ele,"
+        " confianca) VALUES (?,?,?,?,'estimado')",
+        (pid, inst["pontosHidro"], inst["pontosGas"], inst["pontosEle"]))
+    for fc in inst.get("furosCriticos", []):
+        con.execute(
+            "INSERT INTO furo_critico (projeto_id, onde_sistema, grupo, h_m, confianca)"
+            " VALUES (?,?,?,?,'estimado')",
+            (pid, fc["ondeSistema"], fc["grupo"], fc["h"]))
+
     con.commit()
     return con, pid

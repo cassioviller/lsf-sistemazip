@@ -1223,6 +1223,73 @@ def plano_de_corte(con, pecas: list[Peca], barra_m: float) -> list[PlanoCortePer
     return plano
 
 
+def gerar_acessorios_instalacoes(con, projeto_id: int) -> tuple[list[Acessorio], list[str]]:
+    """Porta de `gerarAcessoriosInstalacoes` (v7): furo de serviço + chapa de
+    reforço por ponto de instalação, tubo-luva nos pontos de GLP, e o furo crítico
+    em viga.
+
+    origem_regra: HID R02 p.1-7 (furo na zona de tração, Ø <= 12 cm ou h/3,
+    espaçamento entre furos >= 2h, furo vertical Ø <= 50 mm) · CRI gás p.1 (gás a
+    >= 30 cm da elétrica, ponto >= 60 cm do piso) · DP-08 (2 furos/ponto, 8
+    parafusos/chapa).
+
+    Furo em viga acima do limite é decisão ESTRUTURAL, não item de lista: o v7
+    marca sev='alta' e aqui vira `MARCA_PENDENCIA`, que sobe até a EAP.
+    """
+    R = _regras(con)
+    acess: list[Acessorio] = []
+    alertas: list[str] = []
+
+    linha = con.execute(
+        "SELECT pontos_hidro, pontos_gas, pontos_ele, confianca"
+        "  FROM instalacao WHERE projeto_id = ?", (projeto_id,)).fetchone()
+    if linha is None:
+        # sem instalações cadastradas: escopo, não dado faltante (um galpão pode
+        # não ter ponto nenhum). Quem barra proposta com escopo vazio é o gate R7.
+        return acess, ["projeto sem instalações: furos/luvas não quantificados"]
+    hidro, gas, ele, conf = tuple(linha)
+    conf = pior_confianca(conf, "estimado")
+    n = hidro + gas + ele
+
+    if n:
+        furos = n * _regra(R, "instal_furos_por_ponto")
+        acess.append(Acessorio(
+            "Furo de serviço ⌀35mm (chapa de reforço)", furos, "un", "acessorio",
+            "1DC", "2 furos/ponto [DP-08]", conf))
+        acess.append(Acessorio(
+            "Parafuso 4,8×19 — chapas de reforço",
+            furos * _regra(R, "instal_paraf_chapa_reforco"), "un", "acessorio",
+            "1DC", "8/chapa [DP-08]", "parametrico"))
+
+    if gas:
+        acess.append(Acessorio(
+            "Tubo-luva PVC p/ GLP", _round_js(gas * _regra(R, "instal_luva_gas_m"), 1),
+            "m", "acessorio", "1DC", "CRI gás", conf))
+        alertas.append(
+            f"Gás: >= {_regra(R, 'instal_gas_afast_eletrica_cm'):.0f}cm da elétrica,"
+            f" ponto >= {_regra(R, 'instal_gas_ponto_alt_min_cm'):.0f}cm do piso."
+            " Compatibilizar no executivo. [CRI gás p.1]")
+
+    for onde, grupo, h, conf_fc in con.execute(
+            "SELECT onde_sistema, grupo, h_m, confianca FROM furo_critico"
+            " WHERE projeto_id = ? ORDER BY id", (projeto_id,)):
+        # REGRA HID-FURO-001: o limite é o MENOR entre 12 cm e h/3
+        d_max = min(_regra(R, "instal_furo_max_cm") / 100,
+                    h / _regra(R, "instal_furo_max_h_frac"))
+        acess.append(Acessorio(
+            "Chapa de reforço p/ furo crítico", 1, "un", onde, grupo,
+            "furo > dmax [HID-FURO-001/003]", pior_confianca(conf_fc, "estimado")))
+        alertas.append(
+            f"{MARCA_PENDENCIA} Furo em viga da {grupo} ({onde}): máx"
+            f" {d_max * 1000:.0f}mm (12cm ou h/3), na zona de tração; espaçamento"
+            f" entre furos >= {_regra(R, 'instal_furo_espac_min_h'):.0f}h; furo"
+            f" vertical Ø <= {_regra(R, 'instal_furo_vert_max_mm'):.0f}mm. Acima"
+            " disso: chapa de reforço + 8 parafusos e verificação de engenheiro"
+            " [REGRA HID-FURO-001/003, HID R02 p.1-7].")
+
+    return acess, alertas
+
+
 def _acessorios_dx06(con, info: dict) -> list[Acessorio]:
     """DX-06 [OBRA p.6/8]: chapa L de elevação no perímetro da laje + cantoneira de
     ligação viga-borda. O v7 monta isto no nível do edifício lendo `L._nVigas`, que
@@ -1343,6 +1410,9 @@ def gerar_estrutura(con, projeto_id: int) -> EstruturaProjeto:
         acess += a
         alertas += al
 
+    a_inst, al_inst = gerar_acessorios_instalacoes(con, projeto_id)
+    acess += a_inst
+    alertas += al_inst
     acess += _acessorios_de_edificio(con, projeto_id, todas)
 
     # REGRA BOX-003 antes do corte: peça acima de 6 m não existe — vira n partes
