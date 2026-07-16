@@ -572,7 +572,14 @@ def gerar_laje(con, laje_id: int) -> tuple[list[Peca], list[Acessorio], list[str
         for a, b in scan(fp, z, "z"):
             max_span = max(max_span, b - a)
         z += 0.5
-    # simplificação conservadora do v7: portante interna longa parte o vão ao meio
+    # O /2 NÃO é chute nem "simplificação": é o apoio intermediário no meio do vão.
+    # Na 109 esse apoio é a viga laminada 1VG da obra (v7: "laminada no meio do vão
+    # [estudo NBR: reduz vãoEf/2; OBRA 1VG p.9]"), que parte a largura do prédio
+    # (~15,8 m) nos ~7,9 m que as vigas de laje LSF realmente vencem. Por isso o
+    # veredito 'laminada' bate com o que foi construído: 1VG + pilares 1AL.
+    # Generalizar isso para o apoio REAL (paredes portantes internas da
+    # planta_normalizada, em vez de metade do bbox) é o estágio 3 da Fase 2
+    # (takedown de cargas por parede real) — não mexer aqui sem aquele plano.
     vao_ef = max_span / 2
     perf_v, perf_b, origem_par = _perfis_laje(con, perfil_viga_in, vao_ef)
 
