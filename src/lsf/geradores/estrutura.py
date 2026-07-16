@@ -664,6 +664,144 @@ def gerar_laje(con, laje_id: int) -> tuple[list[Peca], list[Acessorio], list[str
     return pecas, acess, alertas
 
 
+# ---------- escada (porta fiel de gerarPecasEscada, v7:893-946) ----------
+
+_O_ESCADA = ("484125 1ES1: longarina Ue140+U142, degrau Ue90#0.95,"
+             " reforço 140 @150mm")
+
+
+def gerar_escada(con, escada_id: int, com_info: bool = False):
+    """Escada em U: 2 lances lado a lado + patamar no topo do poço.
+
+    Porta fiel de v7:893-946. Os lances correm na MAIOR dimensão do poço; a
+    largura de cada lance é metade da menor. `com_info=True` acrescenta o dict de
+    geometria (n_degraus/espelho/piso) que o v7 expunha em `E._info`.
+    """
+    linha = con.execute(
+        "SELECT id_escada, grupo, vao_x, vao_z, vao_w, vao_d, altura, nivel_inicial,"
+        "       longarina_perfil_a, longarina_perfil_b, degrau_perfil, confianca"
+        "  FROM escada WHERE id = ?", (escada_id,)).fetchone()
+    if linha is None:
+        raise DadoIndisponivel(f"escada {escada_id} não existe")
+    (id_escada, grupo, vx, vz, vw, vd, altura, y0, long_a, long_b, perf_degrau,
+     conf_escada) = tuple(linha)
+
+    R = _regras(con)
+    espelho_max = _regra(R, "escada_espelho_max")
+    piso_min = _regra(R, "escada_piso_min")
+    piso_abs_min = _regra(R, "escada_piso_abs_min")
+    fix_lateral = _regra(R, "escada_fix_lateral_mm")
+
+    conf = pior_confianca(conf_escada, "estimado")
+    pecas: list[Peca] = []
+    acess: list[Acessorio] = []
+    alertas: list[str] = []
+    seq: dict[str, int] = {}
+
+    n_deg = max(4, math.ceil(altura / espelho_max))
+    espelho = altura / n_deg
+    along_z = vd >= vw                  # lances correm na maior dimensão do poço
+    run_dim = vd if along_z else vw
+    larg_dim = vw if along_z else vd
+    larg_lance = larg_dim / 2           # U: 2 lances lado a lado
+    patamar_prof = larg_dim             # patamar quadrado no topo do poço
+    n_d1 = math.ceil(n_deg / 2)
+    n_d2 = n_deg - n_d1
+    piso = min(piso_min, max(piso_abs_min, run_dim / n_d1))   # piso limitado pelo poço
+    run1 = n_d1 * piso
+    run2 = n_d2 * piso
+
+    if piso < piso_min - 1e-3:
+        alertas.append(
+            f"{id_escada}: piso {piso * 1000:.0f}mm < {piso_min * 1000:.0f}mm p/ caber"
+            f" no vão de {run_dim:.2f}m. Ampliar o vão de escada na laje ou aceitar"
+            " arranque fora do poço no térreo.")
+    if run1 > run_dim + 0.31:
+        alertas.append(
+            f"{id_escada}: lance de {run1:.2f}m excede o poço de {run_dim:.2f}m —"
+            " arranque sai do vão (comum no piso de partida). Confirmar arranque"
+            " no executivo.")
+
+    h_meio = espelho * n_d1
+
+    def P(u, w, y):
+        """u = direção do lance, w = transversal (v7: helper P)."""
+        return (vx + w, y, vz + u) if along_z else (vx + u, y, vz + w)
+
+    def seg(tipo, perfil, a, b, origem=_O_ESCADA, confianca=None):
+        ax, ay, az = P(*a)
+        bx, by, bz = P(*b)
+        pfx = "".join(c for c in tipo if c.isalpha())[:3].upper()
+        chave = grupo + pfx
+        seq[chave] = seq.get(chave, 0) + 1
+        comp = math.hypot(bx - ax, by - ay, bz - az)
+        pecas.append(Peca(f"{grupo}-{pfx}{seq[chave]}", tipo, perfil, ax, ay, bx, by,
+                          _round_js(comp, 4), origem, "escada", grupo, az, bz,
+                          confianca or conf))
+
+    def mk_ac(item, qtd, un, origem, confianca):
+        acess.append(Acessorio(item, _round_js(qtd, 1), un, "escada", grupo, origem,
+                               confianca))
+
+    # LANCE 1 (sobe, faixa w:[0, larg_lance])
+    for w_off in (0.03, larg_lance - 0.03):
+        for pf in (long_a, long_b):
+            seg("longarina", pf, (0, w_off, y0), (run1, w_off, y0 + h_meio),
+                "longarina composta Ue140+U142 [1ES1]")
+    for i in range(1, n_d1 + 1):
+        seg("travessa_degrau", perf_degrau,
+            (i * piso, 0, y0 + i * espelho), (i * piso, larg_lance, y0 + i * espelho))
+
+    # PATAMAR (no fim do lance 1, largura total do poço)
+    u_p = min(run1, run_dim - 0.4)
+    u_p2 = min(u_p + 0.9, run_dim)
+    seg("patamar", long_a, (u_p, 0, y0 + h_meio), (u_p, larg_dim, y0 + h_meio),
+        "frame do patamar")
+    seg("patamar", long_a, (u_p2, 0, y0 + h_meio), (u_p2, larg_dim, y0 + h_meio),
+        "frame do patamar")
+    seg("patamar", long_b, (u_p, 0, y0 + h_meio), (u_p2, 0, y0 + h_meio),
+        "guia patamar")
+    seg("patamar", long_b, (u_p, larg_dim, y0 + h_meio), (u_p2, larg_dim, y0 + h_meio),
+        "guia patamar")
+
+    # LANCE 2 (volta, faixa w:[larg_lance, larg_dim]) — desce em u
+    for w_off in (larg_lance + 0.03, larg_dim - 0.03):
+        for pf in (long_a, long_b):
+            seg("longarina", pf, (u_p, w_off, y0 + h_meio),
+                (max(u_p - run2, 0), w_off, y0 + altura), "longarina composta [1ES1]")
+    for i in range(1, n_d2 + 1):
+        seg("travessa_degrau", perf_degrau,
+            (u_p - i * piso, larg_lance, y0 + h_meio + i * espelho),
+            (u_p - i * piso, larg_dim, y0 + h_meio + i * espelho))
+
+    # reforço lateral @150mm + chapa L (2 lados externos)
+    # v7 fixa 'Ue140#1.25' aqui; é o mesmo perfil da longarina_a — lido do banco
+    # para que o par continue coerente se o projeto trocar a longarina.
+    d_inc1 = math.hypot(run1, h_meio)
+    d_inc2 = math.hypot(run2, altura - h_meio)
+    seg("reforco_lateral", long_a, (0, 0, y0), (run1, 0, y0 + h_meio),
+        "reforço lateral 140mm [DE-02]")
+    seg("reforco_lateral", long_a, (u_p, larg_dim, y0 + h_meio),
+        (max(u_p - run2, 0), larg_dim, y0 + altura), "reforço lateral 140mm [DE-02]")
+
+    mk_ac("Chapa L #0,95 89×89×3000 (reforço lateral)", 2, "un", _O_ESCADA, conf)
+    mk_ac("Parafuso 4,8×19 — reforço lateral @150mm",
+          math.ceil((d_inc1 + d_inc2) / (fix_lateral / 1000)) * 2, "un",
+          "@150mm [DE-02]", "parametrico")
+    mk_ac("Parafuso 4,8×19 — degraus (4/degrau)", n_deg * 4, "un", _O_ESCADA,
+          "parametrico")
+    mk_ac("Chapa Gousset 150×150 #1,25 (escada)", 2, "un", "1ES1: 2/painel", conf)
+    area_piso = n_deg * piso * larg_lance + patamar_prof * larg_dim * 0.9
+    mk_ac("Chapa de piso degraus/patamar", math.ceil(area_piso * 1.10 / 2.88),
+          "chapa", "área + 10%", "estimado")
+
+    if com_info:
+        info = {"n_degraus": n_deg, "espelho": _round_js(espelho, 3),
+                "piso": _round_js(piso, 3), "lances": 2}
+        return pecas, acess, alertas, info
+    return pecas, acess, alertas
+
+
 @dataclass(frozen=True)
 class PlanoCortePerfil:
     perfil: str

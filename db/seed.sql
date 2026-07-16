@@ -328,6 +328,7 @@ INSERT INTO regra_lsf (chave,valor,unidade,referencia) VALUES
   ('laje_fix_alma_paraf',5,'un','REGRA LAJE-007 [DL-01 p.21-39]'),
   ('escada_espelho_max',0.175,'m','v7 REGRAS_SIS.escada.espelhoMax'),
   ('escada_piso_min',0.28,'m','v7 REGRAS_SIS.escada.pisoMin'),
+  ('escada_piso_abs_min',0.24,'m','v7 gerarPecasEscada: piso nunca abaixo de 0,24m mesmo em poço curto (abaixo disso vira alerta)'),
   ('escada_fix_lateral_mm',150,'mm','1ES1: reforço 140 @150mm'),
   ('cobertura_esp_tesoura',1.20,'m','v7 REGRAS_SIS.cobertura.espTesoura'),
   ('cobertura_passo_mont',0.40,'m','1TS41-46: ~10 montantes/3,77m [p.44-49]'),
