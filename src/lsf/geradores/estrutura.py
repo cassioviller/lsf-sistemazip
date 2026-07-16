@@ -1491,18 +1491,26 @@ def gerar_estrutura(con, projeto_id: int) -> EstruturaProjeto:
     kg_comprado = sum(
         pl.barras * barra * _perfil(con, pl.perfil)["massa_kg_m"] for pl in plano)
 
-    # AD/BX [OBRA p.7-24]: barras avulsas do kit, ~2% do aço. É AÇO (un=kg), não
-    # ferragem: somem com isso e o orçamento perde 2% do material. Sai do
-    # `kg_liquido` já agregado pelo plano — computá-lo peça a peça custaria uma
-    # consulta de perfil por peça (~2.900) para chegar no mesmo número, já que a
-    # BOX-003 reparte as peças sem mudar o comprimento total.
+    # AD/BX [OBRA p.7-24]: barras avulsas do kit, ~2% do aço — INFORMATIVO, como no
+    # v7 (que lista o item na tabela de acessórios e NÃO o soma ao aço do orçamento:
+    # a linha orçada é `compT` seca).
+    #
+    # NÃO PRECIFICAR À PARTE: a composição VK-C-001 já consome 1,02 kg de perfil por
+    # kg de estrutura — esses mesmos 2%. Some as duas coisas e o aço infla 2% em
+    # silêncio. Por isso a fração sai de `perda_perfil_pct`, cuja `referencia` no
+    # seed carrega o aviso, em vez de uma chave nova que o esconderia.
+    #
+    # Sai do `kg_liquido` já agregado pelo plano: computá-lo peça a peça custaria
+    # uma consulta de perfil por peça (~2.900) para o mesmo número, já que a BOX-003
+    # reparte as peças sem mudar o comprimento total.
     if kg_liquido > 0:
         acess.append(Acessorio(
             "Perfis adicionais AD/BX (barras avulsas — ver pranchas)",
-            _round_js(kg_liquido * _regra(_regras(con), "adbx_frac_kg")), "kg",
-            "acessorio", "GERAL",
-            "OBRA p.7-24: AD10/11/13/14/17, BX1/BX3 por prancha (±2% adotado)",
-            "estimado"))
+            _round_js(kg_liquido * _regra(_regras(con), "perda_perfil_pct") / 100),
+            "kg", "acessorio", "GERAL",
+            "OBRA p.7-24: AD10/11/13/14/17, BX1/BX3 por prancha (±2% adotado)."
+            " INFORMATIVO — já embutido no coef. 1,02 da VK-C-001; não precificar"
+            " à parte (perda_perfil_pct)", "estimado"))
     # coeficientes das regras são `estimado` (sem calibração de obra): o resultado
     # nunca é melhor que estimado, por pior que seja a geometria (D4)
     # dedup antes de passar: o domínio tem 3 valores, não ~2.900 (uma por peça)

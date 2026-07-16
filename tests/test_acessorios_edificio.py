@@ -59,8 +59,7 @@ def test_chapa_l_e_cantoneira_da_laje_dx06(projeto_109_estrutura):
 
 
 def test_perfis_adbx_sao_2pct_do_kg_e_saem_em_kg(projeto_109_estrutura):
-    """AD/BX é AÇO avulso do kit, não parafuso: sai em kg e pesa ~473 kg na 109.
-    Some isso e o orçamento perde 2% do aço."""
+    """AD/BX é AÇO avulso do kit, não parafuso: sai em kg e pesa ~473 kg na 109."""
     from lsf.geradores.estrutura import gerar_estrutura
 
     con, pid = projeto_109_estrutura
@@ -70,6 +69,34 @@ def test_perfis_adbx_sao_2pct_do_kg_e_saem_em_kg(projeto_109_estrutura):
     assert len(adbx) == 1
     assert adbx[0].un == "kg"
     assert adbx[0].qtd == pytest.approx(round(est.kg_liquido * 0.02), abs=1)
+
+
+def test_adbx_usa_perda_perfil_pct_e_avisa_do_coef_da_composicao(con, projeto_109_estrutura):
+    """Armadilha de 2%: a composição VK-C-001 já consome 1,02 kg de perfil por kg
+    de estrutura — os MESMOS 2% do AD/BX. Precificar o acessório à parte infla o
+    aço em 2% em silêncio (o v7 lista o item e NÃO o soma ao orçamento).
+
+    Por isso a fração tem que sair de `perda_perfil_pct`, cuja referência no seed
+    carrega o aviso — uma chave nova esconderia. E a peça tem que dizer isso na
+    origem, porque quem for ligar acessório→EAP lê a origem, não este teste."""
+    from lsf.geradores.estrutura import gerar_estrutura
+
+    con2, pid = projeto_109_estrutura
+    adbx = _itens(gerar_estrutura(con2, pid), "AD/BX")[0]
+
+    assert "INFORMATIVO" in adbx.origem_regra
+    assert "1,02" in adbx.origem_regra and "VK-C-001" in adbx.origem_regra
+
+    # a regra é a mesma que o coeficiente da composição embute
+    pct = con2.execute(
+        "SELECT valor FROM regra_lsf WHERE chave = 'perda_perfil_pct'").fetchone()[0]
+    coef = con2.execute(
+        "SELECT ci.coeficiente FROM composicao_item ci"
+        " JOIN composicao co ON co.id = ci.composicao_id"
+        " WHERE co.codigo_fonte = 'VK-C-001' AND ci.coeficiente > 1").fetchone()[0]
+    assert coef == pytest.approx(1 + pct / 100), (
+        "o coeficiente da VK-C-001 e a perda_perfil_pct saíram de sincronia —"
+        " um dos dois está contando o AD/BX errado")
 
 
 def test_descoberta_gera_impermeabilizacao_e_guarda_corpo(projeto_109_estrutura):

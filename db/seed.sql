@@ -318,7 +318,6 @@ INSERT INTO regra_lsf (chave,valor,unidade,referencia) VALUES
  ('verga_paraf_passo_m',0.20,'m','A5/VERGA-002-003 [DX-11 p.40]: parafuso de verga @200mm'),
  ('laje_chapa_l_passo_m',3.00,'m','DX-06 [OBRA p.6/8]: 1 Chapa L de 3 m por 3 m de perímetro'),
  ('laje_cantoneira_por_viga',0.80,'un/viga','painel 1L8 p.28: 13 cantoneiras / 16 vigas'),
- ('adbx_frac_kg',0.02,'-','OBRA p.7-24: AD10/11/13/14/17, BX1/BX3 por prancha (±2% adotado)'),
  ('impermeab_folga',1.10,'-','área descoberta [folha 102] + 10%'),
  -- instalações [HID R02 p.1-7 · CRI gás p.1]
  ('instal_furos_por_ponto',2,'un','DP-08: 2 furos de serviço por ponto'),
@@ -371,3 +370,21 @@ INSERT INTO regra_lsf (chave,valor,unidade,referencia) VALUES
   ('sec_ue250_ix',5780000,'mm⁴','NBR 14762 (entrada) · SEC_Ue250.Ix=5.78e6 (v7:634)')
 ON CONFLICT (chave) DO UPDATE SET
   valor=excluded.valor, unidade=excluded.unidade, referencia=excluded.referencia;
+
+-- ============================================================
+-- Camadas por tipo de parede (migração 013) — o que o spike 4 tinha chumbado.
+-- Externa: fechamento cimentício + membrana na face externa, gesso na interna.
+-- Interna: gesso nas DUAS faces (faces=2), sem cimentícia nem membrana.
+-- ============================================================
+INSERT INTO camada_parede (tipo,material,faces,origem) VALUES
+ ('externa','Peso próprio perfis parede (ref.)',1,'spike 4 / OBRA 1PV'),
+ ('externa','OSB 11,1mm',1,'spike 4: diafragma/substrato'),
+ ('externa','Placa cimentícia 10mm',1,'spike 4: face externa'),
+ ('externa','Gesso ST 12,5mm',1,'spike 4: face interna'),
+ ('externa','Lã de vidro 50mm',1,'spike 4: isolamento'),
+ ('externa','Membrana hidrófuga',1,'spike 4: face externa'),
+ ('interna','Peso próprio perfis parede (ref.)',1,'OBRA 1PV'),
+ ('interna','Gesso ST 12,5mm',2,'divisória: gesso nas duas faces'),
+ ('interna','Lã de vidro 50mm',1,'isolamento acústico')
+ON CONFLICT (tipo,material) DO UPDATE SET
+  faces=excluded.faces, origem=excluded.origem;
