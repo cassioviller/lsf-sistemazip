@@ -54,6 +54,48 @@ def test_viga_em_modo_laminada_nao_se_diz_verificada(projeto_109_estrutura):
     assert any("PROVISÃO" in p.origem_regra for p in pecas)
 
 
+def test_pendencia_estrutural_sobe_ate_a_eap_e_nao_morre_no_retorno(projeto_109_estrutura):
+    """O achado mais grave do review: `derivar_quantitativos` lia só kg e confiança,
+    então o alerta 'reprova até viga dupla' das duas lajes da 109 morria no retorno
+    e a 03.01 recebia um kg limpo. Gate que não bloqueia nem avisa é disclaimer
+    morto — a pendência tem que chegar na linha da EAP."""
+    from lsf.geradores.estrutura import MARCA_PENDENCIA, derivar_quantitativos
+
+    con, pid = projeto_109_estrutura
+    r = derivar_quantitativos(con, pid)
+
+    assert r["gravado"] is True
+    assert r["pendencias_estruturais"], "a 109 reprova nas duas lajes"
+    assert all(p.startswith(MARCA_PENDENCIA) for p in r["pendencias_estruturais"])
+    assert r["alertas"], "os alertas do gerador têm que subir no retorno"
+
+    origem_regra = con.execute(
+        "SELECT origem_regra FROM quantitativo q JOIN eap_item e ON e.id = q.eap_item_id"
+        " WHERE e.codigo = '03.01' AND q.projeto_id = ?", (pid,)).fetchone()[0]
+    assert MARCA_PENDENCIA in origem_regra, (
+        "o kg foi gravado na EAP sem rastro de que a verificação reprovou")
+    assert "PROVISÃO" in origem_regra
+
+
+def test_projeto_sem_pendencia_nao_marca_a_eap(projeto_109_estrutura):
+    """A marca só aparece quando há reprovação: sem isso ela viraria ruído e
+    pararia de significar alguma coisa."""
+    from lsf.geradores.estrutura import MARCA_PENDENCIA, derivar_quantitativos
+
+    con, pid = projeto_109_estrutura
+    # sem laje não há verificação de viga → não há pendência estrutural
+    con.execute("DELETE FROM laje_abertura")
+    con.execute("DELETE FROM laje_extensao")
+    con.execute("DELETE FROM laje WHERE projeto_id = ?", (pid,))
+
+    r = derivar_quantitativos(con, pid)
+    assert r["pendencias_estruturais"] == []
+    origem_regra = con.execute(
+        "SELECT origem_regra FROM quantitativo q JOIN eap_item e ON e.id = q.eap_item_id"
+        " WHERE e.codigo = '03.01' AND q.projeto_id = ?", (pid,)).fetchone()[0]
+    assert MARCA_PENDENCIA not in origem_regra
+
+
 def test_diagonal_de_canto_aponta_para_dentro_mesmo_sem_beiral(projeto_109_estrutura):
     """`direcao = 1 if xe < bb.x0 else -1` invertia a ponta esquerda quando
     beiral=0 (xe == bb.x0 → False → -1), jogando a diagonal para fora da água."""

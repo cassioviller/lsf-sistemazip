@@ -19,6 +19,14 @@ class DadoIndisponivel(Exception):
     """Perfil/regra/dado ausente é ERRO — nunca peça pulada, nunca kg parcial (D4.1)."""
 
 
+# Prefixo dos alertas que significam "a estrutura gerada NÃO passa na verificação".
+# O kg segue sendo emitido (o orçamento precisa de um número), mas a pendência tem
+# que viajar junto até a EAP — alerta que morre no retorno é disclaimer morto, e o
+# CLAUDE.md manda gate bloquear, não avisar. Marcado em vez de deduzido por texto:
+# `pendencias_estruturais` filtra por este prefixo, não por 'laminada' no meio da frase.
+MARCA_PENDENCIA = "[PENDÊNCIA ESTRUTURAL]"
+
+
 def _round_js(x: float, nd: int = 0) -> float:
     """Math.round/toFixed do JS arredondam 0.5 para cima; round() do Python é
     banker's. A porta fiel exige o comportamento JS."""
@@ -88,11 +96,13 @@ def _regra(regras: dict, chave: str) -> float:
 
 def _perfil(con, codigo: str) -> dict:
     linha = con.execute(
-        "SELECT alma_mm, massa_kg_m FROM perfil_lsf WHERE codigo = ?", (codigo,)
+        "SELECT alma_mm, massa_kg_m, aba_mm, enrijecedor_mm, espessura_mm"
+        "  FROM perfil_lsf WHERE codigo = ?", (codigo,)
     ).fetchone()
     if linha is None:
         raise DadoIndisponivel(f"perfil '{codigo}' não cadastrado em perfil_lsf")
-    return {"alma_mm": linha[0], "massa_kg_m": linha[1]}
+    return dict(zip(("alma_mm", "massa_kg_m", "aba_mm", "enrijecedor_mm",
+                     "espessura_mm"), linha))
 
 
 def _guia_correspondente(con, perfil_montante: str) -> str:
@@ -526,6 +536,18 @@ def gerar_laje(con, laje_id: int) -> tuple[list[Peca], list[Acessorio], list[str
         "SELECT x, z, w, d FROM laje_extensao WHERE laje_id = ? ORDER BY id",
         (laje_id,)).fetchall()]
 
+    # Coerência da GEOMETRIA, antes de gerar peça: aberturas que somam mais que o
+    # próprio pavimento não descrevem uma laje. A guarda mora aqui, e não na chapa
+    # de piso, porque não depende de haver chapa — uma laje sem `chapa_piso_tipo`
+    # geraria vigas e bordas sobre um polígono já consumido pelos vãos (D4.1).
+    area_util = (poly_area(fp)
+                 - sum(ab["w"] * ab["d"] for ab in aberturas)
+                 + sum(ex["w"] * ex["d"] for ex in extensoes))
+    if area_util <= 0:
+        raise DadoIndisponivel(
+            f"{id_laje}: área de piso {area_util:.2f} m² <= 0 — as aberturas somam"
+            " mais que o footprint; revisar laje_abertura")
+
     seq: dict[str, int] = {}
 
     def mk(tipo, perfil, x0, y0, z0, x1, y1, z1, origem, confianca):
@@ -554,17 +576,22 @@ def gerar_laje(con, laje_id: int) -> tuple[list[Peca], list[Acessorio], list[str
     vao_ef = max_span / 2
     perf_v, perf_b, origem_par = _perfis_laje(con, perfil_viga_in, vao_ef)
 
-    chk = dimensionar_viga(con, vao_ef, esp)
+    # a verificação usa o perfil REALMENTE escolhido pelo escalonamento (o v7 lia
+    # sempre a seção do Ue250, mesmo nas lajes de Ue200)
+    chk = dimensionar_viga(con, vao_ef, esp, perf_v)
     if chk["modo"] == "dupla":
         alertas.append(
             f"{id_laje}: vão de cálculo {_round_js(vao_ef, 1)}m reprova viga simples"
-            f" (M={chk['M']} vs {chk['MRd']} kNm; δ={chk['delta']} vs {chk['dLim']}mm)"
+            f" em {perf_v} (M={chk['M']} vs {chk['MRd']} kNm;"
+            f" δ={chk['delta']} vs {chk['dLim']}mm)"
             " → VIGAS DUPLAS geradas. Memória: SC 4,0 kN/m² loja [NBR 6120], ZAR230, L/350.")
     if chk["modo"] == "laminada":
         alertas.append(
-            f"{id_laje}: vão {_round_js(vao_ef, 1)}m reprova até viga dupla → exige"
-            " viga laminada 1VG + pilares [OBRA p.3-9]. Reduzir vão com apoio"
-            " intermediário no executivo.")
+            f"{MARCA_PENDENCIA} {id_laje}: vão {_round_js(vao_ef, 1)}m reprova até"
+            f" viga dupla em {perf_v} (M={chk['M']} > 2×{chk['MRd']} kNm e/ou"
+            f" δ={chk['delta']} > {chk['dLim']}mm) → exige viga laminada 1VG +"
+            " pilares [OBRA p.3-9]. O kg gerado é PROVISÃO de orçamento, não"
+            " dimensionamento: reduzir vão com apoio intermediário no executivo.")
 
     # bordas = perímetro real do polígono
     for i in range(len(fp)):
@@ -660,20 +687,9 @@ def gerar_laje(con, laje_id: int) -> tuple[list[Peca], list[Acessorio], list[str
             mk("reforco_abertura", perf_b, x0, y, z0, x1, y, z1,
                "reforço de vão de escada", conf)
 
-    # chapa de piso pela área real do polígono, menos vãos, mais extensões
+    # chapa de piso pela área útil já validada acima (polígono - vãos + extensões)
     if chapa_tipo:
-        area = poly_area(fp)
-        for ab in aberturas:
-            area -= ab["w"] * ab["d"]
-        for ex in extensoes:
-            area += ex["w"] * ex["d"]
-        if area <= 0:
-            # aberturas maiores que o próprio pavimento: quantidade negativa de
-            # chapa é dado incoerente, não zero nem número seco (D4.1)
-            raise DadoIndisponivel(
-                f"{id_laje}: área de piso {area:.2f} m² <= 0 — as aberturas somam"
-                " mais que o footprint; revisar laje_abertura")
-        n_ch = math.ceil(area * 1.10 / ((chapa_larg or 1.2) * (chapa_alt or 2.4)))
+        n_ch = math.ceil(area_util * 1.10 / ((chapa_larg or 1.2) * (chapa_alt or 2.4)))
         mk_ac(f"{chapa_tipo} (piso {id_laje})", n_ch, "chapa",
               "área do polígono + 10%", conf)
 
@@ -1085,6 +1101,12 @@ class EstruturaProjeto:
     pecas: list[Peca]
     acessorios: list[Acessorio]
 
+    @property
+    def pendencias_estruturais(self) -> list[str]:
+        """Alertas que dizem que a estrutura gerada NÃO passa na verificação
+        (hoje: vão que reprova até viga dupla). O kg existe, mas é provisão."""
+        return [a for a in self.alertas if a.startswith(MARCA_PENDENCIA)]
+
 
 def plano_de_corte(con, pecas: list[Peca], barra_m: float) -> list[PlanoCortePerfil]:
     """Porta do nestingCorte do v7: first-fit decrescente por perfil; peça maior
@@ -1159,11 +1181,14 @@ def gerar_estrutura(con, projeto_id: int) -> EstruturaProjeto:
         acess += a
         alertas += al
 
-    # nesting GLOBAL (todas as peças num plano só), enquanto o v7 nesta por
-    # sistema: a sobra de uma barra de parede serve a uma peça de cobertura, então
-    # o kg comprado sai ~6% abaixo do v7 (25,7 t vs 27,4 t) com o mesmo kg líquido.
-    # É a hipótese de compra centralizada da obra — trocar por nesting por sistema
-    # é decisão de suprimentos, não bug.
+    # Nesting GLOBAL (todas as peças num plano só), enquanto o v7 nesta por sistema.
+    # ATENÇÃO ao calibrar: nenhum dos dois alcança o que a obra comprou. Com o mesmo
+    # kg líquido (23.673), o global dá 25.710 (-18,0% vs a obra) e o por-sistema
+    # 27.412 (-12,5%) — a obra comprou 31.345 kg, 32,4% sobre o líquido, contra 8,6%
+    # (global) e 15,8% (por sistema) de perda de barra. Ou seja, a lacuna NÃO é a
+    # escolha do nesting: falta o modelo de perda real (pontas, refugo, retrabalho),
+    # que é calibração contra obra (R6). Ver a seção "LACUNA ABERTA" do CLAUDE.md e
+    # tests/test_aceite_estrutura_completa.py.
     barra = _regra(_regras(con), "barra_m")
     plano = plano_de_corte(con, todas, barra)
     kg_liquido = sum(pl.kg for pl in plano)
@@ -1171,35 +1196,76 @@ def gerar_estrutura(con, projeto_id: int) -> EstruturaProjeto:
         pl.barras * barra * _perfil(con, pl.perfil)["massa_kg_m"] for pl in plano)
     # coeficientes das regras são `estimado` (sem calibração de obra): o resultado
     # nunca é melhor que estimado, por pior que seja a geometria (D4)
-    confianca = pior_confianca(*(ep.confianca for ep in paredes),
-                               *(p.confianca for p in todas), "estimado")
+    # dedup antes de passar: o domínio tem 3 valores, não ~2.900 (uma por peça)
+    confianca = pior_confianca(*{ep.confianca for ep in paredes},
+                               *{p.confianca for p in todas}, "estimado")
     return EstruturaProjeto(projeto_id, paredes, plano,
                             _round_js(kg_liquido), _round_js(kg_comprado),
                             confianca, alertas, todas, acess)
 
 
 def _cargas(con) -> dict:
-    chaves = ("carga_sc", "carga_g", "aco_fy", "aco_E", "coef_gm", "flecha_lim",
-              "sec_ue250_a", "sec_ue250_wx", "sec_ue250_ix")
+    chaves = ("carga_sc", "carga_g", "aco_fy", "aco_E", "coef_gm", "flecha_lim")
     regras = _regras(con)
     faltando = [c for c in chaves if c not in regras]
     if faltando:
-        raise DadoIndisponivel(f"regra_lsf sem cargas/seção: {faltando}")
+        raise DadoIndisponivel(f"regra_lsf sem cargas: {faltando}")
     return {c: regras[c] for c in chaves}
 
 
-def dimensionar_viga(con, vao_m: float, trib_m: float) -> dict:
-    """Verifica viga de laje (perfil Ue250, porta fiel de v7:635-642): ELS
-    (flecha <= L/flecha_lim) e ELU (M<=MRd, V<=VRd) em modo simples; se falhar,
+# kv da alma sem enrijecedor transversal (bordas apoiadas). É constante da FÓRMULA
+# de flambagem por cisalhamento, não conhecimento de obra — por isso vive no código,
+# com a referência, e não em regra_lsf.
+_KV_ALMA = 5.34
+
+
+def propriedades_secao(con, perfil: str) -> dict:
+    """A, Ix e Wx do perfil Ue pela sua geometria, método linear (NBR 14762 Anexo
+    — seção tratada como linha de espessura t: A = t·Σℓ, Ix = Σ(t·ℓ·d² + I_próprio)).
+
+    origem_regra: NBR 14762 (perfis formados a frio — propriedades geométricas pelo
+    método linear, dimensões nominais sem raio de dobra).
+
+    O v7 chumbava só o Ue250 (`SEC_Ue250`, v7:634) e verificava toda laje com ele,
+    inclusive as de Ue200. Aqui a seção sai do perfil REAL. O método é validado
+    contra aqueles mesmos valores em `test_metodo_linear_reproduz_a_secao_ue250_do_v7`
+    (bate em <=0,08%), que é o que autoriza calcular em vez de chumbar.
+    """
+    p = _perfil(con, perfil)
+    a, b, c = p["alma_mm"], p["aba_mm"], p["enrijecedor_mm"]
+    t = p["espessura_mm"]
+    if not c:
+        raise DadoIndisponivel(
+            f"perfil '{perfil}' sem enrijecedor_mm — o método linear aqui é para"
+            " seção Ue (U enrijecido); guia U não é viga de laje")
+
+    A = t * (a + 2 * b + 2 * c)
+    i_alma = t * a ** 3 / 12                       # alma vertical, centro em y=0
+    i_abas = 2 * (t * b) * (a / 2) ** 2            # abas horizontais em y=±a/2
+    d_lip = a / 2 - c / 2                          # enrijecedores verticais
+    i_lips = 2 * ((t * c) * d_lip ** 2 + t * c ** 3 / 12)
+    Ix = i_alma + i_abas + i_lips
+    return {"A": A, "Ix": Ix, "Wx": Ix / (a / 2), "alma_mm": a, "espessura_mm": t}
+
+
+def dimensionar_viga(con, vao_m: float, trib_m: float, perfil: str) -> dict:
+    """Verifica viga de laje no PERFIL informado (porta de v7:635-642, corrigida):
+    ELS (flecha <= L/flecha_lim) e ELU (M<=MRd, V<=VRd) em modo simples; se falhar,
     tenta dupla (2 perfis); senão exige viga laminada.
 
     origem_regra: NBR 6120 (ações — SC=carga_sc sobrecarga, G=carga_g permanente)
-    + NBR 14762 (dimensionamento de perfis formados a frio — M/MRd/Wx, δ=L/flecha_lim,
-    V/VRd por flambagem de alma h/t do perfil Ue250)."""
+    + NBR 14762 (perfis formados a frio — M/MRd via Wx, δ=L/flecha_lim, e VRd por
+    flambagem por cisalhamento da alma, Vcr = 0,905·E·kv·t³/h, com t e h do perfil).
+
+    O v7 lia sempre a seção do Ue250 e fixava t=2,0/h=250 no VRd, mesmo quando a
+    laje era Ue200 — superestimando MRd em ~2,2x (Wx do Ue200 é 45% do Ue250).
+    """
     C = _cargas(con)
+    sec = propriedades_secao(con, perfil)
     sc, g = C["carga_sc"], C["carga_g"]
     fy, E, gM, flecha = C["aco_fy"], C["aco_E"], C["coef_gm"], C["flecha_lim"]
-    A, Wx, Ix = C["sec_ue250_a"], C["sec_ue250_wx"], C["sec_ue250_ix"]
+    A, Wx, Ix = sec["A"], sec["Wx"], sec["Ix"]
+    t_alma, h_alma = sec["espessura_mm"], sec["alma_mm"]
     L = vao_m
     trib = trib_m
 
@@ -1211,14 +1277,15 @@ def dimensionar_viga(con, vao_m: float, trib_m: float) -> dict:
     delta = 5 * wS * L ** 4 * 1e12 / (384 * E * Ix)
     dLim = L * 1000 / flecha
     V = wU * L / 2
-    VRd = 0.905 * E * 5.34 * (2.0 ** 3) / 250 / gM / 1000
+    VRd = 0.905 * E * _KV_ALMA * t_alma ** 3 / h_alma / gM / 1000
     okS = M <= MRd and delta <= dLim and V <= VRd
     okD = M <= 2 * MRd and delta / 2 <= dLim and V <= 2 * VRd
     modo = "simples" if okS else ("dupla" if okD else "laminada")
 
-    return {"modo": modo, "M": _round_js(M, 1), "MRd": _round_js(MRd, 1),
-            "delta": _round_js(delta, 1), "dLim": _round_js(dLim, 0),
-            "V": _round_js(V, 1), "VRd": _round_js(VRd, 1)}
+    return {"modo": modo, "perfil": perfil, "M": _round_js(M, 1),
+            "MRd": _round_js(MRd, 1), "delta": _round_js(delta, 1),
+            "dLim": _round_js(dLim, 0), "V": _round_js(V, 1),
+            "VRd": _round_js(VRd, 1)}
 
 
 def derivar_quantitativos(con, projeto_id: int) -> dict:
@@ -1227,12 +1294,23 @@ def derivar_quantitativos(con, projeto_id: int) -> dict:
 
     Guarda: derivação paramétrica NUNCA sobrescreve linha MANUAL/TAKEOFF (dado
     melhor que 'estimado' de regra). Nesse caso preserva a linha e devolve
-    `gravado=False` + `preservado=<origem existente>` — o chamador decide alertar."""
+    `gravado=False` + `preservado=<origem existente>` — o chamador decide alertar.
+
+    Os `alertas` e as `pendencias_estruturais` do gerador SOBEM no retorno e a
+    pendência entra na `origem_regra` gravada: um vão que reprova na verificação
+    não pode virar um kg limpo na EAP sem rastro (gate bloqueia, não avisa)."""
     est = gerar_estrutura(con, projeto_id)
     folha = con.execute(
         "SELECT id FROM eap_item WHERE codigo = '03.01'").fetchone()
     if folha is None:
         raise DadoIndisponivel("EAP sem a folha 03.01 (estrutura LSF, kg)")
+    origem_regra = ("gerador de estrutura F2 (paredes+laje+escada+cobertura+forro,"
+                    " porta fiel v7) — kg comprado em barras 6m")
+    pendencias = est.pendencias_estruturais
+    if pendencias:
+        origem_regra += (f" · {MARCA_PENDENCIA} {len(pendencias)} vão(s) reprovam na"
+                         " verificação estrutural — kg é PROVISÃO, exige revisão de"
+                         " engenheiro antes de virar preço fechado")
     cur = con.execute(
         "INSERT INTO quantitativo (projeto_id, eap_item_id, quantidade, origem,"
         " confianca, origem_regra) VALUES (?,?,?,'PARAMETRICO',?,?)"
@@ -1240,10 +1318,9 @@ def derivar_quantitativos(con, projeto_id: int) -> dict:
         "   quantidade=excluded.quantidade, origem=excluded.origem,"
         "   confianca=excluded.confianca, origem_regra=excluded.origem_regra"
         " WHERE quantitativo.origem = 'PARAMETRICO'",
-        (projeto_id, folha[0], est.kg_comprado, est.confianca,
-         "gerador de estrutura F2 (paredes+laje+escada+cobertura+forro,"
-         " porta fiel v7) — kg comprado em barras 6m"))
-    resultado = {"kg_comprado": est.kg_comprado, "confianca": est.confianca}
+        (projeto_id, folha[0], est.kg_comprado, est.confianca, origem_regra))
+    resultado = {"kg_comprado": est.kg_comprado, "confianca": est.confianca,
+                 "alertas": est.alertas, "pendencias_estruturais": pendencias}
     if cur.rowcount == 0:  # conflito com linha não-PARAMETRICO: nada escrito
         origem = con.execute(
             "SELECT origem FROM quantitativo WHERE projeto_id = ? AND eap_item_id = ?",
