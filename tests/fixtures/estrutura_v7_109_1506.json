@@ -2229,7 +2229,7 @@
  ],
  "total_paredes": {
   "kg_liquido": 7737,
-  "kg_comprado": 11135
+  "kg_comprado": 11389
  },
  "projeto": {
   "niveis": [
@@ -18263,7 +18263,7 @@
     }
    ],
    "kg_liquido": 11598.71,
-   "kg_comprado": 11808.66
+   "kg_comprado": 14558.82
   },
   "escada": {
    "pecas": [
@@ -35525,7 +35525,7 @@
     }
    ],
    "kg_liquido": 3030.73,
-   "kg_comprado": 3127.62
+   "kg_comprado": 3729.9
   },
   "forro": {
    "pecas": [
@@ -36994,11 +36994,11 @@
    ],
    "acess": [],
    "kg_liquido": 1082.14,
-   "kg_comprado": 1092
+   "kg_comprado": 1417.8
   }
  },
  "total_edificio": {
   "kg_liquido": 23673,
-  "kg_comprado": 27412
+  "kg_comprado": 31344
  }
 }

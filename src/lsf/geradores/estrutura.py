@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import math
 import sqlite3
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from lsf.geradores.geometria import bbox, cortar_span, encadear_contorno, poly_area, scan
 from lsf.motores.orcamento import pior_confianca
@@ -1096,6 +1096,43 @@ def gerar_forro(con, projeto_id: int) -> tuple[list[Peca], list[Acessorio], list
     return pecas, [], []
 
 
+def segmentar_box003(con, pecas: list[Peca]) -> tuple[list[Peca], dict[str, int]]:
+    """REGRA BOX-003 (porta fiel do bloco de `montarProjeto`, v7): peça linear
+    acima da barra comercial (`barra_m` = 6,0 m, ref. 'REGRA BOX-003 [mont. p.53:
+    peça 8583mm → emenda/pré-corte]') é segmentada ANTES do plano de corte.
+
+    O detalhe é o que manda no kg comprado: `n = ceil(comp/6)` e cada segmento vale
+    `comp/n` — partes IGUAIS, não 6+6+resto. Uma viga de 7,9 m vira 2×3,95 m, e cada
+    3,95 m deixa 2,05 m de sobra na barra de 6 m. Nestar a peça inteira como emenda
+    (6+6+3,8) encheria as barras e mentiria ~13% para baixo no aço comprado: era a
+    "perda inexplicada" de 32,4% da 109 — que é regra de fabricação, não desperdício.
+
+    Devolve as peças já segmentadas e as emendas por sistema (n-1 por peça cortada),
+    que viram acessório (a emenda é material).
+    """
+    comp_max = _regra(_regras(con), "barra_m")
+    out: list[Peca] = []
+    emendas: dict[str, int] = {}
+    for p in pecas:
+        if p.comp <= comp_max + 1e-6:
+            out.append(p)
+            continue
+        n = math.ceil(p.comp / comp_max)
+        emendas[p.sistema] = emendas.get(p.sistema, 0) + (n - 1)
+        for k in range(n):
+            t0, t1 = k / n, (k + 1) / n
+            out.append(replace(
+                p,
+                tag=f"{p.tag}{chr(97 + k)}",
+                comp=_round_js(p.comp / n, 4),
+                x0=p.x0 + (p.x1 - p.x0) * t0, y0=p.y0 + (p.y1 - p.y0) * t0,
+                z0=p.z0 + (p.z1 - p.z0) * t0,
+                x1=p.x0 + (p.x1 - p.x0) * t1, y1=p.y0 + (p.y1 - p.y0) * t1,
+                z1=p.z0 + (p.z1 - p.z0) * t1,
+                origem_regra=f"{p.origem_regra} · segm. REGRA BOX-003"))
+    return out, emendas
+
+
 @dataclass(frozen=True)
 class PlanoCortePerfil:
     perfil: str
@@ -1198,16 +1235,31 @@ def gerar_estrutura(con, projeto_id: int) -> EstruturaProjeto:
         acess += a
         alertas += al
 
-    # Nesting GLOBAL (todas as peças num plano só), enquanto o v7 nesta por sistema.
-    # ATENÇÃO ao calibrar: nenhum dos dois alcança o que a obra comprou. Com o mesmo
-    # kg líquido (23.673), o global dá 25.710 (-18,0% vs a obra) e o por-sistema
-    # 27.412 (-12,5%) — a obra comprou 31.345 kg, 32,4% sobre o líquido, contra 8,6%
-    # (global) e 15,8% (por sistema) de perda de barra. Ou seja, a lacuna NÃO é a
-    # escolha do nesting: falta o modelo de perda real (pontas, refugo, retrabalho),
-    # que é calibração contra obra (R6). Ver a seção "LACUNA ABERTA" do CLAUDE.md e
-    # tests/test_aceite_estrutura_completa.py.
+    # REGRA BOX-003 antes do corte: peça acima de 6 m não existe — vira n partes
+    # iguais com emenda. É o que o v7 faz em montarProjeto antes do resumoPorSistema,
+    # e sem isso o aço comprado sai ~13% baixo (nestar 15,8 m como 6+6+3,8 enche as
+    # barras; a obra corta 3×5,27 m e sobra 0,73 m em cada).
     barra = _regra(_regras(con), "barra_m")
-    plano = plano_de_corte(con, todas, barra)
+    todas, emendas = segmentar_box003(con, todas)
+    for sistema, n in sorted(emendas.items()):
+        acess.append(Acessorio(
+            "Emenda/luva de perfil (peça > barra 6m)", float(n), "un", sistema,
+            "GERAL", "REGRA BOX-003 [p.53: BX2 8583mm]", "parametrico"))
+        alertas.append(
+            f"{n} peça(s) de {sistema} acima de 6 m segmentadas com emenda (ou"
+            " pré-corte de fábrica). Confirmar com fornecedor: barra especial vs"
+            " emenda em obra.")
+
+    # Nesting POR SISTEMA, como o `resumoPorSistema` do v7 — que é o que gerou o
+    # orçamento da obra (31.345 kg). Nestar tudo junto (global) faria a sobra de uma
+    # barra de parede servir uma peça de cobertura e derrubaria o comprado ~8%: é
+    # hipótese de compra centralizada que a obra NÃO praticou.
+    plano: list[PlanoCortePerfil] = []
+    por_sistema: dict[str, list[Peca]] = {}
+    for p in todas:
+        por_sistema.setdefault(p.sistema, []).append(p)
+    for sistema in sorted(por_sistema):
+        plano += plano_de_corte(con, por_sistema[sistema], barra)
     kg_liquido = sum(pl.kg for pl in plano)
     kg_comprado = sum(
         pl.barras * barra * _perfil(con, pl.perfil)["massa_kg_m"] for pl in plano)

@@ -1,21 +1,19 @@
-"""Task 10 — kg do edifício inteiro (paredes + 4 sistemas) vs o v7.
+"""Task 10 — kg do edifício inteiro (paredes + 4 sistemas), contra as DUAS
+referências do v7, que agora concordam:
 
-CUIDADO ao ler este arquivo como "aceite da Fase 2". Há DUAS referências, e elas
-não concordam:
+  * `estrutura_v7_109_1506.json` (`total_edificio`) — o gerador do v7 headless;
+  * `orcamento_v7_109_1506.json` (`aco_comprado_kg`) — o aço comprado que fechou
+    o aceite da Fase 1 e que o CLAUDE.md nomeia no critério da Fase 2.
 
-  * `estrutura_v7_109_1506.json` (`total_edificio`) — o GERADOR do v7 rodado
-    headless: 23.673 kg líquido / 27.412 kg comprado. É contra ela que os testes
-    aqui medem, e o que eles provam é FIDELIDADE DA PORTA.
-  * `orcamento_v7_109_1506.json` (`aco_comprado_kg`) — o aço REALMENTE COMPRADO
-    da obra, quantidade MANUAL que fechou o aceite da Fase 1: 31.345 kg. É a
-    referência que o CLAUDE.md nomeia no critério de aceite da Fase 2.
+Histórico que vale guardar: por um tempo elas divergiam (27.412 vs 31.345) e a
+lacuna parecia ser "perda de obra não calibrada" (R6). Não era. Faltava a REGRA
+BOX-003 — peça acima da barra de 6 m é cortada em n partes IGUAIS com emenda,
+ANTES do nesting — tanto no extrator do oráculo quanto na porta Python. Nestar
+uma viga de 15,8 m como 6+6+3,8 enche as barras e mente ~13% para baixo; a obra
+corta 3×5,27 m e sobra 0,73 m em cada. Os "32,4% de perda inexplicada" eram
+regra de fabricação, não desperdício.
 
-O líquido bate nas duas (23.673, 0,0%). O comprado não: nosso 25.710 fica -18,0%
-da obra, e o PRÓPRIO v7 headless (27.412) fica -12,5%. Ou seja, nenhuma porta fiel
-do gerador alcança o comprado da obra — a diferença é o modelo de perda/compra
-(obra: 32,4% sobre o líquido; nesting em barra de 6 m: 8,6% global / 15,8% por
-sistema), não a geometria. Fechar essa lacuna é calibração contra obra (R6) e é
-decisão humana — ver `test_lacuna_do_kg_comprado_vs_obra_esta_medida`.
+Hoje: líquido 23.673 (0,00%) e comprado 31.344 vs 31.345 da obra (−0,003%).
 """
 import json
 import pathlib
@@ -44,14 +42,13 @@ def test_kg_comprado_bate_com_o_gerador_v7_headless(projeto_109_estrutura, oracu
     assert abs(est.kg_comprado - ref) / ref <= 0.10
 
 
-def test_lacuna_do_kg_comprado_vs_obra_esta_medida(projeto_109_estrutura):
-    """Trava a lacuna REAL contra o critério do CLAUDE.md (≤10% vs 31.345 kg da
-    obra), para que ela não passe despercebida nem seja 'fechada' por acidente.
+def test_criterio_de_aceite_da_fase2_kg_vs_o_aco_comprado_da_obra(projeto_109_estrutura):
+    """O CRITÉRIO da Fase 2 (CLAUDE.md): kg de aço da 109.1506 com desvio ≤10% vs
+    o v7 — 23.673 kg líquido / 31.345 kg comprado, os números oficiais da obra que
+    fecharam a Fase 1 com quantitativos MANUAL.
 
-    Hoje a lacuna existe e é conhecida (R6, calibração pendente): o líquido bate
-    exato e o comprado fica ~18% abaixo do que a obra comprou. Se alguém calibrar
-    a perda e fechar o gate, este teste falha e deve ser trocado por um aceite de
-    verdade — falhar aqui é notícia BOA, mas exige o humano declarar a fase."""
+    Aqui o kg é DERIVADO da planta pelo gerador (PARAMETRICO), não digitado: é a
+    cadeia arquitetônico → paredes → estrutura → kg fechando contra a obra real."""
     from lsf.geradores.estrutura import gerar_estrutura
 
     con, pid = projeto_109_estrutura
@@ -59,13 +56,22 @@ def test_lacuna_do_kg_comprado_vs_obra_esta_medida(projeto_109_estrutura):
     obra = json.loads((pathlib.Path(__file__).parent / "fixtures"
                        / "orcamento_v7_109_1506.json").read_text())
 
-    assert abs(est.kg_liquido - obra["aco_liquido_kg"]) / obra["aco_liquido_kg"] <= 0.10
+    d_liq = abs(est.kg_liquido - obra["aco_liquido_kg"]) / obra["aco_liquido_kg"]
+    d_com = abs(est.kg_comprado - obra["aco_comprado_kg"]) / obra["aco_comprado_kg"]
+    assert d_liq <= 0.10, f"kg líquido fora do gate: {d_liq:.1%}"
+    assert d_com <= 0.10, f"kg comprado fora do gate: {d_com:.1%}"
 
-    desvio = (est.kg_comprado - obra["aco_comprado_kg"]) / obra["aco_comprado_kg"]
-    assert desvio < -0.10, (
-        f"o kg comprado passou a ficar dentro de 10% da obra (desvio {desvio:.1%}). "
-        "O gate da Fase 2 pode ter fechado — reavaliar com o humano e substituir "
-        "este teste pelo aceite definitivo.")
+
+def test_perda_sobre_o_liquido_reproduz_a_da_obra(projeto_109_estrutura):
+    """A perda não é coeficiente chutado: cai da BOX-003 + nesting por sistema.
+    A obra comprou 32,4% sobre o líquido; se este número escorregar, alguém mexeu
+    na segmentação ou no nesting sem perceber o efeito no aço comprado."""
+    from lsf.geradores.estrutura import gerar_estrutura
+
+    con, pid = projeto_109_estrutura
+    est = gerar_estrutura(con, pid)
+    perda = est.kg_comprado / est.kg_liquido - 1
+    assert perda == pytest.approx(0.324, abs=0.01)
 
 
 def test_estrutura_soma_os_quatro_sistemas_alem_das_paredes(projeto_109_estrutura):

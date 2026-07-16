@@ -132,7 +132,32 @@ for (const { walls, fi } of fatias) {
   }
 }
 
-const plano = nestingCorte(todas, LSF_DB, 'solto');
+// REGRA BOX-003 (porta fiel do bloco de montarProjeto): peça acima da barra
+// comercial de 6 m é segmentada em `ceil(comp/LMAX)` partes IGUAIS com emenda —
+// não em 6+6+resto. É o que o v7 faz ANTES de resumoPorSistema, e é o que produz
+// a perda real: uma peça de 7,9 m vira 2×3,95 m e sobra 2,05 m de cada barra.
+// Sem esta etapa o oráculo nesta peças de 15,8 m que a obra nunca cortou assim,
+// e o kg comprado sai ~13% baixo.
+const LMAX = REGRAS_SIS.barra.compMax;
+
+function segmentarBox003(pecas) {
+  const out = [];
+  for (const p of pecas) {
+    if (!(p.comp > LMAX + 1e-6)) { out.push(p); continue; }
+    const n = Math.ceil(p.comp / LMAX);
+    for (let k = 0; k < n; k++) {
+      const t0 = k / n, t1 = (k + 1) / n;
+      out.push({ ...p, comp: +(p.comp / n).toFixed(4),
+        x0: p.x0 + (p.x1 - p.x0) * t0, y0: p.y0 + (p.y1 - p.y0) * t0,
+        z0: p.z0 + (p.z1 - p.z0) * t0,
+        x1: p.x0 + (p.x1 - p.x0) * t1, y1: p.y0 + (p.y1 - p.y0) * t1,
+        z1: p.z0 + (p.z1 - p.z0) * t1 });
+    }
+  }
+  return out;
+}
+
+const plano = nestingCorte(segmentarBox003(todas), LSF_DB, 'solto');
 let kgLiq = 0, kgComp = 0;
 for (const p of plano) {
   kgLiq += p.kg;
@@ -153,11 +178,14 @@ const projeto = JSON.parse(JSON.stringify({
 
 // kg comprado por sistema: nesting isolado do sistema (v7 resumoPorSistema),
 // barras de 6 m; massa SEMPRE fail-fast (nunca o fallback 1.3 do v7).
+// `pecas` sai CRU do gerador (é contra ele que a porta Python compara peça a
+// peça); o kg comprado, porém, nesta as peças já segmentadas pela BOX-003, como
+// o v7 faz em montarProjeto antes de resumoPorSistema.
 function somaSistema(nome, pecas, acess) {
   let liq = 0;
   for (const p of pecas) liq += p.comp * massaKgM(p.perfil, `${nome}, peça ${p.tipo}`);
   let comp = 0;
-  for (const pl of nestingCorte(pecas, LSF_DB, 'solto'))
+  for (const pl of nestingCorte(segmentarBox003(pecas), LSF_DB, 'solto'))
     comp += pl.barras * 6 * massaKgM(pl.perfil, `${nome}, plano de corte`);
   return { pecas, acess, kg_liquido: +liq.toFixed(2), kg_comprado: +comp.toFixed(2) };
 }
