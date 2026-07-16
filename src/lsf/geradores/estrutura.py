@@ -985,6 +985,61 @@ def gerar_cobertura(con, cobertura_id: int) -> tuple[list[Peca], list[Acessorio]
     return pecas, acess, alertas
 
 
+# ---------- forro (porta fiel de gerarPecasForro, v7:1045-1057) ----------
+
+def gerar_forro(con, projeto_id: int) -> tuple[list[Peca], list[Acessorio], list[str]]:
+    """Forro de todos os pavimentos: borda no perímetro + perfis ao longo de z.
+
+    Porta fiel de v7:1045-1057. O forro pendura logo abaixo do pé-direito
+    (y = cota do nível + pé-direito - 0,05).
+    """
+    linha = con.execute(
+        "SELECT perfil, perfil_borda, esp_m, grupo, confianca"
+        "  FROM forro WHERE projeto_id = ?", (projeto_id,)).fetchone()
+    if linha is None:
+        raise DadoIndisponivel(f"projeto {projeto_id} sem forro cadastrado")
+    perfil, perfil_borda, esp, grupo, conf_forro = tuple(linha)
+
+    conf = pior_confianca(conf_forro, "estimado")
+    origem = "derivado bloco 1FR p.16-20: Ue70#0.80 + U72#0.80"
+    pecas: list[Peca] = []
+    seq: dict[str, int] = {}
+
+    def mk(tipo, perf, x0, y0, z0, x1, y1, z1):
+        pfx = "".join(c for c in tipo if c.isalpha())[:3].upper()
+        chave = grupo + pfx
+        seq[chave] = seq.get(chave, 0) + 1
+        comp = math.hypot(x1 - x0, y1 - y0, z1 - z0)
+        pecas.append(Peca(f"{grupo}-{pfx}{seq[chave]}", tipo, perf, x0, y0, x1, y1,
+                          _round_js(comp, 4), origem, "forro", grupo, z0, z1, conf))
+
+    niveis = con.execute(
+        "SELECT indice, cota_m, pe_direito_m FROM nivel WHERE projeto_id = ?"
+        " ORDER BY indice", (projeto_id,)).fetchall()
+    if not niveis:
+        raise DadoIndisponivel(f"projeto {projeto_id} sem níveis")
+
+    for indice, cota, pd in niveis:
+        if cota is None:
+            raise DadoIndisponivel(
+                f"nível {indice} sem cota_m — o forro pendura na cota (D4.1)")
+        fp = contorno_pavimento(con, projeto_id, indice)
+        if not fp:
+            continue
+        bb = bbox(fp)
+        y = cota + pd - 0.05
+        for i in range(len(fp)):
+            a, b = fp[i], fp[(i + 1) % len(fp)]
+            mk("borda_forro", perfil_borda, a[0], y, a[1], b[0], y, b[1])
+        z = bb["z0"] + esp
+        while z < bb["z1"] - 0.05:
+            for xa, xb in scan(fp, z, "z"):
+                mk("perfil_forro", perfil, xa, y, z, xb, y, z)
+            z += esp
+
+    return pecas, [], []
+
+
 @dataclass(frozen=True)
 class PlanoCortePerfil:
     perfil: str
