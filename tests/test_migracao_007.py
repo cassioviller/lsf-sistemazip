@@ -73,7 +73,10 @@ def test_migracao_preserva_dados_legados(tmp_path):
         if m.name.startswith("007"):
             break
         c.executescript(m.read_text())
-    c.executescript((raiz / "db" / "seed.sql").read_text())
+    # sem seed: `seed.sql` é escrito contra o schema com TODAS as migrações
+    # aplicadas (é a ordem do build_db) e não roda num banco parcial. O legado que
+    # este teste reconstrói é só a estrutura pré-007 — o conhecimento seedado não
+    # participa do que se afirma aqui (linhas de `vao` preservadas pelo rebuild).
     # instância pré-007 (peitoril_m NOT NULL DEFAULT 0)
     c.execute("INSERT INTO projeto (codigo, nome, referencia, uf, desonerado)"
               " VALUES ('LEG', 'Legado', '2026-06', 'SP', 0)")

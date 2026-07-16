@@ -1,4 +1,5 @@
 """Fixtures comuns. Sem pyproject/instalação: `src/` entra no sys.path aqui."""
+import json
 import pathlib
 import sqlite3
 import sys
@@ -219,3 +220,121 @@ def planta(con):
     criar.seq = 0
     criar.projeto_id = projeto_id
     return criar
+
+
+FIXTURE_ESTRUTURA = pathlib.Path(__file__).parent / "fixtures" / "estrutura_v7_109_1506.json"
+
+
+@pytest.fixture(scope="module")
+def oraculo():
+    """Referência headless do v7 para a 109.1506 (paredes + 4 sistemas + inputs)."""
+    return json.loads(FIXTURE_ESTRUTURA.read_text())
+
+
+@pytest.fixture
+def projeto_109(con, oraculo):
+    """Projeto com a planta da 109.1506 carregada na planta_normalizada."""
+    con.execute(
+        "INSERT INTO projeto (codigo, nome, referencia, uf, desonerado)"
+        " VALUES ('109.1506-EST', 'Máximo Tintas', '2026-06', 'SP', 0)")
+    pid = con.execute(
+        "SELECT id FROM projeto WHERE codigo='109.1506-EST'").fetchone()[0]
+    niveis = {}
+    for i, cota in enumerate(oraculo["niveis"]):
+        cur = con.execute(
+            "INSERT INTO nivel (projeto_id, indice, nome, pe_direito_m, cota_m)"
+            " VALUES (?,?,?,?,?)",
+            (pid, i, f"pav-{i}", oraculo["pe_direito_m"], cota))
+        niveis[i] = cur.lastrowid
+    mapa = {}          # id da fixture -> parede_id no banco
+    for w in oraculo["paredes"]:
+        nivel_id = niveis[w["pav"]]
+        no_a = con.execute(
+            "INSERT INTO no_planta (nivel_id, x, y, confianca) VALUES (?,?,?,?)",
+            (nivel_id, w["a"][0], w["a"][1], "real")).lastrowid
+        no_b = con.execute(
+            "INSERT INTO no_planta (nivel_id, x, y, confianca) VALUES (?,?,?,?)",
+            (nivel_id, w["b"][0], w["b"][1], "real")).lastrowid
+        parede_id = con.execute(
+            "INSERT INTO parede (nivel_id, no_a, no_b, espessura_m, portante,"
+            " externa, perfil_codigo, origem, confianca)"
+            " VALUES (?,?,?,0.14,1,?,?,'MANUAL',?)",
+            (nivel_id, no_a, no_b, w["externa"], w["perfil"],
+             "estimado" if w["est"] else "real")).lastrowid
+        for a in w["aberturas"]:
+            con.execute(
+                "INSERT INTO vao (parede_id, tipo, posicao_m, largura_m, altura_m,"
+                " peitoril_m, confianca) VALUES (?,?,?,?,?,?,'real')",
+                (parede_id, a["tipo"], a["posicao_m"], a["largura_m"],
+                 a["altura_m"], a["peitoril_m"]))
+        mapa[w["id"]] = parede_id
+    con.commit()
+    return {"projeto_id": pid, "mapa": mapa}
+
+
+@pytest.fixture
+def projeto_109_estrutura(con, oraculo, projeto_109):
+    """`projeto_109` + os inputs de projeto da migração 008 (laje/escada/
+    cobertura/forro/descobertas), lidos do oráculo. Devolve (con, projeto_id)."""
+    pid = projeto_109["projeto_id"]
+    P = oraculo["projeto"]
+
+    for lj in P["lajes"]:
+        chapa = lj.get("chapaPiso") or {}
+        laje_id = con.execute(
+            "INSERT INTO laje (projeto_id, id_laje, grupo, pav_base, nivel, esp_m,"
+            " perfil_viga, perfil_enrijecedor, bloqueador_max_m, chapa_piso_tipo,"
+            " chapa_piso_larg, chapa_piso_alt, confianca)"
+            " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            (pid, lj["id"], lj["grupo"], lj["pavBase"], lj["nivel"], lj["esp"],
+             lj["perfilViga"], lj["perfilEnrijecedor"], lj["bloqueadorMaxM"],
+             chapa.get("tipo"), chapa.get("largura"), chapa.get("altura"),
+             lj["confianca"])).lastrowid
+        for ab in lj.get("aberturas", []):
+            con.execute(
+                "INSERT INTO laje_abertura (laje_id, tipo, x, z, w, d)"
+                " VALUES (?,?,?,?,?,?)",
+                (laje_id, ab["tipo"], ab["x"], ab["z"], ab["w"], ab["d"]))
+        for ex in lj.get("extensoes", []):
+            con.execute(
+                "INSERT INTO laje_extensao (laje_id, x, z, w, d) VALUES (?,?,?,?,?)",
+                (laje_id, ex["x"], ex["z"], ex["w"], ex["d"]))
+
+    # Perfis de escada/cobertura são input de projeto na migração 008; no v7 eram
+    # default global (REGRAS_SIS.escada.longarina/degrau, .cobertura.banzo/guiaBanzo/
+    # alma). O oráculo não os carrega — a fixture repete o default do v7 para que a
+    # porta seja comparável peça a peça.
+    for e in P["escadas"]:
+        con.execute(
+            "INSERT INTO escada (projeto_id, id_escada, grupo, vao_x, vao_z, vao_w,"
+            " vao_d, altura, nivel_inicial, formato, longarina_perfil_a,"
+            " longarina_perfil_b, degrau_perfil, confianca)"
+            " VALUES (?,?,?,?,?,?,?,?,?,?,'Ue140#1.25','U142#1.25','Ue90#0.95',?)",
+            (pid, e["id"], e["grupo"], e["vao"]["x"], e["vao"]["z"], e["vao"]["w"],
+             e["vao"]["d"], e["altura"], e["nivelInicial"], e["formato"],
+             e["confianca"]))
+
+    c = P["cobertura"]
+    con.execute(
+        "INSERT INTO cobertura (projeto_id, id_cobertura, grupo, grupo_tesouras,"
+        " nivel_base, beiral_m, inclinacao, banzo_perfil, guia_banzo_perfil,"
+        " alma_perfil, telha_tipo, telha_perda_pct, confianca)"
+        " VALUES (?,?,?,?,?,?,?,'Ue90#1.25','U92#1.25','Ue90#0.95',?,?,?)",
+        (pid, c["id"], c["grupo"], c["grupoTesouras"], c["nivelBase"],
+         c["beiral"], c["inclinacao"],
+         c["telha"]["tipo"], c["telha"]["perdaPct"], c["confianca"]))
+
+    for a in P["descobertas"]:
+        con.execute(
+            "INSERT INTO area_descoberta (projeto_id, nome, x, z, w, d, tipo, confianca)"
+            " VALUES (?,?,?,?,?,?,?,?)",
+            (pid, a["nome"], a["x"], a["z"], a["w"], a["d"], a["tipo"], a["confianca"]))
+
+    f = P["forro"]
+    con.execute(
+        "INSERT INTO forro (projeto_id, perfil, perfil_borda, esp_m, grupo, confianca)"
+        " VALUES (?,?,?,?,?,?)",
+        (pid, f["perfil"], f["perfilBorda"], f["esp"], f["grupo"], f["confianca"]))
+
+    con.commit()
+    return con, pid

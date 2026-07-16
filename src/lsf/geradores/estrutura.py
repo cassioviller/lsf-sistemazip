@@ -11,6 +11,7 @@ import math
 import sqlite3
 from dataclasses import dataclass
 
+from lsf.geradores.geometria import bbox, cortar_span, encadear_contorno, poly_area, scan
 from lsf.motores.orcamento import pior_confianca
 
 
@@ -27,9 +28,15 @@ def _round_js(x: float, nd: int = 0) -> float:
 
 @dataclass(frozen=True)
 class Peca:
+    """Peça de perfil. `y` é a vertical (pé-direito/cota), `x`/`z` o plano da planta
+    — convenção do v7. Parede vive num plano (z0=z1=0) e seu `comp` é o hypot 2D;
+    laje/cobertura usam os três eixos, daí `comp` ser hypot 3D."""
+
     tag: str
     tipo: str          # guia|montante|montante_ext|montante_curto|king|jack|
-                       # verga_mont|verga_guia|peitoril|cripple|diagonal|bloqueador
+                       # verga_mont|verga_guia|peitoril|cripple|diagonal|bloqueador|
+                       # borda_laje|viga_laje|bloqueador_laje|enrijecedor_laje|
+                       # reforco_abertura
     perfil: str
     x0: float
     y0: float
@@ -37,6 +44,11 @@ class Peca:
     y1: float
     comp: float
     origem_regra: str = ""
+    sistema: str = "parede"
+    grupo: str = ""
+    z0: float = 0.0
+    z1: float = 0.0
+    confianca: str = "estimado"
 
 
 @dataclass(frozen=True)
@@ -44,6 +56,10 @@ class Acessorio:
     item: str
     qtd: float
     un: str
+    sistema: str = "parede"
+    grupo: str = ""
+    origem_regra: str = ""
+    confianca: str = "parametrico"
 
 
 @dataclass(frozen=True)
@@ -421,6 +437,231 @@ def _contraventamento_e_ancoragem(contrav, externa, vaos_contrav, ops, juntas,
     acess.append(Acessorio('Chumbador Parabolt 5/16"x4-1/4"', n_anc, "un"))
     acess.append(Acessorio("Parafuso sextavado 4,8x19 (ancoradores)", n_anc * 8, "un"))
     return acess
+
+
+# ---------- laje (porta fiel de gerarPecasLaje, v7:801-889) ----------
+
+def contorno_pavimento(con, projeto_id: int, nivel_indice: int) -> list[tuple[float, float]]:
+    """Footprint do pavimento = contorno das paredes EXTERNAS encadeado.
+
+    Porta de chainPolygon(W_T)/buildBuilding do v7, que filtra `t==='ext'`. O
+    footprint NÃO é input de projeto: deriva da planta normalizada (D3). A ordem
+    das paredes importa (o encadeamento é guloso a partir da primeira) — por isso
+    ORDER BY p.id, que reproduz a ordem do array W_T do v7.
+    """
+    segs = con.execute(
+        "SELECT a.x, a.y, b.x, b.y"
+        "  FROM parede p"
+        "  JOIN no_planta a ON a.id = p.no_a"
+        "  JOIN no_planta b ON b.id = p.no_b"
+        "  JOIN nivel n ON n.id = p.nivel_id"
+        " WHERE n.projeto_id = ? AND n.indice = ? AND p.externa = 1"
+        " ORDER BY p.id", (projeto_id, nivel_indice)).fetchall()
+    return encadear_contorno([((ax, az), (bx, bz)) for ax, az, bx, bz in segs])
+
+
+def _perfis_laje(con, perfil_viga_input: str, vao_ef: float) -> tuple[str, str, str]:
+    """Escalonamento do par viga/bloqueador por vão efetivo (laje_escalonamento).
+    O limiar da primeira faixa é o mesmo da regra `laje_vao_ue200` (v7: 4,0 m)."""
+    faixas = con.execute(
+        "SELECT faixa_ate_m, perfil_viga, perfil_bloqueador, origem"
+        "  FROM laje_escalonamento ORDER BY faixa_ate_m").fetchall()
+    if not faixas:
+        raise DadoIndisponivel("laje_escalonamento vazio")
+    if perfil_viga_input != "auto":       # perfil imposto pelo projeto (v7: L.perfilViga)
+        for _, pv, pb, origem in faixas:
+            if pv == perfil_viga_input:
+                return pv, pb, origem
+        raise DadoIndisponivel(
+            f"perfil de viga '{perfil_viga_input}' sem par de bloqueador em"
+            " laje_escalonamento")
+    for ate, pv, pb, origem in faixas:
+        if vao_ef <= ate:
+            return pv, pb, origem
+    raise DadoIndisponivel(
+        f"vão efetivo de {vao_ef:.2f} m acima da última faixa de laje_escalonamento")
+
+
+# citação das regras de montagem da laje, como o v7 anotava (REGRAS_SIS.laje.origem)
+_O_LAJE = ("REGRA LAJE-003/006/007/009/010 [mont. p.21-39: DL-01 5 paraf. alma;"
+           " C=176(L200)/226(L250)]")
+
+
+def gerar_laje(con, laje_id: int) -> tuple[list[Peca], list[Acessorio], list[str]]:
+    """Laje de piso sobre um pavimento: bordas no contorno real, vigas na direção x
+    recortadas pelo polígono e pelos vãos de escada, bloqueadores por baia em
+    modulação alternada, enrijecedores, reforço de abertura e chapa de piso.
+
+    Porta fiel de v7:801-889 — a ordem das operações e os epsilons são contrato.
+    """
+    linha = con.execute(
+        "SELECT projeto_id, id_laje, grupo, pav_base, nivel, esp_m, perfil_viga,"
+        "       perfil_enrijecedor, bloqueador_max_m, chapa_piso_tipo,"
+        "       chapa_piso_larg, chapa_piso_alt, confianca"
+        "  FROM laje WHERE id = ?", (laje_id,)).fetchone()
+    if linha is None:
+        raise DadoIndisponivel(f"laje {laje_id} não existe")
+    (projeto_id, id_laje, grupo, pav_base, y, esp, perfil_viga_in, perfil_enrij,
+     bmax, chapa_tipo, chapa_larg, chapa_alt, conf_laje) = tuple(linha)
+
+    # coeficientes de regra são `estimado` (sem calibração de obra): a peça nunca
+    # sai melhor que isso, por melhor que seja a geometria de entrada (D4)
+    conf = pior_confianca(conf_laje, "estimado")
+    pecas: list[Peca] = []
+    acess: list[Acessorio] = []
+    alertas: list[str] = []
+
+    fp = contorno_pavimento(con, projeto_id, pav_base)
+    if not fp:
+        alertas.append(
+            f"{id_laje}: footprint vazio — verificar as paredes externas do"
+            f" pavimento {pav_base}.")
+        return pecas, acess, alertas
+
+    R = _regras(con)
+    aberturas = [dict(zip(("tipo", "x", "z", "w", "d"), r)) for r in con.execute(
+        "SELECT tipo, x, z, w, d FROM laje_abertura WHERE laje_id = ? ORDER BY id",
+        (laje_id,)).fetchall()]
+    extensoes = [dict(zip(("x", "z", "w", "d"), r)) for r in con.execute(
+        "SELECT x, z, w, d FROM laje_extensao WHERE laje_id = ? ORDER BY id",
+        (laje_id,)).fetchall()]
+
+    seq: dict[str, int] = {}
+
+    def mk(tipo, perfil, x0, y0, z0, x1, y1, z1, origem, confianca):
+        pfx = "".join(c for c in tipo if c.isalpha())[:3].upper()   # v7 mkP
+        chave = grupo + pfx
+        seq[chave] = seq.get(chave, 0) + 1
+        comp = math.hypot(x1 - x0, y1 - y0, z1 - z0)
+        p = Peca(f"{grupo}-{pfx}{seq[chave]}", tipo, perfil, x0, y0, x1, y1,
+                 _round_js(comp, 4), origem, "laje", grupo, z0, z1, confianca)
+        pecas.append(p)
+        return p
+
+    def mk_ac(item, qtd, un, origem, confianca):
+        acess.append(Acessorio(item, _round_js(qtd, 1), un, "laje", grupo, origem,
+                               confianca))
+
+    bb = bbox(fp)
+    # escalonamento: o maior vão livre (varredura em z, passo 0,5) decide o perfil
+    max_span = 0.0
+    z = bb["z0"] + 0.2
+    while z < bb["z1"]:
+        for a, b in scan(fp, z, "z"):
+            max_span = max(max_span, b - a)
+        z += 0.5
+    # simplificação conservadora do v7: portante interna longa parte o vão ao meio
+    vao_ef = max_span / 2
+    perf_v, perf_b, origem_par = _perfis_laje(con, perfil_viga_in, vao_ef)
+
+    chk = dimensionar_viga(con, vao_ef, esp)
+    if chk["modo"] == "dupla":
+        alertas.append(
+            f"{id_laje}: vão de cálculo {_round_js(vao_ef, 1)}m reprova viga simples"
+            f" (M={chk['M']} vs {chk['MRd']} kNm; δ={chk['delta']} vs {chk['dLim']}mm)"
+            " → VIGAS DUPLAS geradas. Memória: SC 4,0 kN/m² loja [NBR 6120], ZAR230, L/350.")
+    if chk["modo"] == "laminada":
+        alertas.append(
+            f"{id_laje}: vão {_round_js(vao_ef, 1)}m reprova até viga dupla → exige"
+            " viga laminada 1VG + pilares [OBRA p.3-9]. Reduzir vão com apoio"
+            " intermediário no executivo.")
+
+    # bordas = perímetro real do polígono
+    for i in range(len(fp)):
+        a, b = fp[i], fp[(i + 1) % len(fp)]
+        mk("borda_laje", perf_b, a[0], y, a[1], b[0], y, b[1],
+           "rim no contorno real", conf)
+
+    # vigas ao longo de x, recortadas pelo polígono e pelos vãos de escada
+    n_enr = n_bloc = n_vigas = 0
+    z = bb["z0"] + esp
+    while z < bb["z1"] - 0.05:
+        for xa, xb in scan(fp, z, "z"):
+            vaos = [(ab["x"], ab["x"] + ab["w"]) for ab in aberturas
+                    if ab["z"] <= z <= ab["z"] + ab["d"]]
+            for s, e in cortar_span(xa, xb, vaos):
+                n_vigas += 1
+                mk("viga_laje", perf_v, s, y, z, e, y, z,
+                   f"{_O_LAJE} · {origem_par} · vão ef {_round_js(vao_ef, 1)}m→{perf_v}",
+                   conf)
+                if chk["modo"] != "simples":
+                    mk("viga_laje", perf_v, s, y, z + 0.05, e, y, z + 0.05,
+                       f"viga DUPLA (box): ELU M={chk['M']}>{chk['MRd']} kNm e/ou"
+                       f" δ={chk['delta']}>{chk['dLim']}mm no vão"
+                       f" {_round_js(vao_ef, 1)}m [NBR 14762]", "parametrico")
+        z += esp
+
+    # bloqueadores em linhas x, passo <= bloqueador_max_m, cortados pelo polígono e vãos
+    n_lin = max(1, math.ceil((bb["x1"] - bb["x0"]) / bmax) - 1)
+    c_enrij = _regra(R, "laje_enrij_c_f250" if perf_v.startswith("Ue250")
+                     else "laje_enrij_c_f200")
+    origem_enrij = ("REGRA LAJE-010: C=226mm (laje 250) [p.39]"
+                    if perf_v.startswith("Ue250")
+                    else "REGRA LAJE-009: C=176mm (laje 200) [p.27-38]")
+    for lin in range(1, n_lin + 1):
+        x = bb["x0"] + (bb["x1"] - bb["x0"]) * lin / (n_lin + 1)
+        for za, zb in scan(fp, x, "x"):
+            vaos = [(ab["z"], ab["z"] + ab["d"]) for ab in aberturas
+                    if ab["x"] <= x <= ab["x"] + ab["w"]]
+            for s, e in cortar_span(za, zb, vaos):
+                # A4 [p.27 + LAJE-005]: bloqueador é peça POR VÃO entre vigas, em
+                # modulação ALTERNADA (baia sim, baia não, deslocada ±12cm)
+                n_bay = max(1, int(_round_js((e - s) / esp)))
+                for b in range(n_bay):
+                    zb0 = s + b * esp
+                    zb1 = min(e, s + (b + 1) * esp)
+                    x_alt = x + (0.12 if b % 2 else -0.12)
+                    mk("bloqueador_laje", perf_b, x_alt, y, zb0, x_alt, y, zb1,
+                       "A4: bloq. por vão alternado [p.27, LAJE-005] · 2 paraf/ligação"
+                       " [DP-01A]", conf)
+                    n_bloc += 1
+                n_cross = max(1, int(_round_js((e - s) / esp)))
+                for c in range(n_cross):
+                    n_enr += 1
+                    mk("enrijecedor_laje", perfil_enrij, x, y, s + c * esp,
+                       x, y - c_enrij, s + c * esp, origem_enrij, "parametrico")
+
+    mk_ac("Parafuso 4,8×19 — bloqueador na mesa (4/bloq)",
+          n_bloc * _regra(R, "laje_fix_mesa_paraf"), "un",
+          "DP-01A: 2 paraf. flangeados por ligação × 2 extremidades", "parametrico")
+    mk_ac("Parafuso 4,8×19 — enrijecedor na alma (5/contato)",
+          n_enr * _regra(R, "laje_fix_alma_paraf"), "un",
+          "REGRA LAJE-007: 5 parafusos [DL-01 p.21-39]", "parametrico")
+
+    # extensões retangulares (ex.: faixa de varanda) — bordas no perímetro exposto + vigas
+    for ex in extensoes:
+        mk("borda_laje", perf_b, ex["x"], y, ex["z"], ex["x"], y, ex["z"] + ex["d"],
+           "borda de varanda", "estimado")
+        mk("borda_laje", perf_b, ex["x"], y, ex["z"], ex["x"] + ex["w"], y, ex["z"],
+           "borda de varanda", "estimado")
+        mk("borda_laje", perf_b, ex["x"], y, ex["z"] + ex["d"], ex["x"] + ex["w"], y,
+           ex["z"] + ex["d"], "borda de varanda", "estimado")
+        z = ex["z"] + esp
+        while z < ex["z"] + ex["d"] - 0.05:
+            mk("viga_laje", perf_v, ex["x"], y, z, ex["x"] + ex["w"], y, z,
+               "viga da faixa de varanda", "estimado")
+            z += esp
+
+    # reforço nas aberturas (vão de escada)
+    for ab in aberturas:
+        x, zz, w, d = ab["x"], ab["z"], ab["w"], ab["d"]
+        for x0, z0, x1, z1 in ((x, zz, x + w, zz), (x, zz + d, x + w, zz + d),
+                               (x, zz, x, zz + d), (x + w, zz, x + w, zz + d)):
+            mk("reforco_abertura", perf_b, x0, y, z0, x1, y, z1,
+               "reforço de vão de escada", conf)
+
+    # chapa de piso pela área real do polígono, menos vãos, mais extensões
+    if chapa_tipo:
+        area = poly_area(fp)
+        for ab in aberturas:
+            area -= ab["w"] * ab["d"]
+        for ex in extensoes:
+            area += ex["w"] * ex["d"]
+        n_ch = math.ceil(area * 1.10 / ((chapa_larg or 1.2) * (chapa_alt or 2.4)))
+        mk_ac(f"{chapa_tipo} (piso {id_laje})", n_ch, "chapa",
+              "área do polígono + 10%", "estimado")
+
+    return pecas, acess, alertas
 
 
 @dataclass(frozen=True)

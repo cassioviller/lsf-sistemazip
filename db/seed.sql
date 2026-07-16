@@ -286,6 +286,15 @@ ON CONFLICT (faixa_ate_m) DO UPDATE SET
   perfil_montante=excluded.perfil_montante, perfil_guia=excluded.perfil_guia,
   origem=excluded.origem;
 
+-- ---------- Escalonamento de perfil da laje (gerarPecasLaje v7) ----------
+-- Pares reais das listas 1L da 109.1506; o limiar da faixa é a regra laje_vao_ue200.
+INSERT INTO laje_escalonamento (faixa_ate_m, perfil_viga, perfil_bloqueador, origem) VALUES
+ (4.0, 'Ue200#1.25', 'U202#0.95', 'v7 gerarPecasLaje: vão ef <= 4m [listas 1L: par real Ue200+U202#0.95]'),
+ (99.0, 'Ue250#2.00', 'U252#1.25', 'v7 gerarPecasLaje: vão ef > 4m [listas 1L: par real Ue250+U252#1.25]')
+ON CONFLICT (faixa_ate_m) DO UPDATE SET
+  perfil_viga=excluded.perfil_viga, perfil_bloqueador=excluded.perfil_bloqueador,
+  origem=excluded.origem;
+
 -- ---------- Regras do gerador de paredes (REGRAS do v7, linhas 164-190) ----------
 -- Coeficiente novo sem calibração de obra = estimado (referência anotada).
 INSERT INTO regra_lsf (chave,valor,unidade,referencia) VALUES
