@@ -1059,6 +1059,8 @@ class EstruturaProjeto:
     kg_comprado: float
     confianca: str
     alertas: list[str]
+    pecas: list[Peca]
+    acessorios: list[Acessorio]
 
 
 def plano_de_corte(con, pecas: list[Peca], barra_m: float) -> list[PlanoCortePerfil]:
@@ -1106,6 +1108,39 @@ def gerar_estrutura(con, projeto_id: int) -> EstruturaProjeto:
             f"projeto {projeto_id} sem paredes na planta_normalizada")
     paredes = [gerar_parede(con, i) for i in ids]
     todas = [p for ep in paredes for p in ep.pecas]
+    acess: list[Acessorio] = [a for ep in paredes for a in ep.acessorios]
+    alertas = [a for ep in paredes for a in ep.alertas]
+
+    # Os 4 sistemas horizontais. Sistema ausente é ESCOPO, não dado faltante: um
+    # galpão térreo não tem laje nem escada. Por isso aqui vira ALERTA (o gate de
+    # macroetapa zerada barra a proposta lá na frente) em vez de exceção — enquanto
+    # gerar_forro/gerar_laje, chamados direto, seguem exigindo seu input (D4.1).
+    for tabela, gerador in (("laje", gerar_laje), ("escada", gerar_escada),
+                            ("cobertura", gerar_cobertura)):
+        ids_sis = [r[0] for r in con.execute(
+            f"SELECT id FROM {tabela} WHERE projeto_id = ? ORDER BY id",
+            (projeto_id,))]
+        if not ids_sis:
+            alertas.append(f"projeto sem {tabela}: kg do edifício não a inclui")
+        for sid in ids_sis:
+            p, a, al = gerador(con, sid)
+            todas += p
+            acess += a
+            alertas += al
+    if con.execute("SELECT 1 FROM forro WHERE projeto_id = ?",
+                   (projeto_id,)).fetchone() is None:
+        alertas.append("projeto sem forro: kg do edifício não o inclui")
+    else:
+        p, a, al = gerar_forro(con, projeto_id)
+        todas += p
+        acess += a
+        alertas += al
+
+    # nesting GLOBAL (todas as peças num plano só), enquanto o v7 nesta por
+    # sistema: a sobra de uma barra de parede serve a uma peça de cobertura, então
+    # o kg comprado sai ~6% abaixo do v7 (25,7 t vs 27,4 t) com o mesmo kg líquido.
+    # É a hipótese de compra centralizada da obra — trocar por nesting por sistema
+    # é decisão de suprimentos, não bug.
     barra = _regra(_regras(con), "barra_m")
     plano = plano_de_corte(con, todas, barra)
     kg_liquido = sum(pl.kg for pl in plano)
@@ -1113,11 +1148,11 @@ def gerar_estrutura(con, projeto_id: int) -> EstruturaProjeto:
         pl.barras * barra * _perfil(con, pl.perfil)["massa_kg_m"] for pl in plano)
     # coeficientes das regras são `estimado` (sem calibração de obra): o resultado
     # nunca é melhor que estimado, por pior que seja a geometria (D4)
-    confianca = pior_confianca(*(ep.confianca for ep in paredes), "estimado")
-    alertas = [a for ep in paredes for a in ep.alertas]
+    confianca = pior_confianca(*(ep.confianca for ep in paredes),
+                               *(p.confianca for p in todas), "estimado")
     return EstruturaProjeto(projeto_id, paredes, plano,
                             _round_js(kg_liquido), _round_js(kg_comprado),
-                            confianca, alertas)
+                            confianca, alertas, todas, acess)
 
 
 def _cargas(con) -> dict:
@@ -1183,7 +1218,8 @@ def derivar_quantitativos(con, projeto_id: int) -> dict:
         "   confianca=excluded.confianca, origem_regra=excluded.origem_regra"
         " WHERE quantitativo.origem = 'PARAMETRICO'",
         (projeto_id, folha[0], est.kg_comprado, est.confianca,
-         "gerador de estrutura F2.1 (porta fiel v7) — kg comprado em barras 6m"))
+         "gerador de estrutura F2 (paredes+laje+escada+cobertura+forro,"
+         " porta fiel v7) — kg comprado em barras 6m"))
     resultado = {"kg_comprado": est.kg_comprado, "confianca": est.confianca}
     if cur.rowcount == 0:  # conflito com linha não-PARAMETRICO: nada escrito
         origem = con.execute(
