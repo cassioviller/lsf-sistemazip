@@ -148,7 +148,7 @@ def gerar_parede(con, parede_id: int, contrav: str | None = None,
                  vaos_contrav: int = 1) -> EstruturaParede:
     linha = con.execute(
         "SELECT p.externa, p.perfil_codigo, p.confianca,"
-        "       a.x, a.y, b.x, b.y, n.pe_direito_m"
+        "       a.x, a.y, b.x, b.y, n.pe_direito_m, n.indice"
         "  FROM parede p"
         "  JOIN no_planta a ON a.id = p.no_a"
         "  JOIN no_planta b ON b.id = p.no_b"
@@ -157,7 +157,12 @@ def gerar_parede(con, parede_id: int, contrav: str | None = None,
     ).fetchone()
     if linha is None:
         raise DadoIndisponivel(f"parede {parede_id} não existe")
-    externa, perfil_m, conf, ax, ay, bx, by, pd = tuple(linha)
+    externa, perfil_m, conf, ax, ay, bx, by, pd, nivel_indice = tuple(linha)
+    # REGRA DP-04: só o térreo ancora no radier; painel de pavimento superior
+    # aparafusa no painel de baixo [OBRA p.8-9]. O v7 filtra por nome do acessório
+    # em montarProjeto (/Parabolt|Ancorador/i); aqui a parede simplesmente não gera
+    # o que não existe — sem isso, a 109 orçaria 3,06x a ancoragem real.
+    no_radier = nivel_indice == 0
     comp = math.hypot(bx - ax, by - ay)
     if comp <= 0 or pd <= 0:
         raise DadoIndisponivel(f"parede {parede_id} degenerada (comp={comp}, pd={pd})")
@@ -211,7 +216,7 @@ def gerar_parede(con, parede_id: int, contrav: str | None = None,
     _bloqueadores(ops, comp, pd, perfil_m, R, pecas, mk)                # Task 5
     acess = _contraventamento_e_ancoragem(                              # Task 5
         contrav, externa, vaos_contrav, ops, juntas, comp, pd,
-        perfil_m, alma_m, R, pecas, mk)
+        perfil_m, alma_m, R, pecas, mk, no_radier)
 
     kg: dict[str, float] = {}
     massas: dict[str, float] = {}
@@ -393,9 +398,12 @@ def _bloqueadores(ops, comp, pd, perfil_m, R, pecas, mk):
 
 
 def _contraventamento_e_ancoragem(contrav, externa, vaos_contrav, ops, juntas,
-                                  comp, pd, perfil_m, alma_m, R, pecas, mk):
+                                  comp, pd, perfil_m, alma_m, R, pecas, mk,
+                                  no_radier=True):
     """Contraventamento (derivado de `externa` quando não vem explícito, como o
-    wallToP do v7) + acessórios de ancoragem [OBRA-484125]."""
+    wallToP do v7) + acessórios de ancoragem [OBRA-484125].
+
+    `no_radier=False` (pavimento superior) não gera ancoragem: REGRA DP-04."""
     if contrav is None:
         contrav = "fita" if externa else "nenhum"
     acess: list[Acessorio] = []
@@ -442,10 +450,12 @@ def _contraventamento_e_ancoragem(contrav, externa, vaos_contrav, ops, juntas,
         pf = len(juntas) * math.ceil(pd / _regra(R, "passo_conex_painel_m"))
         acess.append(Acessorio(
             "Parafuso sext. 4,8x19 — conexão entre painéis (ziguezague 200mm)", pf, "un"))
-    n_anc = max(2, math.floor(comp / _regra(R, "ancor_esp_padrao_m")) + 1)
-    acess.append(Acessorio("Ancorador chapa #3,00 190x50x50", n_anc, "un"))
-    acess.append(Acessorio('Chumbador Parabolt 5/16"x4-1/4"', n_anc, "un"))
-    acess.append(Acessorio("Parafuso sextavado 4,8x19 (ancoradores)", n_anc * 8, "un"))
+    if no_radier:   # DP-04: painel-sobre-painel não chumba no concreto [OBRA p.8-9]
+        n_anc = max(2, math.floor(comp / _regra(R, "ancor_esp_padrao_m")) + 1)
+        acess.append(Acessorio("Ancorador chapa #3,00 190x50x50", n_anc, "un"))
+        acess.append(Acessorio('Chumbador Parabolt 5/16"x4-1/4"', n_anc, "un"))
+        acess.append(Acessorio("Parafuso sextavado 4,8x19 (ancoradores)",
+                               n_anc * 8, "un"))
     return acess
 
 
