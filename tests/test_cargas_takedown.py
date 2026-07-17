@@ -198,7 +198,23 @@ def test_parede_sem_apoio_embaixo_vira_orfa_e_nao_evapora(projeto_109_estrutura)
         assert desce <= acima + 1e-6
 
     pend = pendencias_do_takedown(con, pid)
-    assert any("laje" in p.lower() and "portante" in p.lower() for p in pend)
+    assert any("apoio nenhum" in p for p in pend)
+
+
+def test_parede_que_desce_pela_laje_nao_sai_verificada(projeto_109_estrutura):
+    """A armadilha do próprio conserto: modelar o caminho laje→vigas→paredes faz a
+    carga órfã cair (680→240 kN na 109), e uma pendência que sumisse junto diria
+    "está tudo certo" com as hipóteses escondidas. A viga que recebe uma parede em
+    cima pede reforço, e o gerador não emite reforço nenhum: isso TEM que continuar
+    viajando marcado, justamente porque o número agora parece bom."""
+    from lsf.motores.cargas import pendencias_do_takedown, takedown_por_parede
+
+    con, pid = projeto_109_estrutura
+    r = takedown_por_parede(con, pid, com_resumo=True)
+    assert r.parede_na_laje_kn > 0
+
+    pend = pendencias_do_takedown(con, pid)
+    assert any("reforço" in p and "NÃO emite" in p for p in pend)
 
 
 def test_confianca_nunca_melhor_que_a_das_camadas(projeto_109_estrutura):
