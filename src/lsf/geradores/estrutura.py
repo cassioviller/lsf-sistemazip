@@ -27,6 +27,13 @@ class DadoIndisponivel(Exception):
 # `pendencias_estruturais` filtra por este prefixo, não por 'laminada' no meio da frase.
 MARCA_PENDENCIA = "[PENDÊNCIA ESTRUTURAL]"
 
+# Prefixo da origem da 2ª viga do par (viga dupla). Ela existe para dar CAPACIDADE
+# ao mesmo vão, não para carregar outra faixa de laje: quem for somar carga tem que
+# saber pular estas. Marcado em vez de deduzido pela confiança ('parametrico'), que
+# também aparece noutras peças. O `tipo` continua 'viga_laje' de propósito — é o que
+# o v7 emite, e o oráculo compara peça a peça por (tipo, perfil).
+MARCA_2A_VIGA = "[2ª VIGA DO PAR]"
+
 
 def _round_js(x: float, nd: int = 0) -> float:
     """Math.round/toFixed do JS arredondam 0.5 para cima; round() do Python é
@@ -645,15 +652,15 @@ def gerar_laje(con, laje_id: int, com_info: bool = False):
     # se estivesse verificada — quem gateia é a pendência que sobe até a EAP.
     if chk["modo"] == "dupla":
         _origem_2a_viga = (
-            f"viga DUPLA (box): ELU M={chk['M']}>{chk['MRd']} kNm e/ou"
-            f" δ={chk['delta']}>{chk['dLim']}mm no vão {_round_js(vao_ef, 1)}m"
+            f"{MARCA_2A_VIGA} viga DUPLA (box): ELU M={chk['M']}>{chk['MRd']} kNm"
+            f" e/ou δ={chk['delta']}>{chk['dLim']}mm no vão {_round_js(vao_ef, 1)}m"
             f" em {perf_v} [NBR 14762]")
     else:
         _origem_2a_viga = (
-            f"PROVISÃO de orçamento, NÃO verificada: no vão {_round_js(vao_ef, 1)}m"
-            f" nem a dupla em {perf_v} passa (M={chk['M']}>2×{chk['MRd']} kNm e/ou"
-            f" δ={chk['delta']}>{chk['dLim']}mm) — exige viga laminada 1VG +"
-            " pilares. Ver a pendência estrutural da laje.")
+            f"{MARCA_2A_VIGA} PROVISÃO de orçamento, NÃO verificada: no vão"
+            f" {_round_js(vao_ef, 1)}m nem a dupla em {perf_v} passa"
+            f" (M={chk['M']}>2×{chk['MRd']} kNm e/ou δ={chk['delta']}>{chk['dLim']}mm)"
+            " — exige viga laminada 1VG + pilares. Ver a pendência estrutural da laje.")
 
     # bordas = perímetro real do polígono
     for i in range(len(fp)):
