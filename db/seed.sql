@@ -286,6 +286,15 @@ ON CONFLICT (faixa_ate_m) DO UPDATE SET
   perfil_montante=excluded.perfil_montante, perfil_guia=excluded.perfil_guia,
   origem=excluded.origem;
 
+-- ---------- Escalonamento de perfil da laje (gerarPecasLaje v7) ----------
+-- Pares reais das listas 1L da 109.1506; o limiar da faixa é a regra laje_vao_ue200.
+INSERT INTO laje_escalonamento (faixa_ate_m, perfil_viga, perfil_bloqueador, origem) VALUES
+ (4.0, 'Ue200#1.25', 'U202#0.95', 'v7 gerarPecasLaje: vão ef <= 4m [listas 1L: par real Ue200+U202#0.95]'),
+ (99.0, 'Ue250#2.00', 'U252#1.25', 'v7 gerarPecasLaje: vão ef > 4m [listas 1L: par real Ue250+U252#1.25]')
+ON CONFLICT (faixa_ate_m) DO UPDATE SET
+  perfil_viga=excluded.perfil_viga, perfil_bloqueador=excluded.perfil_bloqueador,
+  origem=excluded.origem;
+
 -- ---------- Regras do gerador de paredes (REGRAS do v7, linhas 164-190) ----------
 -- Coeficiente novo sem calibração de obra = estimado (referência anotada).
 INSERT INTO regra_lsf (chave,valor,unidade,referencia) VALUES
@@ -304,6 +313,78 @@ INSERT INTO regra_lsf (chave,valor,unidade,referencia) VALUES
  ('margem_abertura_m',0.10,'m','v7 gerarPecas: folga mínima da abertura à borda'),
  ('folga_entre_aberturas_m',0.15,'m','v7 gerarPecas: folga mínima entre aberturas'),
  ('passo_conex_painel_m',0.20,'m','OBRA DP-07: parafusos entre painéis, ziguezague'),
- ('ancor_esp_padrao_m',1.20,'m','OBRA "por modulação", pendente')
+ ('ancor_esp_padrao_m',1.20,'m','OBRA "por modulação", pendente'),
+ -- acessórios de nível de EDIFÍCIO (v7 montarProjeto), não da peça
+ ('verga_paraf_passo_m',0.20,'m','A5/VERGA-002-003 [DX-11 p.40]: parafuso de verga @200mm'),
+ ('laje_chapa_l_passo_m',3.00,'m','DX-06 [OBRA p.6/8]: 1 Chapa L de 3 m por 3 m de perímetro'),
+ ('laje_cantoneira_por_viga',0.80,'un/viga','painel 1L8 p.28: 13 cantoneiras / 16 vigas'),
+ ('impermeab_folga',1.10,'-','área descoberta [folha 102] + 10%'),
+ -- instalações [HID R02 p.1-7 · CRI gás p.1]
+ ('instal_furos_por_ponto',2,'un','DP-08: 2 furos de serviço por ponto'),
+ ('instal_paraf_chapa_reforco',8,'un','DP-08: 8 parafusos por chapa de reforço'),
+ ('instal_luva_gas_m',2.50,'m','CRI gás: tubo-luva PVC por ponto de GLP'),
+ ('instal_furo_max_cm',12,'cm','HID-FURO-001: furo máx. 12cm na zona de tração'),
+ ('instal_furo_max_h_frac',3,'-','HID-FURO-001: furo máx. h/3 da altura da viga'),
+ ('instal_furo_espac_min_h',2,'-','HID R02: espaçamento entre furos >= 2h'),
+ ('instal_furo_vert_max_mm',50,'mm','HID R02: furo vertical Ø <= 50mm'),
+ ('instal_gas_afast_eletrica_cm',30,'cm','CRI gás p.1: GLP >= 30cm da elétrica'),
+ ('instal_gas_ponto_alt_min_cm',60,'cm','CRI gás p.1: ponto de GLP >= 60cm do piso')
 ON CONFLICT (chave) DO UPDATE SET
   valor=excluded.valor, unidade=excluded.unidade, referencia=excluded.referencia;
+
+-- ============ Estrutura: regras de laje/escada/cobertura (v7:656-681) ============
+INSERT INTO regra_lsf (chave,valor,unidade,referencia) VALUES
+  ('laje_esp_m',0.40,'m','v7 REGRAS_SIS.laje.esp'),
+  ('laje_bloqueador_max_m',2.40,'m','A4 [p.27 LAJE-005] bloqueador por vão'),
+  ('laje_vao_ue200',4.0,'m','v7: vão ef >4m → Ue250'),
+  ('laje_enrij_c_f200',0.176,'m','REGRA LAJE-009: C=176mm (laje 200) [p.27-38]'),
+  ('laje_enrij_c_f250',0.226,'m','REGRA LAJE-010: C=226mm (laje 250) [p.39]'),
+  ('laje_fix_mesa_paraf',4,'un','DP-01A: 2 paraf/ligação × 2 extremidades'),
+  ('laje_fix_alma_paraf',5,'un','REGRA LAJE-007 [DL-01 p.21-39]'),
+  ('escada_espelho_max',0.175,'m','v7 REGRAS_SIS.escada.espelhoMax'),
+  ('escada_piso_min',0.28,'m','v7 REGRAS_SIS.escada.pisoMin'),
+  ('escada_piso_abs_min',0.24,'m','v7 gerarPecasEscada: piso nunca abaixo de 0,24m mesmo em poço curto (abaixo disso vira alerta)'),
+  ('escada_fix_lateral_mm',150,'mm','1ES1: reforço 140 @150mm'),
+  ('cobertura_esp_tesoura',1.20,'m','v7 REGRAS_SIS.cobertura.espTesoura'),
+  ('cobertura_passo_mont',0.40,'m','1TS41-46: ~10 montantes/3,77m [p.44-49]'),
+  ('cobertura_beiral_m',0.30,'m','v7 PROJECT.cobertura.beiral'),
+  ('cobertura_gusset_paraf',4,'un','1TS41/42: gusset por nó'),
+  ('cobertura_box_paraf_mm',200,'mm','DX-09: box @200mm'),
+  ('cobertura_cb_passo',0.60,'m','1CB p.56-77: travessas 140#0.80 @0,60')
+ON CONFLICT (chave) DO UPDATE SET
+  valor=excluded.valor, unidade=excluded.unidade, referencia=excluded.referencia;
+
+-- ============ Cargas e seção p/ dimensionar_viga (v7:633-642) — NBR ============
+-- Valores e unidades EXATOS do v7 (CARGAS v7:633, SEC_Ue250 v7:634). A aritmética
+-- de dimensionar_viga (Task 4) reproduz o v7 com os fatores de conversão (1e6/1e9/1e12),
+-- então o seed guarda os números na unidade v7 — NÃO converter aqui.
+INSERT INTO regra_lsf (chave,valor,unidade,referencia) VALUES
+  ('carga_sc',4.0,'kN/m²','NBR 6120: sobrecarga (v7 CARGAS.sc=4.0)'),
+  ('carga_g',1.3,'kN/m²','NBR 6120: permanente (v7 CARGAS.g=1.3)'),
+  ('aco_fy',230,'MPa','NBR 14762: ZAR230 fy (v7 CARGAS.fy=230)'),
+  ('aco_E',200000,'MPa','NBR 14762: módulo E (v7 CARGAS.E=2.0e5)'),
+  ('coef_gm',1.10,'-','NBR 14762: γM (v7 CARGAS.gM=1.10)'),
+  ('flecha_lim',350,'-','NBR 14762: L/350 (v7 CARGAS.flecha=350)'),
+  ('sec_ue250_a',708,'mm²','NBR 14762 (entrada) · SEC_Ue250.A (v7:634)'),
+  ('sec_ue250_wx',46300,'mm³','NBR 14762 (entrada) · SEC_Ue250.Wx=46.3e3 (v7:634)'),
+  ('sec_ue250_ix',5780000,'mm⁴','NBR 14762 (entrada) · SEC_Ue250.Ix=5.78e6 (v7:634)')
+ON CONFLICT (chave) DO UPDATE SET
+  valor=excluded.valor, unidade=excluded.unidade, referencia=excluded.referencia;
+
+-- ============================================================
+-- Camadas por tipo de parede (migração 013) — o que o spike 4 tinha chumbado.
+-- Externa: fechamento cimentício + membrana na face externa, gesso na interna.
+-- Interna: gesso nas DUAS faces (faces=2), sem cimentícia nem membrana.
+-- ============================================================
+INSERT INTO camada_parede (tipo,material,faces,origem) VALUES
+ ('externa','Peso próprio perfis parede (ref.)',1,'spike 4 / OBRA 1PV'),
+ ('externa','OSB 11,1mm',1,'spike 4: diafragma/substrato'),
+ ('externa','Placa cimentícia 10mm',1,'spike 4: face externa'),
+ ('externa','Gesso ST 12,5mm',1,'spike 4: face interna'),
+ ('externa','Lã de vidro 50mm',1,'spike 4: isolamento'),
+ ('externa','Membrana hidrófuga',1,'spike 4: face externa'),
+ ('interna','Peso próprio perfis parede (ref.)',1,'OBRA 1PV'),
+ ('interna','Gesso ST 12,5mm',2,'divisória: gesso nas duas faces'),
+ ('interna','Lã de vidro 50mm',1,'isolamento acústico')
+ON CONFLICT (tipo,material) DO UPDATE SET
+  faces=excluded.faces, origem=excluded.origem;

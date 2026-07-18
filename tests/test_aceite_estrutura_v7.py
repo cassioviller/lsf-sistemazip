@@ -3,59 +3,11 @@
 Carrega as 53 paredes da 109.1506 (fixture extraída do v7) na planta_normalizada
 e compara o gerador com a referência. O aceite da FASE (23.673 kg do edifício,
 desvio <= 10%) só fecha quando lajes/escadas/cobertura/forro forem portados.
+
+As fixtures `oraculo` e `projeto_109` vivem em `tests/conftest.py` (reuso pelos
+testes de laje/escada/cobertura/forro).
 """
-import json
-import pathlib
-
 import pytest
-
-FIXTURE = pathlib.Path(__file__).parent / "fixtures" / "estrutura_v7_109_1506.json"
-
-
-@pytest.fixture(scope="module")
-def oraculo():
-    return json.loads(FIXTURE.read_text())
-
-
-@pytest.fixture
-def projeto_109(con, oraculo):
-    """Projeto com a planta da 109.1506 carregada na planta_normalizada."""
-    con.execute(
-        "INSERT INTO projeto (codigo, nome, referencia, uf, desonerado)"
-        " VALUES ('109.1506-EST', 'Máximo Tintas', '2026-06', 'SP', 0)")
-    pid = con.execute(
-        "SELECT id FROM projeto WHERE codigo='109.1506-EST'").fetchone()[0]
-    niveis = {}
-    for i, cota in enumerate(oraculo["niveis"]):
-        cur = con.execute(
-            "INSERT INTO nivel (projeto_id, indice, nome, pe_direito_m, cota_m)"
-            " VALUES (?,?,?,?,?)",
-            (pid, i, f"pav-{i}", oraculo["pe_direito_m"], cota))
-        niveis[i] = cur.lastrowid
-    mapa = {}          # id da fixture -> parede_id no banco
-    for w in oraculo["paredes"]:
-        nivel_id = niveis[w["pav"]]
-        no_a = con.execute(
-            "INSERT INTO no_planta (nivel_id, x, y, confianca) VALUES (?,?,?,?)",
-            (nivel_id, w["a"][0], w["a"][1], "real")).lastrowid
-        no_b = con.execute(
-            "INSERT INTO no_planta (nivel_id, x, y, confianca) VALUES (?,?,?,?)",
-            (nivel_id, w["b"][0], w["b"][1], "real")).lastrowid
-        parede_id = con.execute(
-            "INSERT INTO parede (nivel_id, no_a, no_b, espessura_m, portante,"
-            " externa, perfil_codigo, origem, confianca)"
-            " VALUES (?,?,?,0.14,1,?,?,'MANUAL',?)",
-            (nivel_id, no_a, no_b, w["externa"], w["perfil"],
-             "estimado" if w["est"] else "real")).lastrowid
-        for a in w["aberturas"]:
-            con.execute(
-                "INSERT INTO vao (parede_id, tipo, posicao_m, largura_m, altura_m,"
-                " peitoril_m, confianca) VALUES (?,?,?,?,?,?,'real')",
-                (parede_id, a["tipo"], a["posicao_m"], a["largura_m"],
-                 a["altura_m"], a["peitoril_m"]))
-        mapa[w["id"]] = parede_id
-    con.commit()
-    return {"projeto_id": pid, "mapa": mapa}
 
 
 def test_cada_parede_bate_com_o_v7_em_pecas_e_kg(con, oraculo, projeto_109):

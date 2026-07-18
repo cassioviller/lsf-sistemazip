@@ -70,7 +70,8 @@ for (const b of blocos) {
 }
 
 // Fail-fast: all mapped names must load (derived from varMapping + engine-only names)
-const requiredNames = [...Object.keys(varMapping), 'wallToP', 'gerarPecas', 'nestingCorte'];
+const requiredNames = [...Object.keys(varMapping), 'wallToP', 'gerarPecas', 'nestingCorte',
+  'buildBuilding', 'gerarPecasLaje', 'gerarPecasEscada', 'gerarPecasCobertura', 'gerarPecasForro'];
 for (const nome of requiredNames) {
   if (typeof globalThis[nome] === 'undefined') {
     console.error(`engine incompleto: ${nome} não carregou`);
@@ -78,7 +79,9 @@ for (const nome of requiredNames) {
   }
 }
 
-const { LSF_DB, W_T, W_S, PD, NIV, wallToP, gerarPecas, nestingCorte } = globalThis;
+const { LSF_DB, W_T, W_S, PD, NIV, wallToP, gerarPecas, nestingCorte,
+        buildBuilding, PROJECT,
+        gerarPecasLaje, gerarPecasEscada, gerarPecasCobertura, gerarPecasForro } = globalThis;
 
 // Fail-fast: perfil fora de LSF_DB.perfis (ou sem massa positiva) é ERRO do
 // oráculo, nunca 0 kg silencioso — 0 kg corromperia a fixture do aceite.
@@ -129,16 +132,107 @@ for (const { walls, fi } of fatias) {
   }
 }
 
-const plano = nestingCorte(todas, LSF_DB, 'solto');
+// REGRA BOX-003 (porta fiel do bloco de montarProjeto): peça acima da barra
+// comercial de 6 m é segmentada em `ceil(comp/LMAX)` partes IGUAIS com emenda —
+// não em 6+6+resto. É o que o v7 faz ANTES de resumoPorSistema, e é o que produz
+// a perda real: uma peça de 7,9 m vira 2×3,95 m e sobra 2,05 m de cada barra.
+// Sem esta etapa o oráculo nesta peças de 15,8 m que a obra nunca cortou assim,
+// e o kg comprado sai ~13% baixo.
+const LMAX = REGRAS_SIS.barra.compMax;
+
+function segmentarBox003(pecas) {
+  const out = [];
+  for (const p of pecas) {
+    if (!(p.comp > LMAX + 1e-6)) { out.push(p); continue; }
+    const n = Math.ceil(p.comp / LMAX);
+    for (let k = 0; k < n; k++) {
+      const t0 = k / n, t1 = (k + 1) / n;
+      out.push({ ...p, comp: +(p.comp / n).toFixed(4),
+        x0: p.x0 + (p.x1 - p.x0) * t0, y0: p.y0 + (p.y1 - p.y0) * t0,
+        z0: p.z0 + (p.z1 - p.z0) * t0,
+        x1: p.x0 + (p.x1 - p.x0) * t1, y1: p.y0 + (p.y1 - p.y0) * t1,
+        z1: p.z0 + (p.z1 - p.z0) * t1 });
+    }
+  }
+  return out;
+}
+
+const plano = nestingCorte(segmentarBox003(todas), LSF_DB, 'solto');
 let kgLiq = 0, kgComp = 0;
 for (const p of plano) {
   kgLiq += p.kg;
   kgComp += p.barras * 6 * massaKgM(p.perfil, 'plano de corte');
 }
 
+// ---- 4 sistemas (laje/escada/cobertura/forro) — v7 idem resumoPorSistema ----
+globalThis.BUILDING = buildBuilding();
+
+// snapshot dos inputs ANTES dos geradores (eles mutam L._chk/_perfilUsado, C.comp)
+const projeto = JSON.parse(JSON.stringify({
+  niveis: globalThis.BUILDING.niveis,
+  footprint: globalThis.BUILDING.footprint,
+  lajes: PROJECT.lajes, escadas: PROJECT.escadas,
+  cobertura: PROJECT.cobertura, descobertas: PROJECT.descobertas,
+  forro: PROJECT.forro, instalacoes: PROJECT.instalacoes,
+}));
+
+// kg comprado por sistema: nesting isolado do sistema (v7 resumoPorSistema),
+// barras de 6 m; massa SEMPRE fail-fast (nunca o fallback 1.3 do v7).
+// `pecas` sai CRU do gerador (é contra ele que a porta Python compara peça a
+// peça); o kg comprado, porém, nesta as peças já segmentadas pela BOX-003, como
+// o v7 faz em montarProjeto antes de resumoPorSistema.
+function somaSistema(nome, pecas, acess) {
+  let liq = 0;
+  for (const p of pecas) liq += p.comp * massaKgM(p.perfil, `${nome}, peça ${p.tipo}`);
+  let comp = 0;
+  for (const pl of nestingCorte(segmentarBox003(pecas), LSF_DB, 'solto'))
+    comp += pl.barras * 6 * massaKgM(pl.perfil, `${nome}, plano de corte`);
+  return { pecas, acess, kg_liquido: +liq.toFixed(2), kg_comprado: +comp.toFixed(2) };
+}
+
+const falha = (sis, warns) => {
+  const alta = (warns || []).find(w => w.sev === 'alta');
+  if (alta) { console.error(`${sis}: alerta alto do v7: ${alta.msg}`); process.exit(1); }
+};
+
+const sistemas = {};
+{
+  const pecas = [], acess = [];
+  for (const L of PROJECT.lajes) {
+    const r = gerarPecasLaje(L);
+    falha(`laje ${L.id}`, r.warns.filter(w => /Footprint vazio/.test(w.msg)));
+    pecas.push(...r.pecas); acess.push(...r.acess);
+  }
+  sistemas.laje = somaSistema('laje', pecas, acess);
+}
+{
+  const pecas = [], acess = [];
+  for (const E of PROJECT.escadas) {
+    const r = gerarPecasEscada(E);
+    pecas.push(...r.pecas); acess.push(...r.acess);
+  }
+  sistemas.escada = somaSistema('escada', pecas, acess);
+}
+{
+  const r = gerarPecasCobertura(PROJECT.cobertura);
+  sistemas.cobertura = somaSistema('cobertura', r.pecas, r.acess);
+}
+{
+  const r = gerarPecasForro();
+  sistemas.forro = somaSistema('forro', r.pecas, r.acess);
+}
+
+const total_edificio = {
+  kg_liquido: +(kgLiq + Object.values(sistemas).reduce((s, x) => s + x.kg_liquido, 0)).toFixed(0),
+  kg_comprado: +(kgComp + Object.values(sistemas).reduce((s, x) => s + x.kg_comprado, 0)).toFixed(0),
+};
+
 process.stdout.write(JSON.stringify({
-  origem: 'assets/calc-edificio-109_1506-v7-steel.html — gerarPecas headless (paredes)',
+  origem: 'assets/calc-edificio-109_1506-v7-steel.html — gerarPecas headless (paredes + laje/escada/cobertura/forro)',
   pe_direito_m: PD, niveis: NIV,
   paredes,
   total_paredes: { kg_liquido: +kgLiq.toFixed(0), kg_comprado: +kgComp.toFixed(0) },
+  projeto,
+  sistemas,
+  total_edificio,
 }, null, 1));

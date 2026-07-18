@@ -36,6 +36,39 @@ def test_publicar_sem_quantitativo_nenhum_e_recusado(logado, con_app):
     assert con_app.execute("SELECT COUNT(*) FROM proposta").fetchone()[0] == 0
 
 
+def test_publicar_com_pendencia_estrutural_e_recusado(logado, con_app, projeto_completo):
+    """O motor disse que a solução por trás do kg não fecha (vão que reprova, furo
+    em viga, peça fora do envelope). O preço existe; a estrutura, não.
+
+    Não é preciosismo: na 109 o gerador exige viga laminada 1VG + pilares 1AL nas
+    duas lajes, a obra foi construída com eles, e o orçamento de referência não tem
+    linha para nenhum dos dois. Publicar fechado assim é escopo vazado = prejuízo."""
+    pid = projeto_completo
+    con_app.execute(
+        "INSERT INTO pendencia (projeto_id, motor, mensagem) VALUES (?, 'estrutura', ?)",
+        (pid, "[PENDÊNCIA ESTRUTURAL] 1LJ: vão 7.9m reprova até viga dupla"))
+    con_app.commit()
+
+    resposta = logado.post(f"/projetos/{pid}/publicar")
+    assert resposta.status_code == 409
+    assert "estrutural" in resposta.text.lower()
+    assert con_app.execute("SELECT COUNT(*) FROM proposta").fetchone()[0] == 0
+
+
+def test_pendencia_resolvida_libera_a_publicacao(logado, con_app, projeto_completo):
+    """O gate abre quando a causa some — senão vira obstáculo a contornar."""
+    pid = projeto_completo
+    con_app.execute(
+        "INSERT INTO pendencia (projeto_id, motor, mensagem) VALUES (?, 'estrutura', ?)",
+        (pid, "[PENDÊNCIA ESTRUTURAL] vão reprova"))
+    con_app.commit()
+    assert logado.post(f"/projetos/{pid}/publicar").status_code == 409
+
+    con_app.execute("DELETE FROM pendencia WHERE projeto_id = ?", (pid,))
+    con_app.commit()
+    assert logado.post(f"/projetos/{pid}/publicar").status_code == 303
+
+
 def test_publicar_projeto_completo_cria_v1(logado, con_app, projeto_completo):
     pid = projeto_completo
     resposta = logado.post(f"/projetos/{pid}/publicar")

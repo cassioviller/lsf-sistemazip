@@ -330,6 +330,21 @@ def test_gerar_estrutura_com_geometria_real_nao_melhora_estimado(con, planta):
     assert gerar_estrutura(con, planta.projeto_id).confianca == "estimado"
 
 
+def test_sistema_ausente_vira_alerta_e_nao_derruba_o_gerador(con, planta):
+    """Sistema ausente é ESCOPO (galpão térreo não tem laje), não dado faltante:
+    alerta nomeando cada sistema fora da conta — o gate de macroetapa zerada é
+    quem barra a proposta. Só parede ausente é erro (não há o que gerar)."""
+    from lsf.geradores.estrutura import gerar_estrutura
+
+    planta(comp=4.0)
+    est = gerar_estrutura(con, planta.projeto_id)
+    alertas = " ".join(est.alertas)
+    for sistema in ("laje", "escada", "cobertura", "forro"):
+        assert f"sem {sistema}" in alertas
+    assert est.kg_comprado > 0  # as paredes ainda contam
+    assert {p.sistema for p in est.pecas} == {"parede"}
+
+
 def test_projeto_sem_parede_e_erro(con, planta):
     from lsf.geradores.estrutura import DadoIndisponivel, gerar_estrutura
     import pytest as _pytest

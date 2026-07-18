@@ -29,12 +29,34 @@ def test_total_de_paredes_positivo_e_menor_que_o_edificio():
     assert d["total_paredes"]["kg_comprado"] > d["total_paredes"]["kg_liquido"]
 
 
+def test_fixture_tem_os_quatro_sistemas():
+    d = json.loads(FIXTURE.read_text())
+    assert {"laje", "escada", "cobertura", "forro"} <= set(d["sistemas"])
+    for s in d["sistemas"].values():
+        assert s["pecas"] and s["kg_comprado"] > 0
+
+
+def test_fixture_tem_inputs_de_projeto():
+    d = json.loads(FIXTURE.read_text())
+    assert len(d["projeto"]["footprint"]) == 3
+    assert d["projeto"]["lajes"] and d["projeto"]["escadas"]
+    assert d["projeto"]["cobertura"] and d["projeto"]["forro"]
+
+
+def test_total_edificio_na_ordem_esperada():
+    d = json.loads(FIXTURE.read_text())
+    assert 20000 < d["total_edificio"]["kg_liquido"] < 27000
+    assert 27000 < d["total_edificio"]["kg_comprado"] < 35000
+
+
 def test_todo_perfil_da_fixture_existe_em_perfil_lsf(con):
     """Guarda equivalente à do oráculo .mjs, do lado Python: perfil citado na
     fixture que não exista em `perfil_lsf` (ou sem massa positiva) significaria
     kg calculado a partir de dado ausente — erro, nunca 0 kg silencioso (D4.1)."""
     d = json.loads(FIXTURE.read_text())
     perfis_fixture = {p["perfil"] for p in d["paredes"]}
+    for s in d["sistemas"].values():
+        perfis_fixture |= {p["perfil"] for p in s["pecas"]}
     assert perfis_fixture, "fixture sem perfis — truncada?"
     conhecidos = {
         codigo: massa

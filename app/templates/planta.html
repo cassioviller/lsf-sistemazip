@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block titulo %}Planta — {{ projeto.codigo }}{% endblock %}
+{% block conteudo %}
+<h1>Planta — {{ projeto.codigo }}</h1>
+<p><a href="/projetos/{{ projeto.id }}">← voltar ao projeto</a></p>
+
+{% if erro %}
+<p class="erro" role="alert">{{ erro }}</p>
+{% endif %}
+
+{% if resultado %}
+<section class="cartao" role="status">
+  <h2>Derivação paramétrica</h2>
+  {% if resultado.gravado %}
+  <p><strong>{{ "%.0f"|format(resultado.kg_comprado) }} kg</strong> de aço comprado
+     gravados na folha 03.01 (origem PARAMETRICO, confiança {{ resultado.confianca }}).</p>
+  {% else %}
+  <p>A folha 03.01 tem lançamento <strong>{{ resultado.preservado }}</strong> — dado
+     melhor que regra. A derivação foi calculada
+     ({{ "%.0f"|format(resultado.kg_comprado) }} kg) mas a linha foi
+     <strong>preservada</strong>.</p>
+  {% endif %}
+  <p>Cargas por parede calculadas: {{ resultado.n_cargas }}.</p>
+  {% if resultado.pendencias %}
+  <p class="alerta">{{ resultado.pendencias|length }} pendência(s) de motor — a
+     publicação fica bloqueada até resolver:</p>
+  <ul>
+    {% for p in resultado.pendencias %}<li>{{ p }}</li>{% endfor %}
+  </ul>
+  {% endif %}
+  {% if resultado.alertas %}
+  <details><summary>{{ resultado.alertas|length }} alerta(s) do gerador</summary>
+    <ul>{% for a in resultado.alertas %}<li>{{ a }}</li>{% endfor %}</ul>
+  </details>
+  {% endif %}
+</section>
+{% endif %}
+
+{% for nivel in niveis %}
+<section class="macroetapa">
+  <h2>Nível {{ nivel.indice }} — {{ nivel.nome }}
+      <small>(pé-direito {{ nivel.pe_direito_m }} m · cota {{ nivel.cota_m }} m)</small></h2>
+  {% if nivel.paredes %}
+  <table>
+    <thead><tr><th>Parede</th><th>De → Até (m)</th><th>Perfil</th><th>Tipo</th>
+               <th>Vãos</th><th></th></tr></thead>
+    <tbody>
+      {% for parede in nivel.paredes %}
+      <tr>
+        <td>#{{ parede.id }}</td>
+        <td>({{ parede.x0 }}; {{ parede.y0 }}) → ({{ parede.x1 }}; {{ parede.y1 }})</td>
+        <td>{{ parede.perfil_codigo }}</td>
+        <td>{{ "externa" if parede.externa else "interna" }}{{ "" if parede.portante else " · não portante" }}</td>
+        <td>
+          {% for vao in parede.vaos %}
+            {{ vao.tipo }} {{ vao.largura_m }}×{{ vao.altura_m }} m @ {{ vao.posicao_m }} m{% if not loop.last %}; {% endif %}
+          {% else %}—{% endfor %}
+        </td>
+        <td>
+          <details>
+            <summary>+ vão / excluir</summary>
+            <form method="post"
+                  action="/projetos/{{ projeto.id }}/planta/paredes/{{ parede.id }}/vaos">
+              <select name="tipo">
+                <option>PORTA</option><option>JANELA</option><option>PORTA_JANELA</option>
+              </select>
+              <input name="posicao" placeholder="posição (m)" required size="8">
+              <input name="largura" placeholder="largura (m)" required size="8">
+              <input name="altura" placeholder="altura (m)" required size="8">
+              <input name="peitoril" placeholder="peitoril (m, vazio = padrão)" size="14">
+              <button>Adicionar vão</button>
+            </form>
+            <form method="post"
+                  action="/projetos/{{ projeto.id }}/planta/paredes/{{ parede.id }}/excluir">
+              <button class="link">Excluir parede</button>
+            </form>
+          </details>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p>Nenhuma parede neste nível ainda.</p>
+  {% endif %}
+
+  <details>
+    <summary>+ parede neste nível</summary>
+    <form method="post" action="/projetos/{{ projeto.id }}/planta/paredes">
+      <input type="hidden" name="nivel_id" value="{{ nivel.id }}">
+      <input name="x0" placeholder="x inicial (m)" required size="8">
+      <input name="y0" placeholder="y inicial (m)" required size="8">
+      <input name="x1" placeholder="x final (m)" required size="8">
+      <input name="y1" placeholder="y final (m)" required size="8">
+      <select name="perfil_codigo">
+        {% for p in perfis %}<option>{{ p }}</option>{% endfor %}
+      </select>
+      <label><input type="checkbox" name="externa" value="1"> externa</label>
+      <label><input type="checkbox" name="portante" value="1" checked> portante</label>
+      <button>Adicionar parede</button>
+    </form>
+  </details>
+</section>
+{% endfor %}
+
+<section class="cartao">
+  <h2>+ Nível</h2>
+  <form method="post" action="/projetos/{{ projeto.id }}/planta/niveis">
+    <input name="indice" type="number" placeholder="índice (0 = térreo)" required size="6">
+    <input name="nome" placeholder="nome (ex.: Térreo)" required>
+    <input name="pe_direito" placeholder="pé-direito (m)" required size="8">
+    <input name="cota" placeholder="cota (m)" value="0" size="8">
+    <button>Adicionar nível</button>
+  </form>
+</section>
+
+{% if niveis %}
+<form method="post" action="/projetos/{{ projeto.id }}/planta/derivar">
+  <button class="botao">Derivar quantitativos e cargas</button>
+</form>
+<p><small>A derivação grava o kg de aço na EAP (origem PARAMETRICO) e as
+pendências dos motores no gate de publicação. Linha MANUAL existente é preservada.</small></p>
+{% endif %}
+{% endblock %}
