@@ -132,3 +132,72 @@ def test_cronograma_da_caixa_na_conta_de_mao(con, caixa_6x4):
     assert crono.makespan_dias == 7
     assert por_grupo["FUNDACAO"].critica and por_grupo["ESTRUTURA"].critica
     assert crono.confianca in ("estimado", "parametrico")
+
+
+# ---------- curva S ponderada (aço adiantado) ----------
+
+def test_custo_por_tipo_soma_igual_ao_custo_total(con):
+    """Repartição por tipo consistente com o custo (na VK-C-001, à mão:
+    MAT = 1,02×14,50 + 6×0,18 = 15,87 · MO = 0,04×34 + 0,04×23 = 2,28)."""
+    from lsf.motores.cronograma import custo_composicao_por_tipo
+    from lsf.motores.orcamento import custo_composicao
+
+    cid = _id_comp(con, "VK-C-001")
+    por_tipo = custo_composicao_por_tipo(con, cid, "2026-06", "SP", 0)
+    assert por_tipo["MAT"] == pytest.approx(15.87)
+    assert por_tipo["MO"] == pytest.approx(2.28)
+    total, _ = custo_composicao(con, cid, "2026-06", "SP", 0)
+    assert sum(por_tipo.values()) == pytest.approx(total)
+
+
+def test_curva_s_fecha_exatamente_no_custo_direto(con, caixa_6x4):
+    """D1 por construção: mesma EAP → o acumulado final da curva é IGUAL ao
+    total do orçamento, não 'aproximadamente'."""
+    from lsf.motores.cronograma import curva_s
+    from lsf.motores.orcamento import custo_direto_projeto
+
+    pid = _derivar_caixa(con, caixa_6x4)
+    crono = cronograma_projeto(con, pid)
+    curva = curva_s(con, pid, crono)
+    total = custo_direto_projeto(con, pid).total
+    assert curva.acumulado[-1] == pytest.approx(total, abs=0.01)
+    assert len(curva.desembolso) == int(crono.makespan_dias)
+
+
+def test_aco_adiantado_concentra_material_no_inicio_da_estrutura(con, caixa_6x4):
+    """O kit LSF é comprado ANTES da montagem: o dia de início da atividade 03
+    carrega o custo de MATERIAL inteiro dela — não a fração uniforme."""
+    from lsf.motores.cronograma import curva_s, custo_composicao_por_tipo
+
+    pid = _derivar_caixa(con, caixa_6x4)
+    crono = cronograma_projeto(con, pid)
+    curva = curva_s(con, pid, crono)
+
+    estrutura = next(p for p in crono.atividades
+                     if p.atividade.grupo == "ESTRUTURA")
+    kg = con.execute(
+        "SELECT q.quantidade FROM quantitativo q JOIN eap_item e"
+        " ON e.id = q.eap_item_id WHERE q.projeto_id=? AND e.codigo='03.01'",
+        (pid,)).fetchone()[0]
+    mat = custo_composicao_por_tipo(
+        con, _id_comp(con, "VK-C-001"), "2026-06", "SP", 0)["MAT"] * kg
+    dia_inicio = int(estrutura.es)
+    assert curva.desembolso[dia_inicio] >= mat - 0.01
+    uniforme = (estrutura.atividade.custo or 0) / estrutura.atividade.duracao_dias
+    assert curva.desembolso[dia_inicio] > uniforme
+
+
+def test_curva_s_com_pendencia_de_custo_e_erro(con, caixa_6x4):
+    """Orçamento que não fecha (total None) não tem curva parcial (D4.1)."""
+    from lsf.motores.cronograma import curva_s
+
+    pid = _derivar_caixa(con, caixa_6x4)
+    folha_drywall = con.execute(
+        "SELECT id FROM eap_item WHERE codigo='06.01'").fetchone()[0]
+    con.execute(
+        "INSERT INTO quantitativo (projeto_id, eap_item_id, quantidade, origem,"
+        " confianca) VALUES (?,?,100,'MANUAL','real')", (pid, folha_drywall))
+    con.commit()
+    crono = cronograma_projeto(con, pid)
+    with pytest.raises(CustoIndisponivel):
+        curva_s(con, pid, crono)

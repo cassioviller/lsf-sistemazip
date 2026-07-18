@@ -259,3 +259,104 @@ def cronograma_projeto(con, projeto_id: int) -> Cronograma:
     return Cronograma(projeto_codigo=projeto[0], atividades=prog,
                       makespan_dias=makespan, alertas=alertas,
                       confianca=confianca)
+
+
+def custo_composicao_por_tipo(con, composicao_id: int, referencia: str,
+                              uf=None, desonerado: int = 0,
+                              _pilha: tuple = ()) -> dict[str, float]:
+    """Custo unitário repartido por tipo de insumo (MAT/MO/...), recursivo e
+    consistente com `custo_composicao`: a soma dos tipos É o custo unitário.
+    É o que permite a curva S pesar material no início (aço adiantado) sem
+    inventar proporção."""
+    from lsf.motores.orcamento import _preco_insumo
+
+    if composicao_id in _pilha:
+        caminho = " -> ".join(str(c) for c in (*_pilha, composicao_id))
+        raise CicloNaRede(f"composição contém a si mesma: {caminho}")
+    itens = con.execute(
+        "SELECT item_tipo, item_id, coeficiente FROM composicao_item"
+        " WHERE composicao_id = ?", (composicao_id,)).fetchall()
+    if not itens:
+        codigo = con.execute("SELECT codigo_fonte FROM composicao WHERE id = ?",
+                             (composicao_id,)).fetchone()
+        raise CustoIndisponivel(
+            f"composição {codigo[0] if codigo else composicao_id} sem analítica")
+    base = (referencia, uf, desonerado)
+    por_tipo: dict[str, float] = {}
+    for item_tipo, item_id, coef in itens:
+        if item_tipo == "COMPOSICAO":
+            filho = custo_composicao_por_tipo(con, item_id, referencia, uf,
+                                              desonerado, (*_pilha, composicao_id))
+            for t, v in filho.items():
+                por_tipo[t] = por_tipo.get(t, 0.0) + coef * v
+        else:
+            tipo = con.execute("SELECT tipo, codigo_fonte FROM insumo"
+                               " WHERE id = ?", (item_id,)).fetchone()
+            preco, _ = _preco_insumo(con, item_id, base,
+                                     f"composicao id={composicao_id}")
+            por_tipo[tipo[0]] = por_tipo.get(tipo[0], 0.0) + coef * preco
+    return por_tipo
+
+
+@dataclass(frozen=True)
+class CurvaS:
+    desembolso: list[float]    # R$ por dia (dias corridos do cronograma)
+    acumulado: list[float]
+    total: float
+    confianca: str
+
+
+def curva_s(con, projeto_id: int, cronograma: Cronograma) -> CurvaS:
+    """Curva S físico-financeira PONDERADA: a parcela MATERIAL de cada atividade
+    desembolsa no dia do INÍCIO dela (aço adiantado — o kit LSF é comprado antes
+    da montagem), o resto uniforme na duração; hammock uniforme no makespan.
+
+    Fecha EXATAMENTE no total do custo direto por construção (D1): cada linha do
+    orçamento é repartida pelas FRAÇÕES por tipo da sua composição, e frações
+    somam 1. Orçamento com pendência (total None) não tem curva parcial (D4.1)."""
+    orc = custo_direto_projeto(con, projeto_id)
+    if orc.total is None:
+        raise CustoIndisponivel(
+            "orçamento não fecha (pendências: "
+            + "; ".join(orc.pendencias or ["total indisponível"]) + ")"
+            " — curva S parcial não existe (D4.1)")
+
+    prog_por_grupo = {p.atividade.grupo: p for p in cronograma.atividades}
+    dias = int(math.ceil(cronograma.makespan_dias))
+    desembolso = [0.0] * dias
+
+    for linha in orc.linhas:
+        folha = con.execute(
+            "SELECT composicao_id, grupo_eap FROM eap_item WHERE codigo = ?",
+            (linha.eap_codigo,)).fetchone()
+        comp_id, grupo = folha
+        prog = prog_por_grupo.get(grupo)
+        if prog is None:
+            raise CustoIndisponivel(
+                f"folha {linha.eap_codigo} custeada mas a macroetapa {grupo}"
+                " está fora do cronograma — a curva não fecharia")
+        por_tipo = custo_composicao_por_tipo(
+            con, comp_id, orc.referencia, orc.uf, orc.desonerado)
+        soma_tipos = sum(por_tipo.values())
+        frac_mat = (por_tipo.get("MAT", 0.0) / soma_tipos) if soma_tipos else 0.0
+        mat = linha.custo_total * frac_mat
+        resto = linha.custo_total - mat
+
+        if prog.hammock:
+            for t in range(dias):
+                desembolso[t] += linha.custo_total / dias
+            continue
+        d0, d1 = int(prog.es), int(prog.ef)
+        desembolso[min(d0, dias - 1)] += mat
+        for t in range(d0, min(d1, dias)):
+            desembolso[t] += resto / (d1 - d0)
+
+    acumulado = []
+    soma = 0.0
+    for v in desembolso:
+        soma += v
+        acumulado.append(round(soma, 2))
+    return CurvaS(desembolso=[round(v, 2) for v in desembolso],
+                  acumulado=acumulado, total=acumulado[-1],
+                  confianca=pior_confianca(cronograma.confianca,
+                                           orc.confianca or "estimado"))
