@@ -10,7 +10,8 @@ from __future__ import annotations
 
 import sqlite3
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Request
+from fastapi import (APIRouter, Depends, File, Form, HTTPException, Request,
+                     UploadFile)
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from app.auth import usuario_logado
@@ -96,12 +97,13 @@ def _dados_da_tela(con, projeto_id: int) -> dict:
 
 
 def _tela(request, con, usuario, projeto_id, status_code=200,
-          erro=None, resultado=None):
+          erro=None, resultado=None, importacao=None):
     projeto = _projeto_ou_404(con, projeto_id)
     return request.app.state.templates.TemplateResponse(
         request, "planta.html",
         {"projeto": projeto, "usuario": usuario, "erro": erro,
-         "resultado": resultado, **_dados_da_tela(con, projeto_id)},
+         "resultado": resultado, "importacao": importacao,
+         **_dados_da_tela(con, projeto_id)},
         status_code=status_code)
 
 
@@ -263,3 +265,58 @@ def baixar_romaneio(projeto_id: int,
         content=romaneio_csv(rom), media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition":
                  f'attachment; filename="romaneio_{projeto["codigo"]}.csv"'})
+
+
+@router.post("/projetos/{projeto_id}/planta/paredes/{parede_id}/editar")
+def editar_parede(projeto_id: int, parede_id: int,
+                  perfil_codigo: str = Form(""),
+                  externa: int = Form(0), portante: int = Form(0),
+                  con: sqlite3.Connection = Depends(conexao),
+                  usuario: dict = Depends(usuario_logado)):
+    """Classificação pós-importação (DXF chega sem perfil e como interna):
+    atribuir perfil e marcar externa/portante é decisão do usuário, não default."""
+    _projeto_ou_404(con, projeto_id)
+    _parede_do_projeto_ou_404(con, projeto_id, parede_id)
+    if perfil_codigo and con.execute(
+            "SELECT 1 FROM perfil_lsf WHERE codigo = ?",
+            (perfil_codigo,)).fetchone() is None:
+        raise HTTPException(status_code=400, detail="perfil inexistente")
+    con.execute(
+        "UPDATE parede SET perfil_codigo = ?, externa = ?, portante = ?"
+        " WHERE id = ?",
+        (perfil_codigo or None, externa, portante, parede_id))
+    con.commit()
+    return RedirectResponse(f"/projetos/{projeto_id}/planta", status_code=303)
+
+
+@router.post("/projetos/{projeto_id}/planta/importar-dxf",
+             response_class=HTMLResponse)
+def importar_dxf_upload(projeto_id: int, request: Request,
+                        nivel_id: int = Form(...),
+                        arquivo: UploadFile = File(...),
+                        con: sqlite3.Connection = Depends(conexao),
+                        usuario: dict = Depends(usuario_logado)):
+    """Upload de DXF (layer PAREDE, linhas duplas) → paredes no nível escolhido.
+    O adaptador nunca inventa parede de linha solta; os avisos dele aparecem na
+    tela para o usuário terminar o serviço (perfil, externas). Handler SÍNCRONO
+    de propósito: a conexão SQLite da dependência vive na thread do worker."""
+    import tempfile
+
+    from lsf.adaptadores.dxf import importar_dxf
+
+    _projeto_ou_404(con, projeto_id)
+    _nivel_do_projeto_ou_404(con, projeto_id, nivel_id)
+    if not arquivo.filename:
+        raise HTTPException(status_code=400, detail="arquivo DXF obrigatório")
+
+    with tempfile.NamedTemporaryFile(suffix=".dxf") as tmp:
+        tmp.write(arquivo.file.read())
+        tmp.flush()
+        try:
+            resultado = importar_dxf(con, nivel_id, tmp.name)
+        except Exception as e:            # ezdxf: DXF corrompido/não-DXF
+            con.rollback()
+            return _tela(request, con, usuario, projeto_id, status_code=400,
+                         erro=f"DXF inválido: {e}")
+    con.commit()
+    return _tela(request, con, usuario, projeto_id, importacao=resultado)

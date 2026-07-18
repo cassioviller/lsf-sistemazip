@@ -8,6 +8,16 @@
 <p class="erro" role="alert">{{ erro }}</p>
 {% endif %}
 
+{% if importacao %}
+<section class="cartao" role="status">
+  <h2>Importação DXF</h2>
+  <p>{{ importacao.paredes_criadas }} parede(s) criadas.</p>
+  {% for aviso in importacao.avisos %}
+  <p class="alerta">{{ aviso }}</p>
+  {% endfor %}
+</section>
+{% endif %}
+
 {% if resultado %}
 <section class="cartao" role="status">
   <h2>Derivação paramétrica</h2>
@@ -91,6 +101,20 @@
               <button>Adicionar vão</button>
             </form>
             <form method="post"
+                  action="/projetos/{{ projeto.id }}/planta/paredes/{{ parede.id }}/editar">
+              <select name="perfil_codigo">
+                <option value="">— sem perfil —</option>
+                {% for p in perfis %}
+                <option {{ "selected" if p == parede.perfil_codigo }}>{{ p }}</option>
+                {% endfor %}
+              </select>
+              <label><input type="checkbox" name="externa" value="1"
+                     {{ "checked" if parede.externa }}> externa</label>
+              <label><input type="checkbox" name="portante" value="1"
+                     {{ "checked" if parede.portante }}> portante</label>
+              <button>Salvar classificação</button>
+            </form>
+            <form method="post"
                   action="/projetos/{{ projeto.id }}/planta/paredes/{{ parede.id }}/excluir">
               <button class="link">Excluir parede</button>
             </form>
@@ -122,6 +146,22 @@
   </details>
 </section>
 {% endfor %}
+
+{% if niveis %}
+<section class="cartao">
+  <h2>Importar DXF</h2>
+  <form method="post" action="/projetos/{{ projeto.id }}/planta/importar-dxf"
+        enctype="multipart/form-data">
+    <select name="nivel_id">
+      {% for nivel in niveis %}
+      <option value="{{ nivel.id }}">Nível {{ nivel.indice }} — {{ nivel.nome }}</option>
+      {% endfor %}
+    </select>
+    <input type="file" name="arquivo" accept=".dxf" required>
+    <button>Importar paredes (layer PAREDE, linhas duplas)</button>
+  </form>
+</section>
+{% endif %}
 
 <section class="cartao">
   <h2>+ Nível</h2>

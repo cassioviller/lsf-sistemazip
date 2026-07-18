@@ -244,3 +244,73 @@ def test_download_do_romaneio(logado, con_app, projeto):
 
 def test_romaneio_sem_planta_e_409(logado, projeto):
     assert logado.get(f"/projetos/{projeto}/romaneio.csv").status_code == 409
+
+
+def _dxf_bytes(linhas):
+    import io
+
+    import ezdxf
+
+    doc = ezdxf.new()
+    msp = doc.modelspace()
+    for a, b in linhas:
+        msp.add_line(a, b, dxfattribs={"layer": "PAREDE"})
+    buf = io.StringIO()
+    doc.write(buf)
+    return buf.getvalue().encode()
+
+
+def test_upload_dxf_cria_paredes_e_mostra_avisos(logado, con_app, projeto):
+    _criar_nivel(logado, projeto)
+    nid = con_app.execute("SELECT id FROM nivel").fetchone()["id"]
+    conteudo = _dxf_bytes([((0, 0), (6, 0)), ((0, 0.14), (6, 0.14)),
+                           ((0, 0), (0, 4)), ((0.14, 0.14), (0.14, 4))])
+
+    r = logado.post(
+        f"/projetos/{projeto}/planta/importar-dxf",
+        data={"nivel_id": str(nid)},
+        files={"arquivo": ("planta.dxf", conteudo, "application/dxf")})
+    assert r.status_code == 200
+    assert "2 parede(s) criadas" in r.text
+    assert "SEM perfil" in r.text
+
+    assert con_app.execute(
+        "SELECT COUNT(*) FROM parede WHERE origem='DXF'").fetchone()[0] == 2
+
+
+def test_classificar_parede_importada_e_derivar(logado, con_app, projeto):
+    """O fluxo completo da rota DXF: importar → classificar (perfil/externa) →
+    derivar. Sem classificação o gerador recusa (perfil NULL é D4.1)."""
+    _criar_nivel(logado, projeto)
+    nid = con_app.execute("SELECT id FROM nivel").fetchone()["id"]
+    conteudo = _dxf_bytes([((0, 0), (6, 0)), ((0, 0.14), (6, 0.14))])
+    logado.post(f"/projetos/{projeto}/planta/importar-dxf",
+                data={"nivel_id": str(nid)},
+                files={"arquivo": ("p.dxf", conteudo, "application/dxf")})
+    pid_parede = con_app.execute(
+        "SELECT id FROM parede WHERE origem='DXF'").fetchone()["id"]
+
+    # sem perfil, derivar explica com 409
+    r = logado.post(f"/projetos/{projeto}/planta/derivar")
+    assert r.status_code == 409 and "perfil" in r.text
+
+    r = logado.post(
+        f"/projetos/{projeto}/planta/paredes/{pid_parede}/editar",
+        data={"perfil_codigo": "Ue90#0.95", "externa": "1", "portante": "1"})
+    assert r.status_code == 303
+    linha = con_app.execute("SELECT perfil_codigo, externa FROM parede"
+                            " WHERE id = ?", (pid_parede,)).fetchone()
+    assert linha["perfil_codigo"] == "Ue90#0.95" and linha["externa"] == 1
+
+    assert logado.post(f"/projetos/{projeto}/planta/derivar").status_code == 200
+
+
+def test_upload_nao_dxf_e_400(logado, con_app, projeto):
+    _criar_nivel(logado, projeto)
+    nid = con_app.execute("SELECT id FROM nivel").fetchone()["id"]
+    r = logado.post(
+        f"/projetos/{projeto}/planta/importar-dxf",
+        data={"nivel_id": str(nid)},
+        files={"arquivo": ("x.dxf", b"isto nao e um dxf", "application/dxf")})
+    assert r.status_code == 400
+    assert "DXF inválido" in r.text
