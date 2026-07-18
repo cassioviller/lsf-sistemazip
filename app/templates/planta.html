@@ -21,6 +21,26 @@
      <strong>preservada</strong>.</p>
   {% endif %}
   <p>Cargas por parede calculadas: {{ resultado.n_cargas }}.</p>
+  {% if resultado.fundacao_erro %}
+  <p class="alerta">Fundação não derivada: {{ resultado.fundacao_erro }}</p>
+  {% elif resultado.fundacao %}
+    {% set f = resultado.fundacao %}
+    {% if f.bloqueado %}
+    <p class="alerta">Fundação BLOQUEADA pelo solo — ver pendências abaixo.</p>
+    {% elif f.gravado %}
+    <p><strong>{{ "%.3f"|format(f.volume_m3)|replace(".", ",") }} m³</strong> de
+       baldrame gravados na folha 02.01 (PARAMETRICO, confiança {{ f.confianca }};
+       {{ f.governa_minimo }}/{{ f.n_paredes }} paredes governadas pelo mínimo
+       construtivo). Ancoragem ao vento: {{ f.hold_downs_un }} hold-downs.</p>
+    {% else %}
+    <p>Fundação calculada ({{ "%.3f"|format(f.volume_m3)|replace(".", ",") }} m³)
+       mas a folha 02.01 tem lançamento <strong>{{ f.preservado }}</strong> —
+       linha <strong>preservada</strong>.</p>
+    {% endif %}
+    {% for aviso in f.avisos %}
+    <p class="alerta">{{ aviso }}</p>
+    {% endfor %}
+  {% endif %}
   {% if resultado.pendencias %}
   <p class="alerta">{{ resultado.pendencias|length }} pendência(s) de motor — a
      publicação fica bloqueada até resolver:</p>

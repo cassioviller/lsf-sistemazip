@@ -107,3 +107,87 @@ def test_origem_regra_anotada(con, caixa_6x4):
     assert "NBR 6122" in r.origem_regra
     for f in r.paredes:
         assert "NBR 6122" in f.origem_regra
+
+
+def test_derivar_fundacao_grava_02_01_parametrico(con, caixa_6x4):
+    from lsf.motores.fundacao import derivar_fundacao
+
+    pid, _ = caixa_6x4
+    _solo(con, pid, "S3")
+    res = derivar_fundacao(con, pid)
+    assert res["gravado"] is True
+
+    linha = con.execute(
+        "SELECT q.quantidade, q.origem, q.confianca FROM quantitativo q"
+        " JOIN eap_item e ON e.id = q.eap_item_id"
+        " WHERE q.projeto_id = ? AND e.codigo = '02.01'", (pid,)).fetchone()
+    assert linha is not None
+    assert linha[0] == pytest.approx(2.400, rel=1e-3)
+    assert linha[1] == "PARAMETRICO"
+    assert linha[2] == "parametrico"       # sondagem pendente (default=1)
+
+
+def test_sondagem_e_aviso_nao_pendencia_bloqueante(con, caixa_6x4):
+    """Sondagem pendente REBAIXA confiança e vira carimbo na proposta — não pode
+    entrar na tabela `pendencia`, que BLOQUEIA a publicação. Bloquear todo
+    projeto sem sondagem mataria o modo proposta (o carimbo existe p/ isso)."""
+    from lsf.motores.fundacao import derivar_fundacao
+
+    pid, _ = caixa_6x4
+    _solo(con, pid, "S3", sondagem_pendente=1)
+    res = derivar_fundacao(con, pid)
+    assert any("Sondagem" in a for a in res["avisos"])
+    assert con.execute(
+        "SELECT COUNT(*) FROM pendencia WHERE projeto_id = ? AND motor='fundacao'",
+        (pid,)).fetchone()[0] == 0
+
+
+def test_s1_remove_parametrico_anterior_e_grava_pendencia(con, caixa_6x4):
+    """Solo piorou para S1 depois de uma derivação: o m³ antigo não pode ficar
+    (número em cima de aterro), a pendência bloqueia e a macroetapa 02 zera —
+    dupla proteção (pendência + R7)."""
+    from lsf.motores.fundacao import derivar_fundacao
+
+    pid, _ = caixa_6x4
+    _solo(con, pid, "S3")
+    derivar_fundacao(con, pid)
+    _solo(con, pid, "S1")
+    res = derivar_fundacao(con, pid)
+    assert res["gravado"] is False and res["bloqueado"] is True
+
+    assert con.execute(
+        "SELECT COUNT(*) FROM quantitativo q JOIN eap_item e ON e.id=q.eap_item_id"
+        " WHERE q.projeto_id = ? AND e.codigo = '02.01'", (pid,)).fetchone()[0] == 0
+    assert con.execute(
+        "SELECT COUNT(*) FROM pendencia WHERE projeto_id = ? AND motor='fundacao'",
+        (pid,)).fetchone()[0] == 1
+
+
+def test_derivar_fundacao_preserva_linha_manual(con, caixa_6x4):
+    from lsf.motores.fundacao import derivar_fundacao
+
+    pid, _ = caixa_6x4
+    _solo(con, pid, "S3")
+    folha = con.execute("SELECT id FROM eap_item WHERE codigo='02.01'").fetchone()[0]
+    con.execute(
+        "INSERT INTO quantitativo (projeto_id, eap_item_id, quantidade, origem,"
+        " confianca) VALUES (?,?,9.9,'MANUAL','real')", (pid, folha))
+    con.commit()
+
+    res = derivar_fundacao(con, pid)
+    assert res["gravado"] is False and res["preservado"] == "MANUAL"
+    q = con.execute("SELECT quantidade, origem FROM quantitativo"
+                    " WHERE projeto_id=? AND eap_item_id=?", (pid, folha)).fetchone()
+    assert q == (9.9, "MANUAL")
+
+
+def test_derivar_fundacao_rederiva_sem_duplicar_pendencia(con, caixa_6x4):
+    from lsf.motores.fundacao import derivar_fundacao
+
+    pid, _ = caixa_6x4
+    _solo(con, pid, "S1")
+    derivar_fundacao(con, pid)
+    derivar_fundacao(con, pid)
+    assert con.execute(
+        "SELECT COUNT(*) FROM pendencia WHERE projeto_id = ? AND motor='fundacao'",
+        (pid,)).fetchone()[0] == 1

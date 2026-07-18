@@ -215,3 +215,69 @@ def verificar_vento(con, projeto_id: int) -> ResultadoVento:
     return ResultadoVento(direcoes=direcoes, hold_downs_un=hold_downs,
                           pendencias=pendencias, confianca="parametrico",
                           origem_regra=origem)
+
+
+def derivar_fundacao(con, projeto_id: int) -> dict:
+    """Pré-dimensiona, verifica o vento e grava: m³ na folha 02.01 (PARAMETRICO,
+    com a guarda de linha MANUAL/TAKEOFF dos outros motores) + pendências
+    BLOQUEANTES em `pendencia` (motor='fundacao': S1, vento acima do mínimo).
+
+    Sondagem pendente NÃO entra na tabela: ela rebaixa a confiança e vira
+    carimbo na proposta — bloquear todo projeto sem sondagem mataria o modo
+    proposta, que existe exatamente para vender com a incerteza etiquetada.
+    Vai no retorno como `avisos`.
+
+    Bloqueado (S1): o PARAMETRICO anterior da 02.01 é REMOVIDO (solo que piorou
+    não pode deixar m³ velho na EAP) — a macroetapa 02 zera e o R7 também
+    bloqueia: dupla proteção."""
+    r = pre_dimensionar(con, projeto_id)
+    vento = verificar_vento(con, projeto_id)
+
+    avisos = [] if r.bloqueado else list(r.pendencias)
+    bloqueantes = (list(r.pendencias) if r.bloqueado else []) + list(vento.pendencias)
+
+    folha = con.execute(
+        "SELECT id FROM eap_item WHERE codigo = '02.01'").fetchone()
+    if folha is None:
+        raise DadoIndisponivel("EAP sem a folha 02.01 (baldrame, m³)")
+
+    con.execute("DELETE FROM pendencia WHERE projeto_id = ? AND motor = 'fundacao'",
+                (projeto_id,))
+    for msg in bloqueantes:
+        con.execute(
+            "INSERT OR IGNORE INTO pendencia (projeto_id, motor, mensagem)"
+            " VALUES (?, 'fundacao', ?)", (projeto_id, msg))
+
+    resultado = {
+        "volume_m3": r.volume_m3, "confianca": r.confianca,
+        "bloqueado": r.bloqueado, "avisos": avisos, "pendencias": bloqueantes,
+        "vento": vento, "hold_downs_un": vento.hold_downs_un,
+        "n_paredes": len(r.paredes),
+        "governa_minimo": sum(1 for f in r.paredes
+                              if f.governa == "mínimo construtivo"),
+    }
+    if r.bloqueado:
+        con.execute(
+            "DELETE FROM quantitativo WHERE projeto_id = ? AND eap_item_id = ?"
+            " AND origem = 'PARAMETRICO'", (projeto_id, folha[0]))
+        con.commit()
+        return {**resultado, "gravado": False}
+
+    cur = con.execute(
+        "INSERT INTO quantitativo (projeto_id, eap_item_id, quantidade, origem,"
+        " confianca, origem_regra) VALUES (?,?,?,'PARAMETRICO',?,?)"
+        " ON CONFLICT (projeto_id, eap_item_id) DO UPDATE SET"
+        "   quantidade=excluded.quantidade, origem=excluded.origem,"
+        "   confianca=excluded.confianca, origem_regra=excluded.origem_regra"
+        " WHERE quantitativo.origem = 'PARAMETRICO'",
+        (projeto_id, folha[0], r.volume_m3, r.confianca,
+         f"{r.origem_regra} · {resultado['governa_minimo']}/{len(r.paredes)}"
+         " paredes governadas pelo mínimo construtivo"))
+    if cur.rowcount == 0:
+        origem = con.execute(
+            "SELECT origem FROM quantitativo WHERE projeto_id = ? AND eap_item_id = ?",
+            (projeto_id, folha[0])).fetchone()[0]
+        con.commit()
+        return {**resultado, "gravado": False, "preservado": origem}
+    con.commit()
+    return {**resultado, "gravado": True}
