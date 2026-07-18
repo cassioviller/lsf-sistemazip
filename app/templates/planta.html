@@ -138,6 +138,8 @@
 <form method="post" action="/projetos/{{ projeto.id }}/planta/derivar">
   <button class="botao">Derivar quantitativos e cargas</button>
 </form>
+<p><a class="botao" href="/projetos/{{ projeto.id }}/romaneio.csv">Baixar
+   romaneio fábrica/obra (CSV)</a></p>
 <p><small>A derivação grava o kg de aço na EAP (origem PARAMETRICO) e as
 pendências dos motores no gate de publicação. Linha MANUAL existente é preservada.</small></p>
 {% endif %}

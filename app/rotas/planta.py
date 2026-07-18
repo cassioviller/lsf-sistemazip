@@ -241,3 +241,25 @@ def derivar(projeto_id: int, request: Request,
         "fundacao_erro": fundacao_erro,
     }
     return _tela(request, con, usuario, projeto_id, resultado=resultado)
+
+
+@router.get("/projetos/{projeto_id}/romaneio.csv")
+def baixar_romaneio(projeto_id: int,
+                    con: sqlite3.Connection = Depends(conexao),
+                    usuario: dict = Depends(usuario_logado)):
+    """Romaneio fábrica/obra do panelizador — CSV ';' para a serra e o montador."""
+    from fastapi.responses import Response
+
+    from lsf.geradores.estrutura import DadoIndisponivel
+    from lsf.geradores.panelizador import romaneio_projeto
+    from lsf.relatorios import romaneio_csv
+
+    projeto = _projeto_ou_404(con, projeto_id)
+    try:
+        rom = romaneio_projeto(con, projeto_id)
+    except DadoIndisponivel as e:
+        raise HTTPException(status_code=409, detail=str(e))
+    return Response(
+        content=romaneio_csv(rom), media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition":
+                 f'attachment; filename="romaneio_{projeto["codigo"]}.csv"'})

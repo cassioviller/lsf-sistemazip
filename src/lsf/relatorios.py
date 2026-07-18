@@ -193,3 +193,32 @@ def exportar_mspdi(cronograma, inicio) -> str:
 
     corpo = ET.tostring(raiz, encoding="unicode")
     return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n' + corpo
+
+
+def romaneio_csv(romaneio) -> str:
+    """Romaneio em CSV ';' (padrão pt-BR da casa), em duas seções:
+
+    FABRICA — kit de corte por painel/perfil (o que a serra precisa);
+    OBRA — sequência de montagem por nível/painel (o que o montador confere).
+    """
+    saida = io.StringIO()
+    w = csv.writer(saida, delimiter=";")
+    w.writerow(["ROMANEIO FABRICA"])
+    w.writerow(["painel", "perfil", "pecas", "ml", "kg", "barras 6m",
+                "perda %"])
+    for item in romaneio.paineis:
+        for kit in item.kits:
+            w.writerow([item.painel.id, kit.perfil, kit.n_pecas,
+                        str(kit.ml).replace(".", ","),
+                        str(kit.kg).replace(".", ","), kit.barras,
+                        str(kit.perda_pct).replace(".", ",")])
+    w.writerow([])
+    w.writerow(["ROMANEIO OBRA"])
+    w.writerow(["nivel", "painel", "parede", "faixa (m)", "kg"])
+    for item in romaneio.paineis:
+        w.writerow([item.nivel_indice, item.painel.id, item.parede_id,
+                    f"{item.painel.x_ini:.2f}-{item.painel.x_fim:.2f}".replace(".", ","),
+                    str(item.painel.kg).replace(".", ",")])
+    w.writerow([])
+    w.writerow(["kg total", str(romaneio.kg_total).replace(".", ",")])
+    return saida.getvalue()

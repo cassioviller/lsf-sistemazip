@@ -51,3 +51,50 @@ def panelizar_parede(estrutura: EstruturaParede, nivel_indice: int,
                 max((max(p.x0, p.x1) for p in estrutura.pecas), default=x_ini), 4),
             pecas=pecas, kg=round(kg, 2)))
     return paineis
+
+
+@dataclass(frozen=True)
+class PainelRomaneio:
+    painel: Painel
+    nivel_indice: int
+    parede_id: int
+    kits: list                 # PlanoCortePerfil por perfil (barras 6 m)
+
+
+@dataclass(frozen=True)
+class Romaneio:
+    projeto_id: int
+    paineis: list[PainelRomaneio]
+    kg_total: float
+
+
+def romaneio_projeto(con, projeto_id: int) -> Romaneio:
+    """Romaneio fábrica/obra: todos os painéis de parede do projeto, na ordem de
+    montagem (nível, parede), cada um com o kit de corte por perfil (first-fit
+    em barras de 6 m — o mesmo `plano_de_corte` do aceite de kg).
+
+    Só PAREDES viram painéis; laje/escada/cobertura/forro são sistemas montados
+    in loco e saem no plano de corte geral do `gerar_estrutura`, não aqui."""
+    from lsf.geradores.estrutura import (_regra, _regras, gerar_estrutura,
+                                         plano_de_corte)
+
+    est = gerar_estrutura(con, projeto_id)
+    barra = _regra(_regras(con), "barra_m")
+    nivel_de = dict(con.execute(
+        "SELECT p.id, n.indice FROM parede p JOIN nivel n ON n.id = p.nivel_id"
+        " WHERE n.projeto_id = ?", (projeto_id,)).fetchall())
+
+    paineis: list[PainelRomaneio] = []
+    seq_por_nivel: dict[int, int] = {}
+    for ep in est.paredes:
+        nivel = nivel_de[ep.parede_id]
+        seq = seq_por_nivel.get(nivel, 1)
+        for painel in panelizar_parede(ep, nivel, seq):
+            paineis.append(PainelRomaneio(
+                painel=painel, nivel_indice=nivel, parede_id=ep.parede_id,
+                kits=plano_de_corte(con, painel.pecas, barra)))
+        seq_por_nivel[nivel] = seq + len(ep.juntas) + 1
+
+    paineis.sort(key=lambda p: (p.nivel_indice, p.painel.id))
+    return Romaneio(projeto_id=projeto_id, paineis=paineis,
+                    kg_total=round(sum(p.painel.kg for p in paineis), 1))

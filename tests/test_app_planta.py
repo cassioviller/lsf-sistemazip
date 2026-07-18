@@ -233,3 +233,14 @@ def test_tela_cronograma_sem_quantitativo_explica(logado, projeto):
     r = logado.get(f"/projetos/{projeto}/cronograma")
     assert r.status_code == 200
     assert "quantitativo" in r.text.lower()
+
+
+def test_download_do_romaneio(logado, con_app, projeto):
+    _caixa_completa(logado, con_app, projeto)
+    r = logado.get(f"/projetos/{projeto}/romaneio.csv")
+    assert r.status_code == 200
+    assert "ROMANEIO FABRICA" in r.text and "1PV-P01" in r.text
+
+
+def test_romaneio_sem_planta_e_409(logado, projeto):
+    assert logado.get(f"/projetos/{projeto}/romaneio.csv").status_code == 409
