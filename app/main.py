@@ -6,7 +6,7 @@ import os
 import pathlib
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
@@ -49,6 +49,14 @@ def criar_app(db_path=None, secret: str | None = None) -> FastAPI:
         return HTMLResponse(
             f'<p class="erro" role="alert">{exc.detail}</p>', status_code=exc.status_code
         )
+
+    @app.get("/", include_in_schema=False)
+    def raiz():
+        """A raiz é o que o webview do Replit (e qualquer link solto) abre. Sem ela
+        o preview mostrava 404, mesmo com o app no ar: as rotas começam todas em
+        /login, /projetos, /p/<token>. Manda para /projetos, que devolve ao /login
+        quando não há sessão (NaoAutenticado → redirecionar_ao_login)."""
+        return RedirectResponse("/projetos", status_code=307)
 
     app.mount("/static", StaticFiles(directory=str(AQUI / "static")), name="static")
     app.include_router(rotas_auth.router)
