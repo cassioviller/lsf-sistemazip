@@ -67,7 +67,13 @@ saida/                  ← relatórios gerados (orcamento_109_1506.html/csv)
 assets/calc-...v7.html  ← calculador v7 (READ-ONLY: fonte das regras já portadas; consultar, não editar)
 ```
 
-## Fase atual: FASE 4 — Cronograma + Curva S (Fases 2 e 3 concluídas em 2026-07-18)
+## Fase atual: FASE 5 — Saídas, croqui, panelizador com romaneio (Fases 2, 3 e 4 concluídas em 2026-07-18)
+
+**Fase 4 (cronograma + curva S) — CONCLUÍDA** (plano: docs/superpowers/plans/2026-07-18-cronograma-curva-s.md):
+- Migração 015: rede de precedências LSF (TI/II/TT + lag, origem anotada — II/TT expressam a sobreposição da montagem painel a painel) e equipes por macroetapa como DADO. `jornada_h_dia` 8.
+- `src/lsf/motores/cronograma.py`: atividade = macroetapa com quantitativo; **duração DERIVADA** (hh = Σ qtd × horas MO da composição recursivo ÷ equipe×jornada); CPM generalizado TI/II/TT (spike 2 = caso particular; II+TT conferido à mão); `curva_s` ponderada com **aço adiantado** (MAT no início da atividade) que fecha EXATO no custo direto (D1, igualdade em teste); `custo_composicao_por_tipo` reparte MAT/MO consistente com o custo. Composição sem analítica → alerta "fora do cronograma", nunca duração 0 calada.
+- Na 109 com o kg derivado: ESTRUTURA ≈78 dias (31.344 kg × 0,08 h ÷ 32), crítica, curva fecha. Caixa 6×4 na conta de mão: 02:[0,1] TI+3 (cura Parabolt) 03, makespan verificado no servidor real.
+- Saída MSPDI (`exportar_mspdi`) + tela `/projetos/{id}/cronograma` (tabela, curva por semana, download). **Validação cruzada no ProjectLibre = ação do usuário sobre o XML baixado** (o teste re-parseia e confere datas/vínculos/crítico — a conferência visual não é automatizável aqui).
 
 **Fase 3 (fundação + gates) — CONCLUÍDA** (plano: docs/superpowers/plans/2026-07-18-fundacao-gates.md):
 - `src/lsf/motores/fundacao.py`: `pre_dimensionar` (NBR 6122 tensão presumida + I3; caixa 6×4 = 2,400 m³ exatos na conta de mão), `verificar_vento` (NBR 6123 simplificada, generalizada da planta — na 109 reproduz a conclusão do v7: F máx 92,5 kN → 3 fitas/linha, 24 hold-downs), `derivar_fundacao` (m³ na folha 02.01, PARAMETRICO com guarda de MANUAL).
@@ -75,7 +81,7 @@ assets/calc-...v7.html  ← calculador v7 (READ-ONLY: fonte das regras já porta
 - Gates como mecanismo, provados no servidor real: **S1 BLOQUEIA** (m³ anterior removido + pendência + macroetapa 02 zera = dupla proteção; publicar → 409); **sondagem pendente é AVISO** (rebaixa confiança p/ parametrico, carimbo na proposta — NÃO entra na tabela `pendencia`, que bloqueia); vento acima das fitas mínimas vira pendência bloqueante; projeto sem classe de solo não derruba a derivação da estrutura (aparece como próximo passo na tela).
 - **Aceite "±15% vs obra com projeto real" é LACUNA DE DADO** (o orçamento v7 da 109 não tem linhas de fundação — família R6/R9): validação por conta de mão travada em `tests/test_fundacao.py`/`test_vento.py`; quando houver obra com projeto de fundação, entra como oráculo.
 
-Próximo (docs/02 §4): rede real de precedências LSF + distribuição ponderada (aço adiantado) sobre os motores `cronograma.py` (CPM do spike 2) e curva S (spike 3); validação cruzada com ProjectLibre. Depois: Fase 5 (saídas, croqui, panelizador com romaneio, migração PARAMETRICO→TAKEOFF).
+Próximo (docs/02 §4, Fase 5): saídas com identidade Veks (docx/planilha), rota do croqui/DWG (adaptador DXF do spike 1 → planta_normalizada), panelizador com IDs/kits de corte/romaneio fábrica-obra (evolução do spike 5), migração PARAMETRICO→TAKEOFF (D2: trocar linhas). Pendências de dado que destravam aceites anteriores: SINAPI real importado (Rota A, smoke test na máquina do usuário), obra com projeto estrutural/fundação (oráculos R9/±15%), calibração de coeficientes em obra (R6).
 
 ### Registro da Fase 2 (concluída)
 
