@@ -463,3 +463,38 @@ INSERT INTO eap_item (codigo, pai_id, descricao, unidade, grupo_eap, composicao_
 ON CONFLICT (codigo) DO UPDATE SET
   pai_id=excluded.pai_id, descricao=excluded.descricao, unidade=excluded.unidade,
   grupo_eap=excluded.grupo_eap, composicao_id=excluded.composicao_id;
+
+-- ============================================================
+-- FASE 4 — Cronograma: rede de precedências LSF + equipes (migração 015)
+-- Rede da prática LSF (montagem painel a painel): vínculos II/TT expressam a
+-- SOBREPOSIÇÃO real entre estrutura e fechamento — TI puro esticaria a obra.
+-- Tudo `estimado` até calibração com obra (R6: 109.1506, Baias Kabod).
+-- ============================================================
+INSERT INTO regra_lsf (chave,valor,unidade,referencia) VALUES
+ ('jornada_h_dia',8.0,'h/dia','CLT art. 58: jornada de 8h — dias corridos no CPM, documentado')
+ON CONFLICT (chave) DO UPDATE SET
+  valor=excluded.valor, unidade=excluded.unidade, referencia=excluded.referencia;
+
+INSERT INTO precedencia_macroetapa (grupo_pred,grupo_succ,tipo,lag_dias,origem) VALUES
+ ('PRELIM','FUNDACAO','TI',0,'prática: canteiro/locação antes de escavar'),
+ ('FUNDACAO','ESTRUTURA','TI',3,'cura mínima p/ ancoragem química Parabolt [OBRA DP-04: fck>=30MPa; embut. 55mm]'),
+ ('ESTRUTURA','FECHAMENTO','II',5,'montagem painel a painel: fechamento acompanha com defasagem [prática LSF/CBCA]'),
+ ('ESTRUTURA','FECHAMENTO','TT',2,'fechamento não termina antes da estrutura: última parede fecha depois de montada'),
+ ('ESTRUTURA','INSTALACOES','II',8,'instalações nas paredes ABERTAS, antes do fechamento interno [prática LSF]'),
+ ('FECHAMENTO','ACABAMENTO','TI',0,'acabamento sobre fechamento pronto'),
+ ('INSTALACOES','ACABAMENTO','TI',0,'acabamento fecha as paredes: instalações antes'),
+ ('ACABAMENTO','COMPLEMENTO','TI',0,'limpeza/entrega ao final')
+ON CONFLICT (grupo_pred,grupo_succ,tipo) DO UPDATE SET
+  lag_dias=excluded.lag_dias, origem=excluded.origem;
+
+INSERT INTO equipe_macroetapa (grupo_eap,trabalhadores,hammock,origem) VALUES
+ ('PRELIM',2,0,'equipe mínima de canteiro — estimado'),
+ ('FUNDACAO',4,0,'pedreiro+ajudantes de baldrame — estimado'),
+ ('ESTRUTURA',4,0,'2 duplas de montagem LSF [prática Veks] — estimado'),
+ ('FECHAMENTO',4,0,'2 duplas placa/membrana — estimado'),
+ ('INSTALACOES',3,0,'eletricista+encanador+ajudante — estimado'),
+ ('ACABAMENTO',4,0,'gesseiro/pintor+ajudantes — estimado'),
+ ('COMPLEMENTO',2,0,'limpeza/entrega — estimado'),
+ ('GERENCIAMENTO',1,1,'hammock: engenheiro/mestre acompanha a obra inteira — estimado')
+ON CONFLICT (grupo_eap) DO UPDATE SET
+  trabalhadores=excluded.trabalhadores, hammock=excluded.hammock, origem=excluded.origem;
