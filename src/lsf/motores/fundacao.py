@@ -17,6 +17,7 @@ toda a fundação para `parametrico` — a etiqueta comunica a incerteza (D4).
 """
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 
 from lsf.geradores.estrutura import (DadoIndisponivel, MARCA_PENDENCIA,
@@ -125,3 +126,92 @@ def pre_dimensionar(con, projeto_id: int) -> ResultadoFundacao:
         volume_m3=round(sum(f.volume_m3 for f in paredes), 3),
         confianca=confianca, bloqueado=False, pendencias=pendencias,
         origem_regra=origem)
+
+
+@dataclass(frozen=True)
+class DirecaoVento:
+    direcao: str               # 'x' | 'z'
+    f_kn: float                # cortante de fachada
+    fitas_necessarias: int     # por linha de contraventamento
+    fitas_adotadas: int        # nunca abaixo do mínimo da norma
+
+
+@dataclass(frozen=True)
+class ResultadoVento:
+    direcoes: list[DirecaoVento]
+    hold_downs_un: int
+    pendencias: list[str]
+    confianca: str
+    origem_regra: str
+
+
+def verificar_vento(con, projeto_id: int) -> ResultadoVento:
+    """Verificação de vento/ancoragem [NBR 6123, SIMPLIFICADA — envelope
+    conservador; cálculo próprio autorizado em 2026-07-18, não é projeto]:
+
+      F = q_vento × altura_total × largura_da_fachada_normal, por direção;
+      cada direção tem 2 linhas de contraventamento (as fachadas paralelas);
+      fitas/linha = ceil(F / (2 · T_Rd)), nunca abaixo do mínimo da norma;
+      hold-downs = 2 por extremo de linha (4 linhas × 2) + 2 por canto (4) = 24
+      — a mesma conta que fecha os 24 un do v7 na 109, derivada da planta em
+      vez de chumbada.
+
+    O que ela NÃO faz: coeficientes de arrasto/rajada por zona (S1·S2·S3 da
+    norma), sucção de cobertura, momento de tombamento. `q_vento` da regra é o
+    envelope; demanda acima das fitas mínimas vira pendência, não silêncio."""
+    R = _regras(con)
+    q = _regra(R, "vento_pressao_kn_m2")
+    trd = _regra(R, "fita_trd_kn")
+    fitas_min = int(_regra(R, "fitas_min_por_linha"))
+
+    niveis = con.execute(
+        "SELECT indice, cota_m, pe_direito_m FROM nivel WHERE projeto_id = ?"
+        " ORDER BY indice", (projeto_id,)).fetchall()
+    if not niveis:
+        raise DadoIndisponivel(f"projeto {projeto_id} sem níveis")
+    menor = min(n[0] for n in niveis)
+    cota_base = next(c for i, c, _ in niveis if i == menor)
+    topo = max(c + pd for _, c, pd in niveis)
+    altura = topo - cota_base
+
+    externas = con.execute(
+        "SELECT a.x, a.y, b.x, b.y FROM parede p"
+        "  JOIN no_planta a ON a.id = p.no_a"
+        "  JOIN no_planta b ON b.id = p.no_b"
+        "  JOIN nivel n ON n.id = p.nivel_id"
+        " WHERE n.projeto_id = ? AND n.indice = ? AND p.externa = 1",
+        (projeto_id, menor)).fetchall()
+    if not externas:
+        raise DadoIndisponivel(
+            f"projeto {projeto_id} sem paredes externas no nível {menor} — não"
+            " há fachada para o vento nem linha de contraventamento")
+    xs = [v for ax, _, bx, _ in externas for v in (ax, bx)]
+    zs = [v for _, az, _, bz in externas for v in (az, bz)]
+    larg_x, larg_z = max(xs) - min(xs), max(zs) - min(zs)
+
+    origem = (f"NBR 6123 simplificada: q={q} kN/m² × h={altura:.1f} m ×"
+              f" fachada; T_Rd={trd} kN/fita [NBR 14762]; mínimo"
+              f" {fitas_min} fitas/linha")
+
+    direcoes: list[DirecaoVento] = []
+    pendencias: list[str] = []
+    # vento na direção x atinge a fachada cuja largura é a extensão em z
+    for direcao, largura in (("x", larg_z), ("z", larg_x)):
+        f = q * altura * largura
+        necessarias = max(1, math.ceil(f / (2 * trd)))
+        direcoes.append(DirecaoVento(
+            direcao=direcao, f_kn=round(f, 2),
+            fitas_necessarias=necessarias,
+            fitas_adotadas=max(necessarias, fitas_min)))
+        if necessarias > fitas_min:
+            pendencias.append(
+                f"{MARCA_PENDENCIA} Vento na direção {direcao}: F={f:.0f} kN"
+                f" exige {necessarias} fitas/linha — acima do mínimo de"
+                f" {fitas_min} [NBR 6123 simplificada, T_Rd={trd} kN]."
+                " O contraventamento padrão não fecha: exige verificação de"
+                " engenheiro estrutural e reforço das linhas.")
+
+    hold_downs = 4 * 2 * 2 + 4 * 2
+    return ResultadoVento(direcoes=direcoes, hold_downs_un=hold_downs,
+                          pendencias=pendencias, confianca="parametrico",
+                          origem_regra=origem)
