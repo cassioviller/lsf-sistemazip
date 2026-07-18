@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block titulo %}Cronograma — {{ projeto.codigo }}{% endblock %}
+{% block conteudo %}
+<h1>Cronograma — {{ projeto.codigo }}</h1>
+<p><a href="/projetos/{{ projeto.id }}">← voltar ao projeto</a></p>
+
+{% if erro %}
+<p class="alerta" role="alert">Sem cronograma: {{ erro }}.
+   Lance ou derive um quantitativo primeiro
+   (<a href="/projetos/{{ projeto.id }}/planta">planta</a> ·
+    <a href="/projetos/{{ projeto.id }}/quantitativos">quantitativos</a>).</p>
+{% else %}
+
+<p>Makespan: <strong>{{ crono.makespan_dias|int }} dias corridos</strong> ·
+   confiança {{ crono.confianca }} ·
+   <a class="botao" href="/projetos/{{ projeto.id }}/cronograma.xml">Baixar
+   MSPDI (ProjectLibre)</a></p>
+
+<table>
+  <thead><tr><th>EAP</th><th>Atividade</th><th>Duração (d)</th><th>hh</th>
+             <th>Início</th><th>Fim</th><th>Folga</th><th>Caminho crítico</th></tr></thead>
+  <tbody>
+    {% for p in crono.atividades %}
+    <tr>
+      <td>{{ p.atividade.codigo }}</td>
+      <td>{{ p.atividade.descricao }}{{ " (hammock)" if p.hammock }}</td>
+      <td>{{ p.atividade.duracao_dias }}</td>
+      <td>{{ p.atividade.hh }}</td>
+      <td>{{ p.es|int }}</td>
+      <td>{{ p.ef|int }}</td>
+      <td>{{ p.folga|int }}</td>
+      <td>{{ "crítica ●" if p.critica else "—" }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% if curva %}
+<h2>Curva S (desembolso do custo direto)</h2>
+<table>
+  <thead><tr><th>Semana</th><th>Desembolso</th><th>Acumulado</th></tr></thead>
+  <tbody>
+    {% for s in semanas %}
+    <tr><td>{{ s.semana }}</td>
+        <td>R$ {{ "%.2f"|format(s.desembolso) }}</td>
+        <td>R$ {{ "%.2f"|format(s.acumulado) }}</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+<p><small>Material desembolsa no início de cada atividade (aço adiantado);
+mão de obra uniforme na duração. Fecha em R$ {{ "%.2f"|format(curva.total) }}
+= custo direto do orçamento (D1).</small></p>
+{% elif curva_erro %}
+<p class="alerta">Curva S indisponível: {{ curva_erro }}</p>
+{% endif %}
+
+{% for a in crono.alertas %}
+<p class="alerta">{{ a }}</p>
+{% endfor %}
+{% endif %}
+{% endblock %}

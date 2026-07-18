@@ -140,3 +140,56 @@ def relatorio_html(venda: OrcamentoVenda, faixa_pct: float = FAIXA_PCT_DEFAULT) 
 sondagem ou ART. Itens 'estimado'/'parametrico' exibidos em faixa ±{_num(faixa_pct * 100, 0)}% (D4).
 Gerado pelo motor de orçamento LSF Veks.</p>
 </body></html>"""
+
+
+def exportar_mspdi(cronograma, inicio) -> str:
+    """Cronograma em MSPDI (XML do MS Project) — o formato que o ProjectLibre
+    importa; é a ponta automatizável da 'validação cruzada' da Fase 4 (a
+    conferência visual no ProjectLibre é ação humana sobre este arquivo).
+
+    Convenções (documentadas, não escondidas): dias CORRIDOS a partir de
+    `inicio` (datetime.date); Duration em horas de jornada (dias × 8h);
+    vínculos TI→Type 1 (FS), II→3 (SS), TT→0 (FF), lag em décimos de minuto de
+    jornada (LagFormat 7 = dias)."""
+    import datetime
+    import xml.etree.ElementTree as ET
+
+    ns = "http://schemas.microsoft.com/project"
+    ET.register_namespace("", ns)
+    raiz = ET.Element(f"{{{ns}}}Project")
+    ET.SubElement(raiz, f"{{{ns}}}Name").text = cronograma.projeto_codigo
+    ET.SubElement(raiz, f"{{{ns}}}StartDate").text = f"{inicio.isoformat()}T08:00:00"
+    tarefas = ET.SubElement(raiz, f"{{{ns}}}Tasks")
+
+    uid_por_grupo = {p.atividade.grupo: i + 1
+                     for i, p in enumerate(cronograma.atividades)}
+    vinculos = {p.atividade.grupo: [] for p in cronograma.atividades}
+    for pred, succ, tipo, lag in (cronograma.rede or []):
+        if pred in uid_por_grupo and succ in uid_por_grupo:
+            vinculos[succ].append((pred, tipo, lag))
+
+    tipo_mspdi = {"TI": "1", "II": "3", "TT": "0"}
+    for p in cronograma.atividades:
+        a = p.atividade
+        t = ET.SubElement(tarefas, f"{{{ns}}}Task")
+        ET.SubElement(t, f"{{{ns}}}UID").text = str(uid_por_grupo[a.grupo])
+        ET.SubElement(t, f"{{{ns}}}ID").text = str(uid_por_grupo[a.grupo])
+        ET.SubElement(t, f"{{{ns}}}Name").text = a.descricao
+        ET.SubElement(t, f"{{{ns}}}Duration").text = (
+            f"PT{int(a.duracao_dias * 8)}H0M0S")
+        ET.SubElement(t, f"{{{ns}}}DurationFormat").text = "7"
+        d0 = inicio + datetime.timedelta(days=p.es)
+        d1 = inicio + datetime.timedelta(days=p.ef)
+        ET.SubElement(t, f"{{{ns}}}Start").text = f"{d0.isoformat()}T08:00:00"
+        ET.SubElement(t, f"{{{ns}}}Finish").text = f"{d1.isoformat()}T17:00:00"
+        ET.SubElement(t, f"{{{ns}}}Critical").text = "1" if p.critica else "0"
+        for pred, tipo, lag in vinculos.get(a.grupo, []):
+            v = ET.SubElement(t, f"{{{ns}}}PredecessorLink")
+            ET.SubElement(v, f"{{{ns}}}PredecessorUID").text = (
+                str(uid_por_grupo[pred]))
+            ET.SubElement(v, f"{{{ns}}}Type").text = tipo_mspdi[tipo]
+            ET.SubElement(v, f"{{{ns}}}LinkLag").text = str(int(lag * 8 * 60 * 10))
+            ET.SubElement(v, f"{{{ns}}}LagFormat").text = "7"
+
+    corpo = ET.tostring(raiz, encoding="unicode")
+    return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n' + corpo

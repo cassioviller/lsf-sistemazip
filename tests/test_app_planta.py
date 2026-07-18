@@ -207,3 +207,29 @@ def test_derivar_com_solo_grava_fundacao_e_mostra_m3(logado, con_app, projeto):
         " WHERE q.projeto_id=? AND e.codigo='02.01'", (projeto,)).fetchone()
     assert linha["origem"] == "PARAMETRICO"
     assert abs(linha["quantidade"] - 2.4) < 0.01
+
+
+def test_tela_cronograma_e_download_mspdi(logado, con_app, projeto):
+    """A tela lê os motores (D6); o XML baixado é o mesmo cronograma."""
+    _caixa_completa(logado, con_app, projeto)
+    con_app.execute(
+        "UPDATE projeto SET classe_solo_id ="
+        " (SELECT id FROM classe_solo WHERE classe='S3') WHERE id = ?", (projeto,))
+    con_app.commit()
+    logado.post(f"/projetos/{projeto}/planta/derivar")
+
+    r = logado.get(f"/projetos/{projeto}/cronograma")
+    assert r.status_code == 200
+    assert "Fundação" in r.text and "Estrutura" in r.text
+    assert "crítica" in r.text.lower() or "caminho crítico" in r.text.lower()
+
+    xml = logado.get(f"/projetos/{projeto}/cronograma.xml?inicio=2026-08-03")
+    assert xml.status_code == 200
+    assert xml.text.startswith("<?xml") or "<Project" in xml.text
+    assert "Fundação" in xml.text
+
+
+def test_tela_cronograma_sem_quantitativo_explica(logado, projeto):
+    r = logado.get(f"/projetos/{projeto}/cronograma")
+    assert r.status_code == 200
+    assert "quantitativo" in r.text.lower()

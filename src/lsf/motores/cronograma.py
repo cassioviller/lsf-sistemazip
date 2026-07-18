@@ -58,6 +58,9 @@ class Cronograma:
     makespan_dias: float
     alertas: list[str]
     confianca: str
+    # vínculos efetivos (só entre atividades presentes) — a exportação MSPDI
+    # precisa deles; hammock não entra em vínculo
+    rede: list[tuple[str, str, str, float]] = None
 
 
 def horas_mo_composicao(con, composicao_id: int, _pilha: tuple = ()) -> float:
@@ -256,9 +259,12 @@ def cronograma_projeto(con, projeto_id: int) -> Cronograma:
                           (projeto_id,)).fetchone()
     confianca = pior_confianca(
         *(p.atividade.confianca for p in prog), "estimado")
+    presentes = {p.atividade.grupo for p in prog if not p.hammock}
     return Cronograma(projeto_codigo=projeto[0], atividades=prog,
                       makespan_dias=makespan, alertas=alertas,
-                      confianca=confianca)
+                      confianca=confianca,
+                      rede=[tuple(r) for r in rede
+                            if r[0] in presentes and r[1] in presentes])
 
 
 def custo_composicao_por_tipo(con, composicao_id: int, referencia: str,
