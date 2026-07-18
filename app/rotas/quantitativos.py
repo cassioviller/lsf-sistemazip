@@ -98,25 +98,34 @@ def lancar(
     request: Request,
     eap_item_id: int = Form(...),
     quantidade: str = Form(...),
+    origem: str = Form("MANUAL"),
     con: sqlite3.Connection = Depends(conexao),
     usuario: dict = Depends(usuario_logado),
 ):
     valor = _numero_ptbr(quantidade)
     if valor < 0:
         raise HTTPException(status_code=400, detail="quantidade não pode ser negativa")
+    # D2: os modos diferem só na origem. TAKEOFF = medido de projeto executivo —
+    # é a migração proposta→contrato: trocar a linha (inclusive a PARAMETRICO
+    # derivada), que os motores passam a PRESERVAR (guarda dos derivar_*).
+    if origem not in ("MANUAL", "TAKEOFF"):
+        raise HTTPException(status_code=400,
+                            detail="origem deve ser MANUAL ou TAKEOFF")
+    origem_regra = ("medido de projeto executivo (takeoff)"
+                    if origem == "TAKEOFF" else None)
 
     try:
         # UNIQUE (projeto_id, eap_item_id): uma linha ativa por item (D2).
-        # origem_regra=NULL no lançamento manual — e o DO UPDATE também a limpa:
-        # editar linha derivada pelo gerador não pode manter proveniência obsoleta.
+        # origem_regra do lançamento substitui a do gerador — editar linha
+        # derivada não pode manter proveniência obsoleta.
         con.execute(
             "INSERT INTO quantitativo (projeto_id, eap_item_id, quantidade, origem,"
             " confianca, origem_regra)"
-            " VALUES (?,?,?,'MANUAL','real',NULL)"
+            " VALUES (?,?,?,?,'real',?)"
             " ON CONFLICT (projeto_id, eap_item_id) DO UPDATE SET"
             "   quantidade=excluded.quantidade, origem=excluded.origem,"
             "   confianca=excluded.confianca, origem_regra=excluded.origem_regra",
-            (projeto_id, eap_item_id, valor),
+            (projeto_id, eap_item_id, valor, origem, origem_regra),
         )
     except sqlite3.IntegrityError as erro:
         # trg_quantitativo_so_em_folha: agrupador recebe soma, não quantidade.

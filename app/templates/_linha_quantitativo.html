@@ -8,6 +8,10 @@
       <input type="hidden" name="eap_item_id" value="{{ item.id }}">
       {# quantidade_ptbr: vírgula decimal, inteiro sem casa morta, 0 visível (nunca `or ''`) #}
       <input name="quantidade" value="{{ item.quantidade_ptbr }}" inputmode="decimal">
+      <select name="origem" title="MANUAL: estimado à mão · TAKEOFF: medido de projeto executivo (D2)">
+        <option value="MANUAL" {{ "selected" if item.origem != "TAKEOFF" }}>MANUAL</option>
+        <option value="TAKEOFF" {{ "selected" if item.origem == "TAKEOFF" }}>TAKEOFF</option>
+      </select>
       <button type="submit">Salvar</button>
     </form>
   </td>

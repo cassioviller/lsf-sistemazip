@@ -237,3 +237,37 @@ def test_folha_de_profundidade_3_aceita_quantitativo(logado, con_app, projeto, f
     ).fetchone()
     assert linha["quantidade"] == pytest.approx(42.5)
     assert linha["origem"] == "MANUAL"
+
+
+def test_takeoff_troca_linha_parametrico(logado, con_app, projeto):
+    """D2: a linha PARAMETRICO derivada é TROCADA pelo takeoff medido de
+    executivo (migração proposta→contrato = trocar linhas). A preservação no
+    sentido inverso — derivar de novo NÃO sobrescreve não-PARAMETRICO — já é
+    guarda dos motores, testada em test_fundacao/test_gerador."""
+    folha = _folha(con_app)                      # 03.01
+    con_app.execute(
+        "INSERT INTO quantitativo (projeto_id, eap_item_id, quantidade, origem,"
+        " confianca, origem_regra) VALUES (?,?,999,'PARAMETRICO','estimado','gerador')",
+        (projeto, folha))
+    con_app.commit()
+
+    r = logado.post(
+        f"/projetos/{projeto}/quantitativos",
+        data={"eap_item_id": folha, "quantidade": "31345", "origem": "TAKEOFF"})
+    assert r.status_code == 200
+
+    linha = con_app.execute(
+        "SELECT quantidade, origem, confianca, origem_regra FROM quantitativo"
+        " WHERE projeto_id = ? AND eap_item_id = ?", (projeto, folha)).fetchone()
+    assert linha["origem"] == "TAKEOFF"
+    assert linha["quantidade"] == 31345
+    assert linha["confianca"] == "real"
+    assert "executivo" in linha["origem_regra"]
+
+
+def test_origem_invalida_e_400(logado, con_app, projeto):
+    r = logado.post(
+        f"/projetos/{projeto}/quantitativos",
+        data={"eap_item_id": _folha(con_app), "quantidade": "10",
+              "origem": "CHUTE"})
+    assert r.status_code == 400
