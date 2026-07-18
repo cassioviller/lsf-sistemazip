@@ -388,3 +388,78 @@ INSERT INTO camada_parede (tipo,material,faces,origem) VALUES
  ('interna','Lã de vidro 50mm',1,'isolamento acústico')
 ON CONFLICT (tipo,material) DO UPDATE SET
   faces=excluded.faces, origem=excluded.origem;
+
+-- ============================================================
+-- FASE 3 — Fundação + gates: regras, insumos, composição VK-C-005, folha 02.01
+-- Pré-dimensionamento para ORÇAMENTO, nunca projeto (CLAUDE.md). Coeficientes e
+-- preços `estimado` (ordem SINAPI/praça SP 07-2026) até calibração de obra (R6);
+-- quando o SINAPI importar (Rota A), a 02.01 pode migrar para composição oficial.
+-- ============================================================
+INSERT INTO regra_lsf (chave,valor,unidade,referencia) VALUES
+ ('fund_larg_min_m',0.30,'m','spike 4 / I3: largura executiva mínima de baldrame — mínimo construtivo governa em LSF'),
+ ('fund_altura_baldrame_m',0.40,'m','prática viga baldrame 30x40 [NBR 6122: assentamento abaixo da camada orgânica]'),
+ ('vento_pressao_kn_m2',0.61,'kN/m²','v7 CARGAS.vento — NBR 6123 simplificada (q=0,613·V0²·fatores, envelope conservador); cálculo próprio autorizado 2026-07-18'),
+ ('fita_trd_kn',17.9,'kN','v7: T_Rd fita de contraventamento ZAR230 [NBR 14762]'),
+ ('fitas_min_por_linha',3,'un','v7 / NBR 6123: mínimo 3 fitas X por linha de contraventamento')
+ON CONFLICT (chave) DO UPDATE SET
+  valor=excluded.valor, unidade=excluded.unidade, referencia=excluded.referencia;
+
+INSERT INTO insumo (fonte_id,codigo_fonte,descricao,tipo,unidade)
+ SELECT id,'VK-I-006','Concreto usinado bombeado fck 30 MPa','MAT','m3' FROM fonte WHERE sigla='VEKS'
+ON CONFLICT (fonte_id,codigo_fonte) DO UPDATE SET
+  descricao=excluded.descricao, tipo=excluded.tipo, unidade=excluded.unidade;
+INSERT INTO insumo (fonte_id,codigo_fonte,descricao,tipo,unidade)
+ SELECT id,'VK-I-007','Aço CA-50 cortado e dobrado','MAT','kg' FROM fonte WHERE sigla='VEKS'
+ON CONFLICT (fonte_id,codigo_fonte) DO UPDATE SET
+  descricao=excluded.descricao, tipo=excluded.tipo, unidade=excluded.unidade;
+INSERT INTO insumo (fonte_id,codigo_fonte,descricao,tipo,unidade)
+ SELECT id,'VK-I-008','Forma de tábua p/ fundação (incl. desforma, reaproveitamento 3x)','MAT','m2' FROM fonte WHERE sigla='VEKS'
+ON CONFLICT (fonte_id,codigo_fonte) DO UPDATE SET
+  descricao=excluded.descricao, tipo=excluded.tipo, unidade=excluded.unidade;
+INSERT INTO insumo (fonte_id,codigo_fonte,descricao,tipo,unidade)
+ SELECT id,'VK-I-103','Pedreiro (c/ encargos)','MO','h' FROM fonte WHERE sigla='VEKS'
+ON CONFLICT (fonte_id,codigo_fonte) DO UPDATE SET
+  descricao=excluded.descricao, tipo=excluded.tipo, unidade=excluded.unidade;
+
+WITH p(cod,preco) AS (VALUES ('VK-I-006',480.00),('VK-I-007',8.50),
+              ('VK-I-008',45.00),('VK-I-103',32.00))
+INSERT INTO insumo_preco (insumo_id,data_base_id,preco,confianca)
+ SELECT i.id, db.id, p.preco, 'estimado'
+ FROM p
+ JOIN insumo i ON i.codigo_fonte=p.cod
+ JOIN data_base db ON db.fonte_id=i.fonte_id AND db.referencia='2026-06'
+ON CONFLICT (insumo_id,data_base_id) DO UPDATE SET
+  preco=excluded.preco, confianca=excluded.confianca;
+
+INSERT INTO composicao (fonte_id,codigo_fonte,descricao,unidade,grupo_eap,confianca,observacao)
+ SELECT id,'VK-C-005','Baldrame corrido em concreto armado p/ LSF (escav. manual incl. na MO)','m3','FUNDACAO','estimado','coef. ordem SINAPI: aço 60kg/m³, forma 6,7m²/m³ (30x40); calibrar R6' FROM fonte WHERE sigla='VEKS'
+ON CONFLICT (fonte_id,codigo_fonte) DO UPDATE SET
+  descricao=excluded.descricao, unidade=excluded.unidade, grupo_eap=excluded.grupo_eap,
+  confianca=excluded.confianca, observacao=excluded.observacao;
+
+WITH r(ccod,icod,coef) AS (VALUES
+         ('VK-C-005','VK-I-006',1.05),('VK-C-005','VK-I-007',60.0),
+         ('VK-C-005','VK-I-008',6.7),('VK-C-005','VK-I-103',3.5),
+         ('VK-C-005','VK-I-102',5.0))
+INSERT INTO composicao_item (composicao_id,item_tipo,item_id,coeficiente)
+ SELECT c.id,'INSUMO',i.id,r.coef
+ FROM r
+ JOIN composicao c ON c.codigo_fonte=r.ccod
+ JOIN insumo i ON i.codigo_fonte=r.icod
+ON CONFLICT (composicao_id,item_tipo,item_id) DO UPDATE SET
+  coeficiente=excluded.coeficiente;
+
+INSERT INTO mapeamento_item (item_derivado,composicao_id,observacao)
+ SELECT 'fundacao.concreto_fck30_m3', id,
+        'composição própria até o SINAPI importar (Rota A); armadura embutida no m³'
+ FROM composicao WHERE codigo_fonte='VK-C-005'
+ON CONFLICT (item_derivado) DO UPDATE SET
+  composicao_id=excluded.composicao_id, observacao=excluded.observacao;
+
+INSERT INTO eap_item (codigo, pai_id, descricao, unidade, grupo_eap, composicao_id)
+ SELECT '02.01', (SELECT id FROM eap_item WHERE codigo='02'),
+        'Baldrame corrido em concreto armado', 'm3', 'FUNDACAO', id
+ FROM composicao WHERE codigo_fonte = 'VK-C-005'
+ON CONFLICT (codigo) DO UPDATE SET
+  pai_id=excluded.pai_id, descricao=excluded.descricao, unidade=excluded.unidade,
+  grupo_eap=excluded.grupo_eap, composicao_id=excluded.composicao_id;

@@ -164,3 +164,46 @@ def test_derivar_nao_sobrescreve_manual(logado, con_app, projeto):
     assert linha["origem"] == "MANUAL"
     assert linha["quantidade"] == pytest.approx(31345)
     assert "preservad" in r.text.lower()
+
+
+def _caixa_completa(logado, con_app, projeto):
+    _criar_nivel(logado, projeto)
+    nid = con_app.execute("SELECT id FROM nivel").fetchone()["id"]
+    for x0, y0, x1, y1 in [(0, 0, 6, 0), (6, 0, 6, 4), (6, 4, 0, 4), (0, 4, 0, 0)]:
+        _criar_parede(logado, projeto, nid, str(x0), str(y0), str(x1), str(y1))
+
+
+def test_derivar_sem_solo_deriva_estrutura_e_avisa_fundacao(logado, con_app, projeto):
+    """Fundação sem classe de solo não pode derrubar a derivação inteira: a
+    estrutura e as cargas fecham, e a fundação aparece como o que falta."""
+    _caixa_completa(logado, con_app, projeto)
+    r = logado.post(f"/projetos/{projeto}/planta/derivar")
+    assert r.status_code == 200
+    assert "classe de solo" in r.text
+    # estrutura derivou mesmo assim
+    assert con_app.execute(
+        "SELECT COUNT(*) FROM quantitativo q JOIN eap_item e ON e.id=q.eap_item_id"
+        " WHERE q.projeto_id=? AND e.codigo='03.01'", (projeto,)).fetchone()[0] == 1
+    # e a 02.01 segue vazia
+    assert con_app.execute(
+        "SELECT COUNT(*) FROM quantitativo q JOIN eap_item e ON e.id=q.eap_item_id"
+        " WHERE q.projeto_id=? AND e.codigo='02.01'", (projeto,)).fetchone()[0] == 0
+
+
+def test_derivar_com_solo_grava_fundacao_e_mostra_m3(logado, con_app, projeto):
+    _caixa_completa(logado, con_app, projeto)
+    con_app.execute(
+        "UPDATE projeto SET classe_solo_id ="
+        " (SELECT id FROM classe_solo WHERE classe='S3') WHERE id = ?", (projeto,))
+    con_app.commit()
+
+    r = logado.post(f"/projetos/{projeto}/planta/derivar")
+    assert r.status_code == 200
+    assert "m³" in r.text and "2,4" in r.text.replace("2.4", "2,4")
+
+    linha = con_app.execute(
+        "SELECT q.quantidade, q.origem FROM quantitativo q"
+        " JOIN eap_item e ON e.id=q.eap_item_id"
+        " WHERE q.projeto_id=? AND e.codigo='02.01'", (projeto,)).fetchone()
+    assert linha["origem"] == "PARAMETRICO"
+    assert abs(linha["quantidade"] - 2.4) < 0.01

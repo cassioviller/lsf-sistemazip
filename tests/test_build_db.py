@@ -234,12 +234,12 @@ def test_seed_reaplicado_nao_fabrica_preco_fantasma(tmp_path):
     `referencia`, sem filtrar a fonte (D5.1). Quando outra fonte (ex.: SINAPI via
     tools/bridge_autosinapi.py) ganha uma data_base própria na mesma referência
     '2026-06', o seed reaplicado não pode fabricar preço fantasma de insumo VEKS
-    sob a data-base errada — o revisor reproduziu 7 -> 14 linhas com o bug."""
+    sob a data-base errada — o revisor reproduziu o dobro de linhas com o bug."""
     db = tmp_path / "lsf.db"
     construir(db)
     con = sqlite3.connect(db)
     antes = con.execute("SELECT COUNT(*) FROM insumo_preco").fetchone()[0]
-    assert antes == 7
+    assert antes == 11   # 7 da Fase 1 + 4 da fundação (VK-I-006..008, 103)
 
     # simula o que a ponte AutoSINAPI cria: data_base de OUTRA fonte na mesma referência
     con.execute(

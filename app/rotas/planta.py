@@ -210,6 +210,7 @@ def derivar(projeto_id: int, request: Request,
     mensagem do motor, não 500 (D4.1: erro barulhento, nunca silêncio)."""
     from lsf.geradores.estrutura import DadoIndisponivel, derivar_quantitativos
     from lsf.motores.cargas import derivar_cargas
+    from lsf.motores.fundacao import derivar_fundacao
 
     _projeto_ou_404(con, projeto_id)
     try:
@@ -218,6 +219,14 @@ def derivar(projeto_id: int, request: Request,
     except DadoIndisponivel as e:
         return _tela(request, con, usuario, projeto_id, status_code=409,
                      erro=f"A derivação parou: {e}")
+    # a fundação depende de um input a mais (classe de solo): a falta dele não
+    # pode derrubar a estrutura já derivada — vira o próximo passo na tela
+    fundacao = None
+    fundacao_erro = None
+    try:
+        fundacao = derivar_fundacao(con, projeto_id)
+    except DadoIndisponivel as e:
+        fundacao_erro = str(e)
     resultado = {
         "kg_comprado": quantitativo["kg_comprado"],
         "confianca": quantitativo["confianca"],
@@ -225,7 +234,10 @@ def derivar(projeto_id: int, request: Request,
         "preservado": quantitativo.get("preservado"),
         "alertas": quantitativo.get("alertas", []),
         "pendencias": (quantitativo.get("pendencias_estruturais", [])
-                       + cargas["pendencias"]),
+                       + cargas["pendencias"]
+                       + (fundacao["pendencias"] if fundacao else [])),
         "n_cargas": len(cargas["cargas"]),
+        "fundacao": fundacao,
+        "fundacao_erro": fundacao_erro,
     }
     return _tela(request, con, usuario, projeto_id, resultado=resultado)

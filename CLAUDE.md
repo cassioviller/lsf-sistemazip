@@ -43,7 +43,7 @@ MIT/Apache/BSD → pode embutir (ezdxf MIT ✓). GPL (AutoSINAPI, TF2DeepFloorpl
 - **O `vao_ef = max_span/2` da laje não é chute**: é o apoio no meio do vão. Na 109 esse apoio é a viga laminada **1VG** da obra, que parte os ~15,8 m de largura nos ~7,9 m que a viga LSF vence — e é por isso que o veredito `laminada` do gerador bate com o que foi construído (1VG + pilares 1AL). Generalizar para o apoio real (paredes portantes internas) é o estágio 3 da Fase 2.
 - **Estrutura reprovada na verificação vira PENDÊNCIA que viaja e BLOQUEIA** (`MARCA_PENDENCIA` → `EstruturaProjeto.pendencias_estruturais` → tabela `pendencia` (migração 012) → 409 na publicação): o kg continua sendo emitido (o orçamento precisa de número), mas nunca mudo, e não vira preço fechado. Alerta que morre no retorno é disclaimer morto.
 - **O caso que prova o gate (e o custo de não tê-lo): a própria 109.** O gerador exige **viga laminada 1VG + pilares 1AL** nas duas lajes, a obra **foi construída com eles** (v7: "laminada 1VG (solução da obra ref.)") — e o orçamento de referência, o mesmo que fechou a Fase 1 com 0,00%, **não tem linha para nenhum dos dois** (só "Aço em barras 6m", chapas, telha, parafusos, MO). O aceite da Fase 1 é honesto no que se propôs (o pipeline), mas o orçamento que ele reproduz tem escopo vazado. Diferença para a sondagem pendente, que só carimba: sondagem rebaixa a CONFIANÇA de um número que existe; a pendência estrutural diz que **falta escopo no preço**.
-- LSF é LEVE: parede típica ~41 kg/m², carga ~5 kN/m no térreo. Consequência provada no spike 4: **fundação governada pelo mínimo construtivo** (`largura = max(teorica, 0.30m)`), não pela tensão do solo. Verificação de ancoragem/arrancamento por vento pode governar antes da compressão — implementar na Fase 3, mas a fórmula exige revisão com engenheiro estrutural (única dependência humana externa do plano).
+- LSF é LEVE: parede típica ~41 kg/m², carga ~5 kN/m no térreo. Consequência provada no spike 4 e mantida no motor 4: **fundação governada pelo mínimo construtivo** (`largura = max(teorica, 0.30m)`), não pela tensão do solo. A verificação de ancoragem/vento foi implementada na Fase 3 como NBR 6123 SIMPLIFICADA (`verificar_vento`: envelope q×h×fachada, fitas/linha, hold-downs derivados da planta — mesma conclusão do v7 na 109 sem dimensão chumbada); a revisão externa de engenheiro foi DISPENSADA por decisão do usuário em 2026-07-18 (produto é só orçamento) — o que a simplificação NÃO cobre está no docstring e excesso de demanda vira pendência.
 - Solo é o input que o arquitetônico não dá: classe S1–S5 com tensão presumida conservadora + flag "sondagem pendente" que rebaixa a confiança de toda a fundação. S1 BLOQUEIA pré-dimensionamento.
 - Panelização: junta NUNCA a menos de 30cm da lateral de um vão (montante duplo do vão × montante de emenda). Comprimento máx. por transporte/manuseio é parâmetro (ref. 6,0 m).
 - O produto emite PRÉ-DIMENSIONAMENTO para orçamento, nunca projeto. Disclaimer + gates jurídico-técnicos (sondagem, ART, verificação estrutural) são mecanismo, não rodapé.
@@ -61,13 +61,23 @@ app/                    ← casca web FastAPI+Jinja+htmx: rotas/, servicos/, tem
 run_app.py              ← sobe o app (exige LSF_SECRET; constrói/atualiza o banco no boot)
 tests/                  ← 123 testes: spikes (regressão), motor, aceite F1, app + fixtures/
 tools/                  ← bridge_autosinapi.py, carregar_orcamento_v7.py, criar_usuario.py
-src/lsf/motores/        ← orcamento.py (Fase 1 ✓), cronograma.py, cargas.py (stubs com contratos)
+src/lsf/motores/        ← orcamento.py (F1 ✓), cargas.py (F2 ✓), fundacao.py (F3 ✓), cronograma.py (stub)
 src/lsf/relatorios.py   ← CSV/HTML analítico com faixas D4
 saida/                  ← relatórios gerados (orcamento_109_1506.html/csv)
 assets/calc-...v7.html  ← calculador v7 (READ-ONLY: fonte das regras já portadas; consultar, não editar)
 ```
 
-## Fase atual: FASE 2 — Cadeia de inferência paramétrica (estágios 1–3)
+## Fase atual: FASE 4 — Cronograma + Curva S (Fases 2 e 3 concluídas em 2026-07-18)
+
+**Fase 3 (fundação + gates) — CONCLUÍDA** (plano: docs/superpowers/plans/2026-07-18-fundacao-gates.md):
+- `src/lsf/motores/fundacao.py`: `pre_dimensionar` (NBR 6122 tensão presumida + I3; caixa 6×4 = 2,400 m³ exatos na conta de mão), `verificar_vento` (NBR 6123 simplificada, generalizada da planta — na 109 reproduz a conclusão do v7: F máx 92,5 kN → 3 fitas/linha, 24 hold-downs), `derivar_fundacao` (m³ na folha 02.01, PARAMETRICO com guarda de MANUAL).
+- Seed: VK-C-005 baldrame (~R$ 1.542/m³, coef. `estimado` ordem SINAPI, calibrar R6), folha 02.01, regras `fund_*`/`vento_*`/`fita_*` com referência anotada.
+- Gates como mecanismo, provados no servidor real: **S1 BLOQUEIA** (m³ anterior removido + pendência + macroetapa 02 zera = dupla proteção; publicar → 409); **sondagem pendente é AVISO** (rebaixa confiança p/ parametrico, carimbo na proposta — NÃO entra na tabela `pendencia`, que bloqueia); vento acima das fitas mínimas vira pendência bloqueante; projeto sem classe de solo não derruba a derivação da estrutura (aparece como próximo passo na tela).
+- **Aceite "±15% vs obra com projeto real" é LACUNA DE DADO** (o orçamento v7 da 109 não tem linhas de fundação — família R6/R9): validação por conta de mão travada em `tests/test_fundacao.py`/`test_vento.py`; quando houver obra com projeto de fundação, entra como oráculo.
+
+Próximo (docs/02 §4): rede real de precedências LSF + distribuição ponderada (aço adiantado) sobre os motores `cronograma.py` (CPM do spike 2) e curva S (spike 3); validação cruzada com ProjectLibre. Depois: Fase 5 (saídas, croqui, panelizador com romaneio, migração PARAMETRICO→TAKEOFF).
+
+### Registro da Fase 2 (concluída)
 
 (Fase 1 concluída: aceite em `tests/test_aceite_fase1.py`, desvio 0,00% vs orçamento v7 da 109.1506 — quantidades e preços oficiais da obra, quantitativos MANUAL. Ressalva honesta: preços e quantidades vieram da mesma referência; o que o aceite prova é o pipeline quantitativo→composição→EAP→BDI. Calibração de coeficientes contra obra segue pendente — R6.)
 
