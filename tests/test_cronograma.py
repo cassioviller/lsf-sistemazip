@@ -201,3 +201,33 @@ def test_curva_s_com_pendencia_de_custo_e_erro(con, caixa_6x4):
     crono = cronograma_projeto(con, pid)
     with pytest.raises(CustoIndisponivel):
         curva_s(con, pid, crono)
+
+
+# ---------- validação na 109 (quantitativos DERIVADOS da planta) ----------
+
+def test_cronograma_da_109_e_plausivel_e_fecha_a_curva(projeto_109_estrutura):
+    """Ordem de grandeza com o kg REAL da obra: ESTRUTURA = 31.344 kg × 0,080 h
+    ÷ (4×8) ≈ 78 dias — meses, não semanas nem anos. O caminho crítico passa
+    pela estrutura (é o grosso do trabalho) e a curva fecha no custo direto."""
+    from lsf.geradores.estrutura import derivar_quantitativos
+    from lsf.motores.cronograma import curva_s
+    from lsf.motores.fundacao import derivar_fundacao
+    from lsf.motores.orcamento import custo_direto_projeto
+
+    con, pid = projeto_109_estrutura
+    con.execute(
+        "UPDATE projeto SET classe_solo_id ="
+        " (SELECT id FROM classe_solo WHERE classe='S3') WHERE id = ?", (pid,))
+    con.commit()
+    derivar_quantitativos(con, pid)
+    derivar_fundacao(con, pid)
+
+    crono = cronograma_projeto(con, pid)
+    por_grupo = {p.atividade.grupo: p for p in crono.atividades}
+    assert 70 <= por_grupo["ESTRUTURA"].atividade.duracao_dias <= 90
+    assert por_grupo["ESTRUTURA"].critica
+    assert 70 <= crono.makespan_dias <= 150
+
+    curva = curva_s(con, pid, crono)
+    total = custo_direto_projeto(con, pid).total
+    assert curva.acumulado[-1] == pytest.approx(total, abs=0.01)
