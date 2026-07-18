@@ -105,7 +105,7 @@ def test_parede_interna_fica_so_com_o_peso_proprio_e_isso_e_a_pendencia(
     assert sem_laje, "se a laje passou a carregar as internas, remodele este teste"
     assert all(c.total_kn_m == pytest.approx(c.g_propria_kn_m + c.de_cima_kn_m)
                for c in sem_laje)
-    assert pendencias_do_takedown(con, pid, cargas), (
+    assert pendencias_do_takedown(con, pid), (
         "parede interna sem carga de laje TEM que gerar pendência")
 
 
@@ -231,9 +231,49 @@ def test_apoio_do_meio_nao_modelado_vira_pendencia(projeto_109_estrutura):
     """A laje vence o polígono inteiro e descarrega tudo nas paredes externas: a
     1VG da obra não está no modelo. Isso NÃO pode passar calado — a carga das
     externas sai alta e a das internas, baixa."""
-    from lsf.motores.cargas import takedown_por_parede, pendencias_do_takedown
+    from lsf.motores.cargas import pendencias_do_takedown
 
     con, pid = projeto_109_estrutura
-    cargas = takedown_por_parede(con, pid)
-    pend = pendencias_do_takedown(con, pid, cargas)
+    pend = pendencias_do_takedown(con, pid)
     assert any("apoio" in p.lower() or "1vg" in p.lower() for p in pend)
+
+
+def test_derivar_cargas_grava_pendencias_para_o_gate(projeto_109_estrutura):
+    """Pendência que morre no retorno é disclaimer morto (CLAUDE.md): o gate de
+    publicação lê a tabela `pendencia`, então as do takedown TÊM que chegar lá —
+    motor='cargas', separado do motor 'estrutura' para re-derivação independente."""
+    from lsf.motores.cargas import derivar_cargas
+
+    con, pid = projeto_109_estrutura
+    res = derivar_cargas(con, pid)
+
+    gravadas = [m for (m,) in con.execute(
+        "SELECT mensagem FROM pendencia WHERE projeto_id = ? AND motor = 'cargas'"
+        " ORDER BY id", (pid,))]
+    assert gravadas, "a 109 tem pendências conhecidas (1VG ausente, parede na laje)"
+    assert gravadas == res["pendencias"]
+    assert res["cargas"], "o resumo das cargas sobe no retorno para o chamador"
+
+
+def test_derivar_cargas_rederiva_sem_duplicar_e_sem_tocar_outro_motor(
+        projeto_109_estrutura):
+    """Re-derivar TROCA as linhas do próprio motor (D2) e não mexe nas alheias:
+    apagar pendência de 'estrutura' ao derivar cargas esconderia vão reprovado."""
+    from lsf.motores.cargas import derivar_cargas
+
+    con, pid = projeto_109_estrutura
+    con.execute(
+        "INSERT INTO pendencia (projeto_id, motor, mensagem)"
+        " VALUES (?, 'estrutura', '[PENDÊNCIA ESTRUTURAL] vão reprova')", (pid,))
+    con.commit()
+
+    derivar_cargas(con, pid)
+    n1 = con.execute("SELECT COUNT(*) FROM pendencia WHERE projeto_id = ?",
+                     (pid,)).fetchone()[0]
+    derivar_cargas(con, pid)
+    n2 = con.execute("SELECT COUNT(*) FROM pendencia WHERE projeto_id = ?",
+                     (pid,)).fetchone()[0]
+    assert n1 == n2, "re-derivar não pode acumular pendência repetida"
+    assert con.execute(
+        "SELECT COUNT(*) FROM pendencia WHERE projeto_id = ? AND motor = 'estrutura'",
+        (pid,)).fetchone()[0] == 1, "pendência de outro motor sobreviveu à re-derivação"

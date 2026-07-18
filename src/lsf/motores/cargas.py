@@ -490,7 +490,7 @@ def takedown_por_parede(con, projeto_id: int, com_resumo: bool = False):
 
 
 def pendencias_do_takedown(con, projeto_id: int,
-                           cargas: list[CargaParede] | None = None) -> list[str]:
+                           resumo: ResumoTakedown | None = None) -> list[str]:
     """O que o modelo NÃO resolve e por isso precisa viajar marcado até o gate.
 
     Dois sintomas, ambos medidos e não adivinhados:
@@ -499,8 +499,12 @@ def pendencias_do_takedown(con, projeto_id: int,
         da conta, não do prédio;
       * parede interna sem carga de laje — a laje vence o polígono inteiro e
         descarrega tudo nas externas.
+
+    `resumo` pré-computado evita rodar o takedown duas vezes quando o chamador já
+    o tem (derivar_cargas); sem ele, computa aqui.
     """
-    resumo = takedown_por_parede(con, projeto_id, com_resumo=True)
+    if resumo is None:
+        resumo = takedown_por_parede(con, projeto_id, com_resumo=True)
     cargas = resumo.cargas
     pend: list[str] = []
 
@@ -550,3 +554,27 @@ def pendencias_do_takedown(con, projeto_id: int,
             " fundação pelo takedown — dimensionar a fundação só com o que sobrou"
             " seria subdimensionar. Exige verificação de engenheiro estrutural.")
     return pend
+
+
+def derivar_cargas(con, projeto_id: int) -> dict:
+    """Roda o takedown e grava as pendências dele na tabela `pendencia`
+    (motor='cargas'), onde o gate de publicação as lê. Pendência que morre no
+    retorno de função é disclaimer morto — o gate bloqueia, não avisa (CLAUDE.md).
+
+    Espelho do `derivar_quantitativos` do gerador: re-derivar TROCA as linhas
+    DESTE motor (pendência resolvida some, senão o gate trava para sempre) e não
+    toca as de outros motores. As cargas em si não viram `quantitativo`: kN/m não
+    é folha da EAP — é o input do pré-dimensionamento de fundação (Fase 3), que
+    consome o retorno."""
+    resumo = takedown_por_parede(con, projeto_id, com_resumo=True)
+    pendencias = pendencias_do_takedown(con, projeto_id, resumo)
+
+    con.execute("DELETE FROM pendencia WHERE projeto_id = ? AND motor = 'cargas'",
+                (projeto_id,))
+    for msg in pendencias:
+        con.execute(
+            "INSERT OR IGNORE INTO pendencia (projeto_id, motor, mensagem)"
+            " VALUES (?, 'cargas', ?)", (projeto_id, msg))
+    con.commit()
+
+    return {"cargas": resumo.cargas, "resumo": resumo, "pendencias": pendencias}
