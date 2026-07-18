@@ -95,37 +95,6 @@ def test_equilibrio_global_da_109_fecha(projeto_109_estrutura):
         " o takedown criou ou evaporou carga sem declarar órfã")
 
 
-@pytest.fixture
-def caixa_6x4(con):
-    """Caixa retangular de 6×4 m, 1 nível, 4 paredes externas portantes e uma
-    laje 'auto' — pequeno o bastante para a estática caber numa conta de mão."""
-    con.execute(
-        "INSERT INTO projeto (codigo, nome, referencia, uf, desonerado)"
-        " VALUES ('CAIXA-6X4', 'Validação NBR 6120', '2026-06', 'SP', 0)")
-    pid = con.execute("SELECT id FROM projeto WHERE codigo='CAIXA-6X4'").fetchone()[0]
-    nid = con.execute(
-        "INSERT INTO nivel (projeto_id, indice, nome, pe_direito_m, cota_m)"
-        " VALUES (?, 0, 'térreo', 3.10, 0)", (pid,)).lastrowid
-    cantos = [(0, 0), (6, 0), (6, 4), (0, 4)]
-    nos = [con.execute(
-        "INSERT INTO no_planta (nivel_id, x, y, confianca) VALUES (?,?,?,'real')",
-        (nid, x, y)).lastrowid for x, y in cantos]
-    paredes = {}
-    for i in range(4):
-        paredes[i] = con.execute(
-            "INSERT INTO parede (nivel_id, no_a, no_b, espessura_m, portante,"
-            " externa, perfil_codigo, origem, confianca)"
-            " VALUES (?,?,?,0.14,1,1,'Ue90#0.95','MANUAL','real')",
-            (nid, nos[i], nos[(i + 1) % 4])).lastrowid
-    con.execute(
-        "INSERT INTO laje (projeto_id, id_laje, grupo, pav_base, nivel, esp_m,"
-        " perfil_viga, perfil_enrijecedor, bloqueador_max_m, confianca)"
-        " VALUES (?, 'LJ', 'LJ', 0, 3.10, 0.40, 'auto', 'Ue90#0.95', 2.40,"
-        " 'estimado')", (pid,))
-    con.commit()
-    return pid, paredes
-
-
 def test_caixa_retangular_reproduz_a_conta_de_mao(con, caixa_6x4):
     """A conta, no papel [NBR 6120 — viga biapoiada, carga uniforme]:
 
