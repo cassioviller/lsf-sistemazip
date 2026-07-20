@@ -53,14 +53,23 @@ contra o container não funciona como está escrito.** Duas saídas, ambas barat
   (LGPL-3 no psycopg2 / Apache-2.0 no psycopg3 — **verificar e registrar em docs/04 antes**).
   É o caminho de produção, mas exige Postgres à mão para testar; não escrever no escuro.
 
-### Lacuna 2 — a ponte não importa subcomposições
+### ~~Lacuna 2 — a ponte não importa subcomposições~~ FECHADA em 2026-07-20
 
-A evidência 2 acima promete `composicao_subcomposicoes → composicao_item(COMPOSICAO)`, mas a
-ponte lê **só** `composicao_insumos` e o reload apaga só `item_tipo='INSUMO'` (comentário no
-código: "subcomposições têm staging próprio" — e não há tratamento). Composição SINAPI aninhada
-entra **incompleta**. Como o `custo_composicao` é recursivo e D4.1 manda recusar dado ausente,
-o efeito provável é `CustoIndisponivel` — falha barulhenta, não silenciosa, que é o desejado.
-Mas é trabalho a fazer antes de chamar o import de completo.
+A ponte lia **só** `composicao_insumos` e o reload apagava só `item_tipo='INSUMO'`, apesar de a
+evidência 2 acima prometer o mapeamento. Composição SINAPI aninhada — a maioria das de
+instalações/canteiro, justamente as macroetapas travadas no R7 — entrava incompleta.
+
+Implementada por TDD (4 testes em `tests/test_bridge.py`, vermelhos primeiro):
+- `composicao_subcomposicoes` no staging-fixture; 96114 (forro drywall) aninha a 96359;
+- o custo **atravessa** o aninhamento: 96114 = 1,0 × 96359 = R$ 99,55/m², confiança `real`;
+- o DELETE do reload passou a apagar os **dois** `item_tipo` — filtrar só INSUMO fazia o
+  vínculo acumular a cada execução (o mesmo bug de duplicação já corrigido p/ insumos);
+- subcomposição fora do catálogo é **pulada, não inventada** (par do teste que já existia
+  para INSUMO), e a filha inexistente não vira zero;
+- D4.1 provado no aninhamento: sem preço na filha, o pai levanta `CustoIndisponivel`
+  (`"insumo 10774, usado por 96359, sem preço"`) — nunca custo parcial.
+
+O CLI da ponte também prova o aninhamento: `aninhamento ✓ 96114 → 96359 (1 vínculo)`.
 
 ### Lacuna 3 — importar SINAPI NÃO cria as composições de 01/05/07/08 sozinho
 

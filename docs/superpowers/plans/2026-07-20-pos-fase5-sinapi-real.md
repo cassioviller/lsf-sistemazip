@@ -30,7 +30,7 @@ se aplica é: nenhuma Task que dependa de dado externo começa antes do dado che
 
 | Task | Depende de | Pode começar hoje? |
 |---|---|---|
-| 1. Subcomposições na ponte | nada | **SIM** |
+| 1. Subcomposições na ponte | nada | **CONCLUÍDA 2026-07-20** |
 | 2. Ponte agnóstica de paramstyle | nada p/ escrever; Postgres p/ provar | **SIM (parcial)** |
 | 3. Smoke test da Rota A | arquivo da Caixa + Docker (Cássio) | não |
 | 4. Composições dos 4 grupos + destravar R7 | Task 3 + decisão de escopo Veks | não |
@@ -40,7 +40,8 @@ se aplica é: nenhuma Task que dependa de dado externo começa antes do dado che
 
 ### Task 1: Subcomposições na ponte (`composicao_subcomposicoes` → `item_tipo='COMPOSICAO'`)
 
-**Desbloqueada. É a única Task que produz código hoje.**
+**CONCLUÍDA em 2026-07-20** — 4 testes novos (vermelhos primeiro), suíte 397 verdes, Lacuna 2
+do docs/03 fechada. Detalhe do que foi feito e provado: `docs/03`, seção da Lacuna 2.
 
 O `docs/03` promete o mapeamento `composicao_subcomposicoes → composicao_item(COMPOSICAO)`,
 mas `executar_ponte` lê só `composicao_insumos` e o reload apaga só `item_tipo='INSUMO'`.

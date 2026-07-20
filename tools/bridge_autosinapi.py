@@ -43,6 +43,9 @@ def criar_staging_fixture(st):
       PRIMARY KEY (insumo_codigo, uf, data_referencia, regime));
     CREATE TABLE composicao_insumos (composicao_pai_codigo INTEGER, insumo_filho_codigo INTEGER, coeficiente REAL,
       PRIMARY KEY (composicao_pai_codigo, insumo_filho_codigo));
+    DROP TABLE IF EXISTS composicao_subcomposicoes;
+    CREATE TABLE composicao_subcomposicoes (composicao_pai_codigo INTEGER, composicao_filho_codigo INTEGER, coeficiente REAL,
+      PRIMARY KEY (composicao_pai_codigo, composicao_filho_codigo));
     """)
     st.executemany("INSERT INTO insumos VALUES (?,?,?,?)", FIXTURE_INSUMOS)
     st.executemany(
@@ -50,6 +53,8 @@ def criar_staging_fixture(st):
         [(c, "SP", "2026-06-01", "NAO_DESONERADO", p) for c, p in FIXTURE_PRECOS],
     )
     st.executemany("INSERT INTO composicao_insumos VALUES (96359,?,?)", FIXTURE_ANALITICA_96359)
+    # 96114 (forro drywall) aninha a 96359: é o caso que prova o item_tipo='COMPOSICAO'.
+    st.execute("INSERT INTO composicao_subcomposicoes VALUES (96114, 96359, 1.0)")
     st.commit()
 
 
@@ -98,25 +103,44 @@ def executar_ponte(st, db, referencia="2026-06", uf="SP", regime="NAO_DESONERADO
             (insumo_id(cod), db_id, preco),
         )
 
-    composicoes = [r[0] for r in st.execute(
-        "SELECT DISTINCT composicao_pai_codigo FROM composicao_insumos")]
-    for pai in composicoes:
-        comp = db.execute(
+    def composicao_id(codigo):
+        """id da composição no NOSSO catálogo, ou None. Fora do catálogo é pulada,
+        nunca inventada — vale igual para insumo-filho e composição-filha."""
+        linha = db.execute(
             "SELECT id FROM composicao WHERE fonte_id=? AND codigo_fonte=?",
-            (fonte_sinapi, str(pai)),
+            (fonte_sinapi, str(codigo)),
         ).fetchone()
+        return linha[0] if linha else None
+
+    composicoes = sorted({r[0] for r in st.execute(
+        "SELECT DISTINCT composicao_pai_codigo FROM composicao_insumos"
+        " UNION SELECT DISTINCT composicao_pai_codigo FROM composicao_subcomposicoes")})
+    for pai in composicoes:
+        comp = composicao_id(pai)
         if comp is None:
             continue  # composição fora do nosso catálogo: pulada, não inventada
-        db.execute(  # reload mensal integral (só INSUMO; subcomposições têm staging próprio)
-            "DELETE FROM composicao_item WHERE composicao_id=? AND item_tipo='INSUMO'", (comp[0],)
-        )
+        # Reload mensal INTEGRAL da analítica (DataModel.md do upstream): apaga os
+        # DOIS item_tipo. Filtrar só 'INSUMO' deixava o aninhamento acumular a cada
+        # execução — o mesmo bug de duplicação que a ponte já corrigira p/ insumos.
+        db.execute("DELETE FROM composicao_item WHERE composicao_id=?", (comp,))
         for _, filho, coef in st.execute(
             "SELECT * FROM composicao_insumos WHERE composicao_pai_codigo=?", (pai,)
         ):
             db.execute(
                 "INSERT INTO composicao_item (composicao_id,item_tipo,item_id,coeficiente)"
                 " VALUES (?,'INSUMO',?,?)",
-                (comp[0], insumo_id(filho), coef),
+                (comp, insumo_id(filho), coef),
+            )
+        for _, filho, coef in st.execute(
+            "SELECT * FROM composicao_subcomposicoes WHERE composicao_pai_codigo=?", (pai,)
+        ):
+            filho_id = composicao_id(filho)
+            if filho_id is None:
+                continue  # subcomposição fora do catálogo: pulada, não inventada
+            db.execute(
+                "INSERT INTO composicao_item (composicao_id,item_tipo,item_id,coeficiente)"
+                " VALUES (?,'COMPOSICAO',?,?)",
+                (comp, filho_id, coef),
             )
     db.commit()
     return composicoes
@@ -134,7 +158,15 @@ def main():
         " FROM vw_custo_composicao WHERE codigo_fonte='96359'"
     ).fetchone()
     assert r and abs(r[2] - 99.55) < 0.01, f"custo divergente após 2 execuções: {r}"
+    # Aninhamento: a view é de 1 nível e mentiria no pai — aqui basta provar que o
+    # reload integral não duplicou o vínculo 96114→96359 nas 2 execuções.
+    n = db.execute(
+        "SELECT COUNT(*) FROM composicao_item ci JOIN composicao c ON c.id=ci.composicao_id"
+        " WHERE c.codigo_fonte='96114' AND ci.item_tipo='COMPOSICAO'"
+    ).fetchone()[0]
+    assert n == 1, f"subcomposição duplicada no reload: {n} vínculos (esperado 1)"
     print(f"PONTE OK ✓ (2x, idempotente)  SINAPI {r[0]} '{r[1][:40]}...' → R$ {r[2]}/m² [{r[3]}]")
+    print(f"  aninhamento ✓ 96114 → 96359 ({n} vínculo, item_tipo=COMPOSICAO)")
 
 
 if __name__ == "__main__":
