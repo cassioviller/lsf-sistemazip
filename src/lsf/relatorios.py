@@ -58,9 +58,10 @@ def relatorio_csv(venda: OrcamentoVenda, faixa_pct: float = FAIXA_PCT_DEFAULT) -
             _num(pmin), _num(pmax), l.confianca or "", l.pendencia or "",
         ])
     orc = venda.orcamento
+    tmin, tmax = _faixa(venda.preco_total, venda.confianca, faixa_pct)
     w.writerow([])
     w.writerow(["TOTAL", f"BDI {_num(venda.bdi * 100)}%", "", "", "",
-                "", _num(orc.total), _num(venda.preco_total), "", "",
+                "", _num(orc.total), _num(venda.preco_total), _num(tmin), _num(tmax),
                 venda.confianca or "", "; ".join(orc.pendencias)])
     for codigo in orc.macroetapas_zeradas:
         w.writerow(["ALERTA", f"macroetapa {codigo} sem quantitativo (escopo vazado? R7)"])
@@ -105,10 +106,17 @@ def relatorio_html(venda: OrcamentoVenda, faixa_pct: float = FAIXA_PCT_DEFAULT) 
     ] + list(orc.pendencias)
     alertas_html = "".join(f"<li>{e(a)}</li>" for a in alertas) or "<li>nenhum</li>"
 
-    total_html = (
-        f"R$ {_brl(venda.preco_total)}" if venda.preco_total is not None
-        else "NÃO FECHA — resolver pendências"
-    )
+    if venda.preco_total is None:
+        total_html = "NÃO FECHA — resolver pendências"
+    elif _tem_faixa(venda.confianca):
+        # O total é o número que o cliente lê primeiro: com confiança geral
+        # 'estimado'/'parametrico' (D4), sai em faixa, nunca valor seco.
+        tmin, tmax = _faixa(venda.preco_total, venda.confianca, faixa_pct)
+        total_html = (f"R$ {_brl(tmin)} – R$ {_brl(tmax)} "
+                      f'<span class="ref">(ref. R$ {_brl(venda.preco_total)} '
+                      f"±{_num(faixa_pct * 100, 0)}%)</span>")
+    else:
+        total_html = f"R$ {_brl(venda.preco_total)}"
 
     return f"""<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
 <title>Orçamento analítico — {e(orc.projeto_codigo)}</title>
@@ -259,12 +267,20 @@ def proposta_docx(venda, projeto: dict, pendencias_gate: list[str]) -> bytes:
 
     doc.add_paragraph("")
     total = doc.add_paragraph()
+    if venda.preco_total is None:
+        valor_total = "indisponível — há pendências"
+    elif _tem_faixa(venda.confianca):
+        # Total em faixa quando a confiança geral é 'estimado'/'parametrico' (D4):
+        # o número-manchete da proposta não sai seco. Ver Task 3 do plano.
+        tmin, tmax = _faixa(venda.preco_total, venda.confianca, FAIXA_PCT_DEFAULT)
+        valor_total = (f"R$ {_brl(tmin)} a R$ {_brl(tmax)} "
+                       f"(ref. R$ {_brl(venda.preco_total)} "
+                       f"±{_num(FAIXA_PCT_DEFAULT * 100, 0)}%)")
+    else:
+        valor_total = f"R$ {_brl(venda.preco_total)}"
     r = total.add_run(
         "PREÇO TOTAL (com BDI "
-        f"{venda.bdi * 100:.2f}".replace(".", ",") + "%): "
-        + ("indisponível — há pendências" if venda.preco_total is None else
-           f"R$ {venda.preco_total:,.2f}".replace(",", "X")
-           .replace(".", ",").replace("X", ".")))
+        f"{venda.bdi * 100:.2f}".replace(".", ",") + "%): " + valor_total)
     r.bold = True
     r.font.size = Pt(14)
 

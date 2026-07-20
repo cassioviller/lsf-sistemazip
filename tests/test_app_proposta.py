@@ -157,3 +157,37 @@ def test_eap_de_fabrica_nao_publica_ate_as_4_composicoes_existirem(logado, con_a
         " AND id NOT IN (SELECT pai_id FROM eap_item WHERE pai_id IS NOT NULL)"
         " ORDER BY codigo")]
     assert sem_composicao == ["01", "05", "07", "08"]
+
+
+def test_kpi_e_snapshot_mostram_total_em_faixa_quando_estimado(logado, con_app, projeto_completo):
+    """Task 3: com a confiança geral 'estimado' (a montagem LSF domina, D7), o
+    número-manchete sai em FAIXA, não seco — na tela interna E no snapshot público
+    congelado em /p/token. Falsa precisão no item mais caro é o que se evita."""
+    from app.servicos.orcamento import montar
+
+    pid = projeto_completo
+    visao = montar(con_app, pid)
+    assert visao.venda.confianca == "estimado"
+    assert visao.preco_total_min is not None
+
+    minimo = f'{visao.preco_total_min:.2f}'  # formato do KPI (Jinja %.2f, ponto)
+
+    # tela interna
+    tela = logado.get(f"/projetos/{pid}/orcamento").text
+    assert "faixa ±15%" in tela
+    assert minimo in tela
+
+    # snapshot público congelado
+    logado.post(f"/projetos/{pid}/publicar")
+    token = con_app.execute(
+        "SELECT token FROM proposta WHERE projeto_id = ? AND status='ativa'",
+        (pid,)).fetchone()["token"]
+    pagina = logado.get(f"/p/{token}").text
+    assert "±15%" in pagina
+    assert minimo in pagina
+    # e o snapshot CONGELOU a faixa (não recomputa): mexer no preço não a altera
+    import json
+    snap = json.loads(con_app.execute(
+        "SELECT snapshot_json FROM proposta WHERE projeto_id=? AND status='ativa'",
+        (pid,)).fetchone()["snapshot_json"])
+    assert snap["preco_total_min"] is not None

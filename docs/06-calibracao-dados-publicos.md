@@ -113,6 +113,22 @@ por D7. Ela decide o destino da confiança. Gravada nas observações via migra�
 permanente. Todo o resto tem composição SINAPI oficial esperando (Task 4, atrás da Rota A). Isso
 também confirma, por outro caminho, o achado de que o R7 espera SINAPI e não dado da Veks.
 
+## O ±15% do total agora é permanente — justificativa (Task 3)
+
+Como a montagem LSF (VK-C-001) é `estimado` para sempre e domina o custo, a confiança geral
+do orçamento é `estimado`, e o TOTAL passa a sair em **faixa ±15%** nos três canais (relatório
+HTML/CSV, `.docx`, snapshot público `/p/token`) e na tela interna — nunca mais valor seco. Antes,
+só as linhas mostravam faixa; o total, o número que o cliente lê primeiro, saía com falsa
+precisão no item mais caro.
+
+O ±15% (`FAIXA_PCT_DEFAULT`) é o mesmo das linhas desde a Fase 1. Agora que é permanente (não
+"até calibrar"), a justificativa registrada: é a ordem de grandeza da dispersão de
+produtividade de mão de obra de montagem entre equipes/obras que a literatura de construção
+adota como incerteza de coeficiente não calibrado — conservador o bastante para não vender
+barato, estreito o bastante para a proposta ter significado. Não é norma; é parâmetro, e por
+isso mora em `FAIXA_PCT_DEFAULT` (um lugar só, ajustável). A Task 5 (dado público secundário)
+pode ESTREITAR essa faixa com evidência, nunca zerá-la — só obra a zeraria, e não haverá.
+
 ## Conclusão
 
 Nada foi promovido a `real` (correto: isso é R6). Nenhum coeficiente estava **fora de faixa**,

@@ -89,9 +89,12 @@ def test_html_faixa_so_em_item_estimado(con, venda):
 
     por_conf = {l.eap_codigo: l.confianca for l in venda2.linhas}
     assert por_conf["04.03"] == "estimado" and por_conf["03.01"] == "real"
-    # a célula de faixa (div class="ref") aparece exatamente 1 vez: só na linha estimada
-    # (o rodapé também menciona '±15%' no disclaimer, por isso não se conta o texto)
-    assert html.count('class="ref"') == 1
+    # class="ref" aparece 2×: na LINHA estimada (04.03) e no TOTAL — que sai em
+    # faixa porque a confiança geral é a PIOR das linhas (D4), ou seja 'estimado'
+    # puxada pela 04.03. A intenção original — linha 'real' NÃO ganha faixa —
+    # segue provada abaixo, linha a linha.
+    assert venda2.confianca == "estimado"
+    assert html.count('class="ref"') == 2
     linha_0403 = html.split('<td>04.03</td>')[1].split("</tr>")[0]
     assert "–" in linha_0403 and "±15%" in linha_0403
     linha_0301 = html.split('<td>03.01</td>')[1].split("</tr>")[0]
@@ -157,3 +160,44 @@ def test_proposta_docx_com_identidade_e_gates(con, base, db_veks, id_de):
     assert "27,79%" in texto and "27.79%" not in texto
     tabelas = d.tables[0]
     assert any("03" in c.text for r in tabelas.rows for c in r.cells)
+
+
+# ---------- TOTAL em faixa (Task 3: estimado permanente é a postura do produto) ----------
+# O total é o número que o cliente lê primeiro. Se a montagem LSF (estimado
+# permanente, D7) domina o custo, venda.confianca='estimado' e o total NÃO pode
+# sair seco — falsa precisão no item mais caro. As LINHAS já mostravam faixa; o
+# TOTAL não mostrava, nos 3 canais.
+
+def test_csv_total_em_faixa_quando_confianca_geral_estimado(venda):
+    assert venda.confianca == "estimado"  # BDI estimado rebaixa tudo (D4)
+    linhas = list(csv.reader(io.StringIO(relatorio_csv(venda)), delimiter=";"))
+    total = next(l for l in linhas if l and l[0] == "TOTAL")
+    cab = linhas[0]
+    imin = cab.index("preco_min"); imax = cab.index("preco_max")
+    pmin = float(total[imin].replace(",", ".")); pmax = float(total[imax].replace(",", "."))
+    assert pmin == pytest.approx(venda.preco_total * 0.85, abs=0.01)
+    assert pmax == pytest.approx(venda.preco_total * 1.15, abs=0.01)
+
+
+def test_html_total_mostra_faixa_e_referencia(venda):
+    assert venda.confianca == "estimado"
+    html = relatorio_html(venda)
+    # a faixa do total aparece com os dois extremos e o rótulo ±15%
+    pmin = _brl_py(venda.preco_total * 0.85); pmax = _brl_py(venda.preco_total * 1.15)
+    assert pmin in html and pmax in html
+    assert "±15%" in html
+
+
+def test_docx_total_em_faixa_quando_estimado(con, venda):
+    docx = pytest.importorskip("docx")
+    from lsf.relatorios import proposta_docx
+
+    conteudo = proposta_docx(
+        venda, {"codigo": "T", "nome": "T", "cliente": "C", "sondagem_pendente": 0}, [])
+    texto = "\n".join(p.text for p in docx.Document(io.BytesIO(conteudo)).paragraphs)
+    assert "±15%" in texto  # o total não sai mais seco
+    assert "PREÇO TOTAL" in texto
+
+
+def _brl_py(v):
+    return f"{v:,.2f}".replace(",", "\0").replace(".", ",").replace("\0", ".")

@@ -22,6 +22,9 @@ def render_proposta(templates, snapshot: dict, tabela_html: str) -> str:
     return templates.get_template("proposta_publica.html").render(
         projeto=snapshot["projeto"],
         venda=snapshot["venda"],
+        # Faixa ±% do total congelada no snapshot (D4): None em 'real'.
+        preco_total_min=snapshot.get("preco_total_min"),
+        preco_total_max=snapshot.get("preco_total_max"),
         gates_abertos=snapshot["gates_abertos"],
         tabela_html=tabela_html,
     )

@@ -26,6 +26,11 @@ class VisaoOrcamento:
     macroetapas_zeradas: list[str]
     pendencias: list[str]
     pode_publicar: bool
+    # Faixa ±% do TOTAL: presente só quando a confiança geral é 'estimado'/
+    # 'parametrico' (D4). None em 'real' e enquanto o total não fecha. É o que
+    # impede o número-manchete de sair seco no item mais caro (montagem LSF).
+    preco_total_min: float | None
+    preco_total_max: float | None
 
 
 def montar(con, projeto_id: int, faixa_pct: float = FAIXA_PCT_DEFAULT) -> VisaoOrcamento:
@@ -57,10 +62,15 @@ def montar(con, projeto_id: int, faixa_pct: float = FAIXA_PCT_DEFAULT) -> VisaoO
         and not direto.macroetapas_zeradas
     )
 
+    total_com_faixa = (
+        venda.preco_total is not None and venda.confianca in CONFIANCAS_COM_FAIXA
+    )
     return VisaoOrcamento(
         venda=venda,
         linhas=linhas,
         macroetapas_zeradas=list(direto.macroetapas_zeradas),
         pendencias=list(direto.pendencias),
         pode_publicar=pode_publicar,
+        preco_total_min=venda.preco_total * (1 - faixa_pct) if total_com_faixa else None,
+        preco_total_max=venda.preco_total * (1 + faixa_pct) if total_com_faixa else None,
     )

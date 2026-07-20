@@ -71,6 +71,11 @@ def publicar(con, projeto_id: int, usuario_id: int, renderizar_pagina=None) -> d
 
     snapshot_dict = {
         "venda": dataclasses.asdict(visao.venda),
+        # Faixa ±% do total, congelada junto: se a confiança geral é 'estimado'
+        # (montagem LSF domina, D7), o número-manchete da proposta pública sai em
+        # faixa, não seco. None em 'real'. Ver Task 3 do plano calibração-sem-obra.
+        "preco_total_min": visao.preco_total_min,
+        "preco_total_max": visao.preco_total_max,
         "projeto": {
             "codigo": projeto["codigo"],
             "nome": projeto["nome"],
