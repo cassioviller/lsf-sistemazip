@@ -31,7 +31,7 @@ se aplica é: nenhuma Task que dependa de dado externo começa antes do dado che
 | Task | Depende de | Pode começar hoje? |
 |---|---|---|
 | 1. Subcomposições na ponte | nada | **CONCLUÍDA 2026-07-20** |
-| 2. Ponte agnóstica de paramstyle | nada p/ escrever; Postgres p/ provar | **SIM (parcial)** |
+| 2. Ponte agnóstica de paramstyle | nada p/ escrever; Postgres p/ provar | **PARCIAL 2026-07-20** — tradução feita e provada por dublê; round-trip real pendente |
 | 3. Smoke test da Rota A | arquivo da Caixa + Docker (Cássio) | não |
 | 4. Composições dos 4 grupos + destravar R7 | Task 3 + decisão de escopo Veks | não |
 | 5. Calibração R6 | obra real com custos fechados | não |

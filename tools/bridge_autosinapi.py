@@ -58,6 +58,38 @@ def criar_staging_fixture(st):
     st.commit()
 
 
+PARAMSTYLE_POR_MODULO = {"sqlite3": "qmark", "psycopg": "pyformat",
+                         "psycopg2": "pyformat"}
+
+
+def _paramstyle_do_staging(st):
+    """qmark (SQLite, o fixture e o dump) vs pyformat (psycopg, o staging real).
+
+    Driver desconhecido é ERRO, não chute: adivinhar placeholder errado falha
+    no meio do import mensal, com metade da analítica gravada.
+    """
+    declarado = getattr(st, "paramstyle", None)
+    if declarado:
+        return declarado
+    modulo = type(st).__module__.split(".")[0]
+    if modulo not in PARAMSTYLE_POR_MODULO:
+        raise ValueError(
+            f"driver de staging desconhecido ({modulo}): declare .paramstyle na"
+            " conexão ou registre-o em PARAMSTYLE_POR_MODULO")
+    return PARAMSTYLE_POR_MODULO[modulo]
+
+
+def _adaptar(sql, paramstyle):
+    """Consultas ao staging são escritas em qmark e traduzidas aqui.
+
+    Em pyformat o '%' LITERAL precisa ser dobrado (o LIKE ?||'%' viraria
+    placeholder para o psycopg) — por isso a ordem: escapa '%', depois troca '?'.
+    """
+    if paramstyle == "qmark":
+        return sql
+    return sql.replace("%", "%%").replace("?", "%s")
+
+
 def executar_ponte(st, db, referencia="2026-06", uf="SP", regime="NAO_DESONERADO"):
     """staging → nosso schema. Idempotente: rodar N vezes = rodar 1 vez.
 
@@ -66,6 +98,14 @@ def executar_ponte(st, db, referencia="2026-06", uf="SP", regime="NAO_DESONERADO
     - composicao_item: DELETE+INSERT da analítica de cada composição presente no
       staging, espelhando o reload mensal integral do DataModel.md do AutoSINAPI
     """
+    paramstyle = _paramstyle_do_staging(st)
+
+    def ler(sql, params=()):
+        """Consulta o staging. Colunas SEMPRE nomeadas: o staging real traz
+        sinapi_versao/etl_run_id além do que o fixture tem, e `SELECT *` com
+        desempacotamento posicional estoura no primeiro arquivo da Caixa."""
+        return st.execute(_adaptar(sql, paramstyle), params)
+
     db.execute("PRAGMA foreign_keys=ON")
     fonte_sinapi = db.execute("SELECT id FROM fonte WHERE sigla='SINAPI'").fetchone()[0]
     desonerado = 1 if regime == "DESONERADO" else 0
@@ -85,13 +125,15 @@ def executar_ponte(st, db, referencia="2026-06", uf="SP", regime="NAO_DESONERADO
             (fonte_sinapi, str(codigo)),
         ).fetchone()[0]
 
-    for cod, desc, un, clas in st.execute("SELECT * FROM insumos"):
+    for cod, desc, un, clas in ler(
+        "SELECT codigo, descricao, unidade, classificacao FROM insumos"
+    ):
         db.execute(
             "INSERT OR IGNORE INTO insumo (fonte_id,codigo_fonte,descricao,tipo,unidade)"
             " VALUES (?,?,?,?,?)",
             (fonte_sinapi, str(cod), desc, TIPO_MAP.get(clas, "MAT"), un),
         )
-    for cod, preco in st.execute(
+    for cod, preco in ler(
         "SELECT insumo_codigo, preco_mediano FROM precos_insumos_mensal"
         " WHERE uf=? AND data_referencia LIKE ?||'%' AND regime=?",
         (uf, referencia, regime),
@@ -112,7 +154,7 @@ def executar_ponte(st, db, referencia="2026-06", uf="SP", regime="NAO_DESONERADO
         ).fetchone()
         return linha[0] if linha else None
 
-    composicoes = sorted({r[0] for r in st.execute(
+    composicoes = sorted({r[0] for r in ler(
         "SELECT DISTINCT composicao_pai_codigo FROM composicao_insumos"
         " UNION SELECT DISTINCT composicao_pai_codigo FROM composicao_subcomposicoes")})
     for pai in composicoes:
@@ -123,16 +165,18 @@ def executar_ponte(st, db, referencia="2026-06", uf="SP", regime="NAO_DESONERADO
         # DOIS item_tipo. Filtrar só 'INSUMO' deixava o aninhamento acumular a cada
         # execução — o mesmo bug de duplicação que a ponte já corrigira p/ insumos.
         db.execute("DELETE FROM composicao_item WHERE composicao_id=?", (comp,))
-        for _, filho, coef in st.execute(
-            "SELECT * FROM composicao_insumos WHERE composicao_pai_codigo=?", (pai,)
+        for filho, coef in ler(
+            "SELECT insumo_filho_codigo, coeficiente FROM composicao_insumos"
+            " WHERE composicao_pai_codigo=?", (pai,)
         ):
             db.execute(
                 "INSERT INTO composicao_item (composicao_id,item_tipo,item_id,coeficiente)"
                 " VALUES (?,'INSUMO',?,?)",
                 (comp, insumo_id(filho), coef),
             )
-        for _, filho, coef in st.execute(
-            "SELECT * FROM composicao_subcomposicoes WHERE composicao_pai_codigo=?", (pai,)
+        for filho, coef in ler(
+            "SELECT composicao_filho_codigo, coeficiente FROM composicao_subcomposicoes"
+            " WHERE composicao_pai_codigo=?", (pai,)
         ):
             filho_id = composicao_id(filho)
             if filho_id is None:

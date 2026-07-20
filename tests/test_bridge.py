@@ -131,3 +131,57 @@ def test_pai_aninhado_sem_preco_na_filha_e_custo_indisponivel(con, staging):
         " (SELECT id FROM insumo WHERE codigo_fonte = '10774')")
     with pytest.raises(CustoIndisponivel):
         _custo_96114(con)
+
+
+# --- robustez do staging real (Task 2 do plano pós-Fase 5) ------------------
+
+def test_ponte_sobrevive_a_colunas_extras_no_staging(con, staging):
+    """O staging REAL do AutoSINAPI tem colunas que o fixture não tem — o próprio
+    docs/03 cita sinapi_versao e etl_run_id. Com `SELECT *` + desempacotamento
+    posicional, o import estoura no primeiro arquivo da Caixa. Colunas nomeadas.
+    """
+    staging.execute("ALTER TABLE insumos ADD COLUMN etl_run_id INTEGER")
+    staging.execute("ALTER TABLE insumos ADD COLUMN sinapi_versao TEXT")
+    staging.execute("ALTER TABLE composicao_insumos ADD COLUMN etl_run_id INTEGER")
+    staging.execute("ALTER TABLE composicao_subcomposicoes ADD COLUMN etl_run_id INTEGER")
+    staging.commit()
+
+    executar_ponte(staging, con)
+    custo, _ = _custo_96359(con)
+    assert custo == pytest.approx(99.55, abs=0.01)
+    custo_pai, _ = _custo_96114(con)
+    assert custo_pai == pytest.approx(99.55, abs=0.01)
+
+
+class _ConexaoPyformat:
+    """Dublê de conexão que fala 'pyformat' (psycopg) e registra o SQL recebido.
+
+    Prova a REESCRITA de placeholder sem psycopg instalado. NÃO prova o
+    round-trip contra Postgres real — isso continua pendente (Task 2 do plano).
+    """
+    paramstyle = "pyformat"
+
+    def __init__(self, sqlite_con):
+        self._con = sqlite_con
+        self.sql_recebido = []
+
+    def execute(self, sql, params=()):
+        self.sql_recebido.append(sql)
+        assert "?" not in sql, f"placeholder qmark vazou para pyformat: {sql}"
+        # Fiel ao psycopg: consome os placeholders E DESESCAPA o '%%' literal.
+        # Sem o desescape o teste passaria por acidente — '%%' num LIKE se
+        # comporta como um wildcard só, e o bug de ordem do escape sumiria.
+        traduzido = sql.replace("%s", "\x00").replace("%%", "%").replace("\x00", "?")
+        assert "%%" not in traduzido
+        return self._con.execute(traduzido, params)
+
+
+def test_ponte_converte_placeholder_para_pyformat(con, staging):
+    """Staging Postgres usa %s; a ponte falava só qmark."""
+    falso = _ConexaoPyformat(staging)
+    executar_ponte(falso, con)
+
+    custo, _ = _custo_96359(con)
+    assert custo == pytest.approx(99.55, abs=0.01)
+    com_param = [s for s in falso.sql_recebido if "%s" in s]
+    assert com_param, "nenhuma consulta parametrizada chegou ao staging"

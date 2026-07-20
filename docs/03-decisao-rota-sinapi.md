@@ -40,7 +40,24 @@ export LD_LIBRARY_PATH=/nix/store/0gnnf8s259nn28s41zs4rhpbfqm148rm-gcc-11.4.0-li
 
 Isso prova a ponte **contra o staging-fixture em SQLite**. É o que está provado hoje — nada além.
 
-### Lacuna 1 — a ponte fala SQLite; o staging de produção é Postgres
+### Lacuna 1 — a ponte fala SQLite; o staging de produção é Postgres — **PARCIAL** (2026-07-20)
+
+**Feito e provado aqui:** a ponte traduz placeholder (`_adaptar` + `_paramstyle_do_staging`),
+escapando o `%` literal antes de trocar `?` por `%s` — sem isso o `LIKE ?||'%'` viraria
+placeholder para o psycopg. Driver desconhecido é **erro explícito**, não chute: adivinhar
+placeholder errado falharia no meio do import mensal, com metade da analítica gravada.
+Provado por dublê de conexão pyformat (fiel: desescapa `%%`) e por prova de mutação na
+ordem do escape. E, mais importante para o smoke test, **as consultas ao staging deixaram
+de usar `SELECT *` com desempacotamento posicional** — o staging real traz `sinapi_versao`
+e `etl_run_id` além do que o fixture tem, e o import estouraria no primeiro arquivo da
+Caixa; teste com colunas extras guarda isso.
+
+**NÃO provado, e não se deve fingir que está:** nenhum round-trip contra Postgres real
+rodou — não há psycopg neste ambiente. O que existe é a tradução de SQL, verificada contra
+um dublê. A saída (a) abaixo continua sendo o caminho oficial do smoke test; a (b) só se
+fecha com Postgres à mão.
+
+Duas saídas, ambas baratas:
 
 `executar_ponte(st, db)` consulta o staging com placeholders `?` e `SELECT * FROM insumos`
 (`tools/bridge_autosinapi.py`). Postgres/psycopg usa `%s`. Não há psycopg neste ambiente
