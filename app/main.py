@@ -35,6 +35,15 @@ def criar_app(db_path=None, secret: str | None = None) -> FastAPI:
     app.state.db_path = pathlib.Path(db_path)
     app.state.templates = Jinja2Templates(directory=str(AQUI / "templates"))
 
+    def _brl(valor):
+        """Moeda pt-BR (1.234,56) — a proposta é documento do cliente; ponto
+        decimal em real é erro de formatação, não detalhe."""
+        if valor is None:
+            return "—"
+        return f"{valor:,.2f}".replace(",", "\0").replace(".", ",").replace("\0", ".")
+
+    app.state.templates.env.filters["brl"] = _brl
+
     app.add_middleware(
         SessionMiddleware,
         secret_key=secret,

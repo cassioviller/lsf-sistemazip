@@ -170,7 +170,10 @@ def test_kpi_e_snapshot_mostram_total_em_faixa_quando_estimado(logado, con_app, 
     assert visao.venda.confianca == "estimado"
     assert visao.preco_total_min is not None
 
-    minimo = f'{visao.preco_total_min:.2f}'  # formato do KPI (Jinja %.2f, ponto)
+    # moeda pt-BR (vírgula) nos dois canais — proposta é documento do cliente
+    def brl(v):
+        return f"{v:,.2f}".replace(",", "\0").replace(".", ",").replace("\0", ".")
+    minimo = brl(visao.preco_total_min)
 
     # tela interna
     tela = logado.get(f"/projetos/{pid}/orcamento").text

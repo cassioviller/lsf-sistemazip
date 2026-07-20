@@ -17,8 +17,8 @@
     <span class="rotulo">Preço de venda</span>
     <strong>{% if visao.venda.preco_total is none %}não fecha
       {% elif visao.preco_total_min is not none %}
-      R$ {{ "%.2f"|format(visao.preco_total_min) }} – R$ {{ "%.2f"|format(visao.preco_total_max) }}
-      {% else %}R$ {{ "%.2f"|format(visao.venda.preco_total) }}{% endif %}</strong>
+      R$ {{ visao.preco_total_min|brl }} – R$ {{ visao.preco_total_max|brl }}
+      {% else %}R$ {{ visao.venda.preco_total|brl }}{% endif %}</strong>
     {% if visao.preco_total_min is not none %}
     <span class="rotulo">faixa ±15% — confiança {{ visao.venda.confianca }} (D4)</span>
     {% endif %}

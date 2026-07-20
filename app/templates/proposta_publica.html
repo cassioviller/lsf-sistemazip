@@ -16,10 +16,10 @@
   <section class="valor">
     <span class="rotulo">Valor total (com BDI)</span>
     {% if preco_total_min is not none %}
-    <strong>R$ {{ "%.2f"|format(preco_total_min) }} – R$ {{ "%.2f"|format(preco_total_max) }}</strong>
+    <strong>R$ {{ preco_total_min|brl }} – R$ {{ preco_total_max|brl }}</strong>
     <span class="rotulo">estimativa em faixa ±15% (confiança {{ venda.confianca }}) — pré-dimensionamento, não substitui projeto executivo</span>
     {% else %}
-    <strong>R$ {{ "%.2f"|format(venda.preco_total) }}</strong>
+    <strong>R$ {{ venda.preco_total|brl }}</strong>
     {% endif %}
   </section>
 
