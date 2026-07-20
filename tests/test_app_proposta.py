@@ -116,3 +116,44 @@ def test_nova_versao_revoga_a_anterior(logado, con_app, projeto_completo):
 
 def test_publicar_sem_sessao_e_recusado(cliente):
     assert cliente.post("/projetos/1/publicar").status_code == 303
+
+
+def test_eap_de_fabrica_nao_publica_ate_as_4_composicoes_existirem(logado, con_app):
+    """LIMITAÇÃO CONHECIDA, fixada em teste para não voltar a passar despercebida.
+
+    01/05/07/08 são folhas sem composicao_id; o trigger da migração 001 recusa
+    quantitativo em item sem composição, então o gate R7 bloqueia TODO projeto.
+    O caminho feliz só existe porque a fixture `projeto_completo` inventa folhas
+    .99 — arranjo de teste, não uso do app.
+
+    Este teste falha DE PROPÓSITO quando as composições dos 4 grupos entrarem no
+    seed (backlog docs/02 §6 item 3). Falhou? Ótimo: apague-o e escreva o teste
+    do caminho feliz sobre a EAP real.
+    """
+    from app.servicos.orcamento import montar
+
+    logado.post("/projetos", data={
+        "codigo": "FABRICA", "nome": "EAP de fábrica", "referencia": "2026-06",
+        "uf": "SP", "desonerado": "0", "sondagem_pendente": "0"})
+    pid = con_app.execute(
+        "SELECT id FROM projeto WHERE codigo='FABRICA'").fetchone()["id"]
+
+    # preenche TODA folha que a EAP de fábrica permite preencher. A lista é
+    # materializada ANTES: cursor de leitura aberto durante o POST trava o banco.
+    folhas = [f["id"] for f in con_app.execute(
+        "SELECT id FROM eap_item WHERE composicao_id IS NOT NULL").fetchall()]
+    for fid in folhas:
+        logado.post(f"/projetos/{pid}/quantitativos",
+                    data={"eap_item_id": fid, "quantidade": "10"})
+
+    visao = montar(con_app, pid)
+    assert visao.macroetapas_zeradas == ["01", "05", "07", "08"], (
+        "a EAP de fábrica mudou — se as composições entraram, veja o docstring")
+    assert visao.pode_publicar is False
+    assert logado.post(f"/projetos/{pid}/publicar").status_code == 409
+
+    sem_composicao = [c for (c,) in con_app.execute(
+        "SELECT codigo FROM eap_item WHERE composicao_id IS NULL"
+        " AND id NOT IN (SELECT pai_id FROM eap_item WHERE pai_id IS NOT NULL)"
+        " ORDER BY codigo")]
+    assert sem_composicao == ["01", "05", "07", "08"]
