@@ -261,7 +261,7 @@ def proposta_docx(venda, projeto: dict, pendencias_gate: list[str]) -> bytes:
     total = doc.add_paragraph()
     r = total.add_run(
         "PREÇO TOTAL (com BDI "
-        f"{venda.bdi * 100:.2f}%): "
+        f"{venda.bdi * 100:.2f}".replace(".", ",") + "%): "
         + ("indisponível — há pendências" if venda.preco_total is None else
            f"R$ {venda.preco_total:,.2f}".replace(",", "X")
            .replace(".", ",").replace("X", ".")))

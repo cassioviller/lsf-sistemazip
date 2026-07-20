@@ -152,5 +152,8 @@ def test_proposta_docx_com_identidade_e_gates(con, base, db_veks, id_de):
     assert "Sondagem PENDENTE" in texto
     assert "vão reprova" in texto
     assert "PRÉ-DIMENSIONAMENTO" in texto
+    # documento pt-BR: o BDI não pode sair com ponto decimal no meio de
+    # valores com vírgula (R$ 10.499,60 e "BDI 27.79%" na mesma página)
+    assert "27,79%" in texto and "27.79%" not in texto
     tabelas = d.tables[0]
     assert any("03" in c.text for r in tabelas.rows for c in r.cells)
