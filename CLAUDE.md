@@ -69,7 +69,9 @@ assets/calc-...v7.html  ← calculador v7 (READ-ONLY: fonte das regras já porta
 
 ## Fase atual: FASE 5 — Saídas, croqui, panelizador com romaneio (Fases 2, 3 e 4 concluídas em 2026-07-18)
 
-**Estado em 2026-07-20: as 5 tarefas do plano estão implementadas e verificadas no servidor real; falta a DECLARAÇÃO HUMANA de aceite** (plano: docs/superpowers/plans/2026-07-18-fase5-saidas-croqui-panelizador.md). Suíte: **392 testes verdes**.
+**FASE 5 ACEITA pelo usuário em 2026-07-20** — as 5 tarefas do plano implementadas e verificadas no servidor real (plano: docs/superpowers/plans/2026-07-18-fase5-saidas-croqui-panelizador.md). Suíte: **392 testes verdes**.
+
+**Ressalva do aceite (registrada de propósito)**: diferente das fases 1–4, esta não teve critério NUMÉRICO (o 0,00% da F1, o ≤10% de kg da F2, a conta de mão da F3, o makespan da F4) — o aceite é de FUNCIONALIDADE, verificada de ponta a ponta. O critério duro que falta é o **romaneio contra um caderno de painéis real de obra**: é lacuna de DADO (família da R6, junto com SINAPI real, obra com projeto estrutural/fundação e calibração de coeficientes). Quando existir caderno de obra, entra como oráculo em `tests/` do mesmo jeito que o v7 entrou na F1/F2.
 - **Panelizador com romaneio** (`83b7150`, `3affcce`): painéis com ID de caderno (`1PV-P01`…), peças atribuídas por posição, kit de corte por perfil e romaneio fábrica/obra em CSV (`/projetos/{id}/romaneio.csv`).
 - **Migração PARAMETRICO→TAKEOFF no app** (`e76fcae`): o D2 no gesto — lançar TAKEOFF **troca** a linha derivada (PARAMETRICO/`estimado` → TAKEOFF/`real`), não duplica.
 - **Adaptador DXF → `planta_normalizada`** (`2cad152`): pares paralelos da layer PAREDE viram eixos; paredes entram `origem='DXF'`, confiança `estimado`, perfil NULL, com aviso pedindo classificação. Linha sem par vira aviso, nunca parede inventada.
