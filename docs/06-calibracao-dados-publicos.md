@@ -92,6 +92,27 @@ m²/m² (10%) — **fonte primária não fechada nesta rodada**. ABERTO.
 
 Fontes: [CBCA — Manual LSF Engenharia (Skylight/CBCA)](http://www.skylightestruturas.com.br/downloads/101497_manual_lsf_engenharia_2016.pdf)
 
+## Classificação por D7 — SINAPI-cobre vs LSF-próprio (2026-07-20)
+
+Com a Veks sem dados de obra (a R6 de obra está morta), cada composição recebe UMA categoria,
+por D7. Ela decide o destino da confiança. Gravada nas observações via migração 016.
+
+| Composição / EAP | Categoria | Confiança-alvo | Como chega lá |
+|---|---|---|---|
+| **VK-C-001** Montagem LSF estrutural (kg) | **LSF-próprio** | `estimado` **permanente** | SINAPI não tem montagem de painel LSF (D7). Faixa ±% na proposta é a postura honesta; docs/06 estreita a faixa com dado secundário (Task 5), sem promover. |
+| VK-C-002 OSB (m²) | SINAPI-cobre | `real` (oficial) | migrar p/ composição SINAPI de fechamento (Task 4, espera Rota A) |
+| VK-C-003 Membrana (m²) | SINAPI-cobre | `real` (oficial) | idem |
+| VK-C-004 Placa cimentícia (m²) | SINAPI-cobre | `real` (oficial) | SINAPI tem placa cimentícia; nosso 1,05 já bate (acima). Migrar. |
+| VK-C-005 Baldrame (m³) | SINAPI-cobre | `real` (oficial) | concreto/forma/aço são serviços SINAPI clássicos. Migrar. |
+| EAP 01 Preliminares | SINAPI-cobre | `real` (oficial) | sem composição hoje — travando o R7. Criar via SINAPI (Task 4). |
+| EAP 05 Instalações | SINAPI-cobre | `real` (oficial) | idem |
+| EAP 07 Complementares | SINAPI-cobre | `real` (oficial) | idem |
+| EAP 08 Canteiro/gerenc. | SINAPI-cobre | `real` (oficial) | idem |
+
+**Uma só composição é LSF-próprio: VK-C-001.** É o núcleo do produto e a única cuja incerteza é
+permanente. Todo o resto tem composição SINAPI oficial esperando (Task 4, atrás da Rota A). Isso
+também confirma, por outro caminho, o achado de que o R7 espera SINAPI e não dado da Veks.
+
 ## Conclusão
 
 Nada foi promovido a `real` (correto: isso é R6). Nenhum coeficiente estava **fora de faixa**,

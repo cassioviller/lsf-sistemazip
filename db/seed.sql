@@ -153,22 +153,22 @@ ON CONFLICT (insumo_id,data_base_id) DO UPDATE SET
 
 -- ---------- COMPOSIÇÕES PRÓPRIAS LSF (o que o SINAPI não cobre) ----------
 INSERT INTO composicao (fonte_id,codigo_fonte,descricao,unidade,grupo_eap,confianca,observacao)
- SELECT id,'VK-C-001','Montagem de estrutura LSF em painéis (perfis Ue/U), incl. fixações','kg','ESTRUTURA','estimado','coef. MO a calibrar em obra (R6)' FROM fonte WHERE sigla='VEKS'
+ SELECT id,'VK-C-001','Montagem de estrutura LSF em painéis (perfis Ue/U), incl. fixações','kg','ESTRUTURA','estimado','LSF-próprio (D7): SINAPI não cobre montagem de painel LSF. estimado PERMANENTE, faixa ±% (D4); proveniência via docs/06, nunca real por obra Veks (não há)' FROM fonte WHERE sigla='VEKS'
 ON CONFLICT (fonte_id,codigo_fonte) DO UPDATE SET
   descricao=excluded.descricao, unidade=excluded.unidade, grupo_eap=excluded.grupo_eap,
   confianca=excluded.confianca, observacao=excluded.observacao;
 INSERT INTO composicao (fonte_id,codigo_fonte,descricao,unidade,grupo_eap,confianca,observacao)
- SELECT id,'VK-C-002','Fechamento externo em OSB 11,1mm sobre estrutura LSF','m2','FECHAMENTO','estimado','' FROM fonte WHERE sigla='VEKS'
+ SELECT id,'VK-C-002','Fechamento externo em OSB 11,1mm sobre estrutura LSF','m2','FECHAMENTO','estimado','SINAPI-cobre (D7): migrar p/ composição oficial → real (Task 4, espera Rota A). docs/06' FROM fonte WHERE sigla='VEKS'
 ON CONFLICT (fonte_id,codigo_fonte) DO UPDATE SET
   descricao=excluded.descricao, unidade=excluded.unidade, grupo_eap=excluded.grupo_eap,
   confianca=excluded.confianca, observacao=excluded.observacao;
 INSERT INTO composicao (fonte_id,codigo_fonte,descricao,unidade,grupo_eap,confianca,observacao)
- SELECT id,'VK-C-003','Membrana hidrófuga aplicada sobre OSB','m2','FECHAMENTO','estimado','' FROM fonte WHERE sigla='VEKS'
+ SELECT id,'VK-C-003','Membrana hidrófuga aplicada sobre OSB','m2','FECHAMENTO','estimado','SINAPI-cobre (D7): migrar p/ composição oficial → real (Task 4, espera Rota A). docs/06' FROM fonte WHERE sigla='VEKS'
 ON CONFLICT (fonte_id,codigo_fonte) DO UPDATE SET
   descricao=excluded.descricao, unidade=excluded.unidade, grupo_eap=excluded.grupo_eap,
   confianca=excluded.confianca, observacao=excluded.observacao;
 INSERT INTO composicao (fonte_id,codigo_fonte,descricao,unidade,grupo_eap,confianca,observacao)
- SELECT id,'VK-C-004','Fechamento externo em placa cimentícia 10mm (parafusada)','m2','FECHAMENTO','estimado','' FROM fonte WHERE sigla='VEKS'
+ SELECT id,'VK-C-004','Fechamento externo em placa cimentícia 10mm (parafusada)','m2','FECHAMENTO','estimado','SINAPI-cobre (D7): placa 1,05 m²/m² já bate c/ SINAPI (docs/06). migrar p/ oficial → real (Task 4, espera Rota A)' FROM fonte WHERE sigla='VEKS'
 ON CONFLICT (fonte_id,codigo_fonte) DO UPDATE SET
   descricao=excluded.descricao, unidade=excluded.unidade, grupo_eap=excluded.grupo_eap,
   confianca=excluded.confianca, observacao=excluded.observacao;
@@ -432,7 +432,7 @@ ON CONFLICT (insumo_id,data_base_id) DO UPDATE SET
   preco=excluded.preco, confianca=excluded.confianca;
 
 INSERT INTO composicao (fonte_id,codigo_fonte,descricao,unidade,grupo_eap,confianca,observacao)
- SELECT id,'VK-C-005','Baldrame corrido em concreto armado p/ LSF (escav. manual incl. na MO)','m3','FUNDACAO','estimado','coef. ordem SINAPI: aço 60kg/m³, forma 6,7m²/m³ (30x40); calibrar R6' FROM fonte WHERE sigla='VEKS'
+ SELECT id,'VK-C-005','Baldrame corrido em concreto armado p/ LSF (escav. manual incl. na MO)','m3','FUNDACAO','estimado','SINAPI-cobre (D7): concreto/forma/aço são serviços SINAPI. forma 6,7m²/m³ = geometria exata 30x40 (docs/06); migrar p/ oficial → real (Task 4). ACOPLAMENTO: se a carga governar a largura, a forma/m³ cai — hoje conservador' FROM fonte WHERE sigla='VEKS'
 ON CONFLICT (fonte_id,codigo_fonte) DO UPDATE SET
   descricao=excluded.descricao, unidade=excluded.unidade, grupo_eap=excluded.grupo_eap,
   confianca=excluded.confianca, observacao=excluded.observacao;

@@ -142,7 +142,7 @@ Planos precisam de títulos de tarefa na forma literal `### Task N: <nome>` — 
 - Todo número derivado carrega origem e confiança — sem exceção.
 - Nenhuma fase N+1 começa sem o aceite da fase N (docs/02 §4) — e isso vence a execução contínua da SDD (ver acima).
 - Suíte inteira verde antes de qualquer commit (comando exato acima); novos motores ganham testes no mesmo commit. TDD de verdade: teste vermelho pelo motivo certo, depois verde.
-- Coeficientes e produtividades novos entram como `estimado` com fonte anotada; viram `real` só com calibração de obra (109.1506 e Baias Kabod são os casos de calibração).
+- Coeficientes e produtividades novos entram como `estimado` com fonte anotada. **Viram `real` só pela composição SINAPI oficial** (a Caixa é a referência nacional; a ponte grava preço SINAPI com `confianca='real'`), onde o SINAPI cobre o serviço — NÃO por calibração de obra da Veks, que não virá (a empresa não tem dados; ver topo de "Física e domínio"). Onde o SINAPI não cobre (LSF estrutural, VK-C-001 — D7), `estimado` é **permanente e honesto**, comunicado pela faixa ±% (D4). Dado público secundário (CBCA/fabricante/geometria, docs/06) melhora a proveniência do `estimado`, nunca o promove. Classificação por composição: docs/06; estratégia: `docs/superpowers/plans/2026-07-20-calibracao-sem-obra.md`.
 - Ao tocar em regra de engenharia (cargas, fundação, vento): anotar a referência normativa no código, como o v7 fazia (`origemRegra`).
 
 ## O que NÃO fazer
