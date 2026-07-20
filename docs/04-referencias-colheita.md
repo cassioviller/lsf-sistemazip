@@ -32,3 +32,10 @@ Pendência RESOLVIDA em 09/07/2026: pin = commit `0020609` (main); licenças ver
 | htmx 2.0.4 | BSD-2-Clause | sim (vendored em `app/static/`) | interatividade sem build step |
 
 Nenhuma GPL. Nenhuma sem licença. Todas permissivas → embutir é permitido.
+
+## Dependência da Fase 5 (verificada em 2026-07-18)
+
+| Pacote | Licença | Pode embutir? | Uso |
+|---|---|---|---|
+| python-docx 1.2.0 | MIT | sim | saída .docx da proposta (identidade Veks) |
+| ezdxf 1.4.4 | MIT | sim (já em uso desde o spike 1) | adaptador DXF → planta_normalizada |

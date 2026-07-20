@@ -38,3 +38,31 @@ def tela(
             "bdi_pct": visao.venda.bdi * 100,
         },
     )
+
+
+@router.get("/projetos/{projeto_id}/proposta.docx")
+def baixar_proposta_docx(projeto_id: int,
+                         con=Depends(conexao),
+                         usuario=Depends(usuario_logado)):
+    """Proposta .docx de TRABALHO (a congelada é o snapshot de /p/<token>)."""
+    from fastapi.responses import Response
+
+    from app.servicos.orcamento import montar
+    from lsf.relatorios import proposta_docx
+
+    projeto = con.execute(
+        "SELECT codigo, nome, cliente, sondagem_pendente FROM projeto"
+        " WHERE id = ?", (projeto_id,)).fetchone()
+    if projeto is None:
+        raise HTTPException(status_code=404, detail="projeto não existe")
+    visao = montar(con, projeto_id)
+    pendencias = [m for (m,) in con.execute(
+        "SELECT mensagem FROM pendencia WHERE projeto_id = ? ORDER BY id",
+        (projeto_id,))]
+    conteudo = proposta_docx(visao.venda, dict(projeto), pendencias)
+    return Response(
+        content=conteudo,
+        media_type=("application/vnd.openxmlformats-officedocument"
+                    ".wordprocessingml.document"),
+        headers={"Content-Disposition":
+                 f'attachment; filename="proposta_{projeto["codigo"]}.docx"'})

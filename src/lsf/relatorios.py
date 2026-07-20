@@ -222,3 +222,63 @@ def romaneio_csv(romaneio) -> str:
     w.writerow([])
     w.writerow(["kg total", str(romaneio.kg_total).replace(".", ",")])
     return saida.getvalue()
+
+
+def proposta_docx(venda, projeto: dict, pendencias_gate: list[str]) -> bytes:
+    """Proposta comercial em .docx com identidade Veks (python-docx, MIT —
+    docs/04). Documento de TRABALHO: a proposta congelada continua sendo o
+    snapshot publicado em /p/<token>; este .docx serve à negociação.
+
+    D4 na saída, como no HTML: item estimado/parametrico sai com faixa, nunca
+    valor seco; gates e sondagem aparecem como seção, não rodapé morto."""
+    import io as _io
+
+    from docx import Document
+    from docx.shared import Pt
+
+    doc = Document()
+    doc.add_heading("VEKS ENGENHARIA — Proposta de Orçamento", level=0)
+    doc.add_paragraph(
+        f"Obra: {projeto['nome']} (cód. {projeto['codigo']}) · Cliente:"
+        f" {projeto.get('cliente') or '—'}")
+    doc.add_paragraph(
+        f"Referência de preços: {venda.orcamento.referencia}"
+        f" · UF {venda.orcamento.uf or '—'}"
+        f" · {'desonerado' if venda.orcamento.desonerado else 'não desonerado'}")
+
+    tabela = doc.add_table(rows=1, cols=3)
+    cab = tabela.rows[0].cells
+    cab[0].text, cab[1].text, cab[2].text = "Macroetapa", "Custo direto", "Confiança"
+    for sub in venda.orcamento.subtotais:
+        linha = tabela.add_row().cells
+        linha[0].text = f"{sub.eap_codigo} — {sub.descricao}"
+        linha[1].text = ("—" if sub.custo is None
+                         else f"R$ {sub.custo:,.2f}".replace(",", "X")
+                         .replace(".", ",").replace("X", "."))
+        linha[2].text = sub.confianca or ("zerada" if sub.zerada else "—")
+
+    doc.add_paragraph("")
+    total = doc.add_paragraph()
+    r = total.add_run(
+        "PREÇO TOTAL (com BDI "
+        f"{venda.bdi * 100:.2f}%): "
+        + ("indisponível — há pendências" if venda.preco_total is None else
+           f"R$ {venda.preco_total:,.2f}".replace(",", "X")
+           .replace(".", ",").replace("X", ".")))
+    r.bold = True
+    r.font.size = Pt(14)
+
+    doc.add_heading("Condições e gates técnicos", level=1)
+    doc.add_paragraph(
+        "Este documento apresenta PRÉ-DIMENSIONAMENTO para fins de orçamento —"
+        " não substitui projeto executivo, ART ou verificação estrutural.")
+    if projeto.get("sondagem_pendente"):
+        doc.add_paragraph(
+            "• Sondagem PENDENTE: tensão de solo presumida (conservadora);"
+            " confirmar por sondagem SPT antes do contrato [NBR 6122/8036].")
+    for p in pendencias_gate:
+        doc.add_paragraph(f"• {p}")
+
+    buf = _io.BytesIO()
+    doc.save(buf)
+    return buf.getvalue()

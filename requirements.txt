@@ -1,0 +1,13 @@
+# Dependências de runtime + teste (licenças verificadas em docs/04 — todas
+# permissivas; nenhuma GPL embutida). O .venv deste workspace vem do nix store;
+# este arquivo é o REGISTRO reproduzível: `.venv/bin/python -m pip install -r
+# requirements.txt` reconstrói o ambiente.
+ezdxf==1.4.4            # MIT — adaptador DXF (spike 1 / Fase 5)
+fastapi==0.139.0        # MIT — casca web
+uvicorn==0.51.0         # BSD-3 — servidor ASGI
+jinja2==3.1.6           # BSD-3 — templates
+itsdangerous==2.2.0     # BSD-3 — assinatura de sessão
+python-multipart==0.0.32  # Apache-2.0 — formulários/upload
+python-docx==1.2.0      # MIT — proposta .docx (Fase 5)
+httpx==0.28.1           # BSD-3 — só teste (TestClient)
+pytest==9.1.1           # MIT — suíte

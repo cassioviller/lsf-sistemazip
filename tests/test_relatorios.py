@@ -114,3 +114,43 @@ def test_html_pendencia_visivel_e_total_nao_fecha(con, venda):
     html = relatorio_html(venda2)
     assert "NÃO FECHA" in html
     assert "96359" in html  # a pendência aparece no bloco de alertas
+
+
+def test_proposta_docx_com_identidade_e_gates(con, base, db_veks, id_de):
+    """Saída .docx (python-docx MIT, docs/04): identidade Veks, subtotais com
+    confiança e a seção de gates — disclaimer é seção, não rodapé morto."""
+    import io
+
+    import pytest
+    docx = pytest.importorskip("docx")
+
+    from lsf.motores.orcamento import (aplicar_bdi, carregar_parametros_bdi,
+                                       custo_direto_projeto)
+    from lsf.relatorios import proposta_docx
+
+    con.execute(
+        "INSERT INTO projeto (codigo, nome, cliente, referencia, uf, desonerado,"
+        " sondagem_pendente) VALUES ('DOCX-1', 'Obra Docx', 'Cliente', '2026-06',"
+        " 'SP', 0, 1)")
+    pid = con.execute("SELECT id FROM projeto WHERE codigo='DOCX-1'").fetchone()[0]
+    folha = con.execute("SELECT id FROM eap_item WHERE codigo='03.01'").fetchone()[0]
+    con.execute(
+        "INSERT INTO quantitativo (projeto_id, eap_item_id, quantidade, origem,"
+        " confianca) VALUES (?,?,1000,'MANUAL','real')", (pid, folha))
+    con.commit()
+
+    venda = aplicar_bdi(custo_direto_projeto(con, pid),
+                        carregar_parametros_bdi(con))
+    conteudo = proposta_docx(
+        venda, {"codigo": "DOCX-1", "nome": "Obra Docx", "cliente": "Cliente",
+                "sondagem_pendente": 1},
+        ["[PENDÊNCIA ESTRUTURAL] vão reprova"])
+
+    d = docx.Document(io.BytesIO(conteudo))
+    texto = "\n".join(p.text for p in d.paragraphs)
+    assert "VEKS ENGENHARIA" in texto
+    assert "Sondagem PENDENTE" in texto
+    assert "vão reprova" in texto
+    assert "PRÉ-DIMENSIONAMENTO" in texto
+    tabelas = d.tables[0]
+    assert any("03" in c.text for r in tabelas.rows for c in r.cells)
