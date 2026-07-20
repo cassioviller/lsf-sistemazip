@@ -4,11 +4,12 @@ from __future__ import annotations
 import sqlite3
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response
 
 from app.auth import usuario_logado
 from app.db import conexao
 from app.servicos.orcamento import montar
+from lsf.relatorios import proposta_docx
 
 router = APIRouter()
 
@@ -41,15 +42,15 @@ def tela(
 
 
 @router.get("/projetos/{projeto_id}/proposta.docx")
-def baixar_proposta_docx(projeto_id: int,
-                         con=Depends(conexao),
-                         usuario=Depends(usuario_logado)):
-    """Proposta .docx de TRABALHO (a congelada é o snapshot de /p/<token>)."""
-    from fastapi.responses import Response
+def baixar_proposta_docx(
+    projeto_id: int,
+    con: sqlite3.Connection = Depends(conexao),
+    usuario: dict = Depends(usuario_logado),
+):
+    """Proposta .docx de TRABALHO (a congelada é o snapshot de /p/<token>).
 
-    from app.servicos.orcamento import montar
-    from lsf.relatorios import proposta_docx
-
+    Não passa pelo gate do 409 de propósito: é o documento da negociação, e
+    carrega as pendências como seção. Preço fechado só sai por /publicar."""
     projeto = con.execute(
         "SELECT codigo, nome, cliente, sondagem_pendente FROM projeto"
         " WHERE id = ?", (projeto_id,)).fetchone()

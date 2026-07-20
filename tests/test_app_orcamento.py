@@ -73,3 +73,29 @@ def test_projeto_sem_quantitativo_nao_fecha_o_total(logado, con_app):
     assert visao.venda.preco_total is None      # D4.1: não fecha com pendência
     assert visao.pode_publicar is False
     assert "sem nenhum quantitativo" in " ".join(visao.pendencias)
+
+
+def test_docx_de_trabalho_baixa_e_esta_linkado(logado, projeto_com_quantitativo):
+    """A rota .docx existia sem link em template nenhum — só se chegava nela
+    digitando a URL. Este teste guarda os dois lados: o link na tela e o
+    arquivo servido com o content-type do Word."""
+    import io
+
+    docx = pytest.importorskip("docx")
+
+    tela = logado.get(f"/projetos/{projeto_com_quantitativo}/orcamento")
+    assert f"/projetos/{projeto_com_quantitativo}/proposta.docx" in tela.text
+
+    resposta = logado.get(f"/projetos/{projeto_com_quantitativo}/proposta.docx")
+    assert resposta.status_code == 200
+    assert "wordprocessingml" in resposta.headers["content-type"]
+    assert "109.1506" in resposta.headers["content-disposition"]
+
+    texto = "\n".join(
+        p.text for p in docx.Document(io.BytesIO(resposta.content)).paragraphs)
+    assert "VEKS ENGENHARIA" in texto
+    assert "Sondagem PENDENTE" in texto  # o projeto da fixture tem a flag
+
+
+def test_docx_de_projeto_inexistente_da_404(logado):
+    assert logado.get("/projetos/9999/proposta.docx").status_code == 404
